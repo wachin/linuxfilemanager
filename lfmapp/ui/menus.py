@@ -7,8 +7,10 @@ for common file management workflows.
 from pathlib import Path
 
 from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtGui import QAction, QIcon
+from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QMenu
+
+from lfmapp.ui.icons import app_icon
 
 
 class ContextMenu(QMenu):
@@ -51,22 +53,22 @@ class ContextMenu(QMenu):
     def _build_file_menu(self):
         """Build context menu for a file."""
         # Open section
-        self.addAction(QIcon.fromTheme("document-open"), self.tr("Open"), self._on_open)
+        self.addAction(app_icon("folder", "document-open", widget=self), self.tr("Open"), self._on_open)
         self.addAction(self.tr("Open with..."), self._on_open_with)
 
         self.addSeparator()
 
         # Clipboard section
-        self.addAction(QIcon.fromTheme("edit-cut"), self.tr("Cut"), self._on_cut)
-        self.addAction(QIcon.fromTheme("edit-copy"), self.tr("Copy"), self._on_copy)
+        self.addAction(app_icon(None, "edit-cut", widget=self), self.tr("Cut"), self._on_cut)
+        self.addAction(app_icon(None, "edit-copy", widget=self), self.tr("Copy"), self._on_copy)
         self.addAction(self.tr("Copy path"), self._on_copy_path)
 
         self.addSeparator()
 
         # File operations section
-        self.addAction(QIcon.fromTheme("document-save-as"), self.tr("Rename"), self._on_rename)
-        self.addAction(QIcon.fromTheme("edit-delete"), self.tr("Delete"), self._on_delete)
-        self.addAction(QIcon.fromTheme("user-trash"), self.tr("Move to Trash"), self._on_trash)
+        self.addAction(app_icon(None, "document-save-as", widget=self), self.tr("Rename"), self._on_rename)
+        self.addAction(app_icon(None, "edit-delete", widget=self), self.tr("Delete"), self._on_delete)
+        self.addAction(app_icon(None, "user-trash", widget=self), self.tr("Move to Trash"), self._on_trash)
 
         self.addSeparator()
 
@@ -79,26 +81,26 @@ class ContextMenu(QMenu):
         self.addSeparator()
 
         # Properties
-        self.addAction(QIcon.fromTheme("document-properties"), self.tr("Properties"), self._on_properties)
+        self.addAction(app_icon(None, "document-properties", widget=self), self.tr("Properties"), self._on_properties)
 
     def _build_folder_menu(self):
         """Build context menu for a folder."""
-        self.addAction(QIcon.fromTheme("document-open"), self.tr("Open"), self._on_open)
-        self.addAction(QIcon.fromTheme("utilities-terminal"), self.tr("Open in Terminal"), self._on_open_terminal)
+        self.addAction(app_icon("folder", "document-open", widget=self), self.tr("Open"), self._on_open)
+        self.addAction(app_icon(None, "utilities-terminal", widget=self), self.tr("Open in Terminal"), self._on_open_terminal)
 
         self.addSeparator()
 
         # Clipboard section
-        self.addAction(QIcon.fromTheme("edit-cut"), self.tr("Cut"), self._on_cut)
-        self.addAction(QIcon.fromTheme("edit-copy"), self.tr("Copy"), self._on_copy)
+        self.addAction(app_icon(None, "edit-cut", widget=self), self.tr("Cut"), self._on_cut)
+        self.addAction(app_icon(None, "edit-copy", widget=self), self.tr("Copy"), self._on_copy)
         self.addAction(self.tr("Copy path"), self._on_copy_path)
 
         self.addSeparator()
 
         # Folder operations
-        self.addAction(QIcon.fromTheme("document-save-as"), self.tr("Rename"), self._on_rename)
-        self.addAction(QIcon.fromTheme("edit-delete"), self.tr("Delete"), self._on_delete)
-        self.addAction(QIcon.fromTheme("user-trash"), self.tr("Move to Trash"), self._on_trash)
+        self.addAction(app_icon(None, "document-save-as", widget=self), self.tr("Rename"), self._on_rename)
+        self.addAction(app_icon(None, "edit-delete", widget=self), self.tr("Delete"), self._on_delete)
+        self.addAction(app_icon(None, "user-trash", widget=self), self.tr("Move to Trash"), self._on_trash)
 
         self.addSeparator()
 
@@ -111,11 +113,11 @@ class ContextMenu(QMenu):
         self.addSeparator()
 
         # Properties
-        self.addAction(QIcon.fromTheme("document-properties"), self.tr("Properties"), self._on_properties)
+        self.addAction(app_icon(None, "document-properties", widget=self), self.tr("Properties"), self._on_properties)
 
     def _build_empty_area_menu(self):
         """Build context menu for empty workspace area."""
-        self.addAction(QIcon.fromTheme("utilities-terminal"), self.tr("Open in Terminal"), self._on_open_terminal)
+        self.addAction(app_icon(None, "utilities-terminal", widget=self), self.tr("Open in Terminal"), self._on_open_terminal)
 
         self.addSeparator()
 
@@ -150,7 +152,7 @@ class ContextMenu(QMenu):
         self.addSeparator()
 
         self.addAction(self.tr("Paste"), self._on_paste)
-        self.addAction(QIcon.fromTheme("document-properties"), self.tr("Properties"), self._on_properties)
+        self.addAction(app_icon(None, "document-properties", widget=self), self.tr("Properties"), self._on_properties)
 
     def _on_open(self):
         self.openRequested.emit(self.path)

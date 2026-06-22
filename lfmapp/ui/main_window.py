@@ -77,6 +77,7 @@ from lfmapp.services import (
 from lfmapp.services.textindex_service import TextIndexService
 from lfmapp.ui.about_dialog import AboutDialog
 from lfmapp.ui.create_multiple_dialog import CreateMultipleDialog
+from lfmapp.ui.icons import app_icon
 from lfmapp.ui.property_dialog import AdvancedSecurityDialog, PropertyDialog
 from lfmapp.ui.preview_panel import PreviewPanel
 from lfmapp.ui.settings_controller import SettingsController
@@ -305,44 +306,44 @@ class MainWindow(QMainWindow):
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
 
-        self.back_action = QAction(QIcon.fromTheme("go-previous"), self.tr("Back"), self)
+        self.back_action = QAction(app_icon(None, "go-previous", widget=self), self.tr("Back"), self)
         self.back_action.triggered.connect(self.go_back)
         self.back_action.setEnabled(False)
         toolbar.addAction(self.back_action)
 
-        self.forward_action = QAction(QIcon.fromTheme("go-next"), self.tr("Forward"), self)
+        self.forward_action = QAction(app_icon(None, "go-next", widget=self), self.tr("Forward"), self)
         self.forward_action.triggered.connect(self.go_forward)
         self.forward_action.setEnabled(False)
         toolbar.addAction(self.forward_action)
 
-        self.up_action = QAction(QIcon.fromTheme("go-up"), self.tr("Up"), self)
+        self.up_action = QAction(app_icon(None, "go-up", widget=self), self.tr("Up"), self)
         self.up_action.triggered.connect(self.go_up)
         toolbar.addAction(self.up_action)
 
-        self.home_action = QAction(QIcon.fromTheme("go-home"), self.tr("Home"), self)
+        self.home_action = QAction(app_icon("folder", "go-home", widget=self), self.tr("Home"), self)
         self.home_action.triggered.connect(self.go_home)
         toolbar.addAction(self.home_action)
 
         toolbar.addSeparator()
 
-        self.properties_action = QAction(QIcon.fromTheme("document-properties"), self.tr("Properties"), self)
+        self.properties_action = QAction(app_icon(None, "document-properties", widget=self), self.tr("Properties"), self)
         self.properties_action.triggered.connect(self.show_context_properties)
         toolbar.addAction(self.properties_action)
 
-        self.quick_access_action = QAction(QIcon.fromTheme("emblem-favorite"), self.tr("Pin to Quick Access"), self)
+        self.quick_access_action = QAction(app_icon(None, "emblem-favorite", widget=self), self.tr("Pin to Quick Access"), self)
         self.quick_access_action.triggered.connect(self.toggle_quick_access_pin)
         toolbar.addAction(self.quick_access_action)
 
         toolbar.addSeparator()
 
         # View toggle actions
-        self.preview_action = QAction(QIcon.fromTheme("dialog-information"), self.tr("Preview"), self)
+        self.preview_action = QAction(app_icon(None, "dialog-information", widget=self), self.tr("Preview"), self)
         self.preview_action.setCheckable(True)
         self.preview_action.setChecked(self.config.preview_visible)
         self.preview_action.triggered.connect(self.toggle_preview)
         toolbar.addAction(self.preview_action)
 
-        self.sidebar_action = QAction(QIcon.fromTheme("view-sidebar"), self.tr("Sidebar"), self)
+        self.sidebar_action = QAction(app_icon(None, "view-sidebar", widget=self), self.tr("Sidebar"), self)
         self.sidebar_action.setCheckable(True)
         self.sidebar_action.setChecked(self.config.sidebar_visible)
         self.sidebar_action.triggered.connect(self.toggle_sidebar)
@@ -361,21 +362,21 @@ class MainWindow(QMainWindow):
         self.context_toolbar.addSeparator()
 
         self.context_actions = {
-            "open": QAction(QIcon.fromTheme("document-open"), self.tr("Open"), self),
+            "open": QAction(app_icon("folder", "document-open", widget=self), self.tr("Open"), self),
             "open_with": QAction(self.tr("Open with..."), self),
             "set_default": QAction(self.tr("Set default application..."), self),
-            "print": QAction(QIcon.fromTheme("document-print"), self.tr("Print"), self),
-            "preview": QAction(QIcon.fromTheme("dialog-information"), self.tr("Preview"), self),
-            "extract_here": QAction(QIcon.fromTheme("package-x-generic"), self.tr("Extract Here"), self),
+            "print": QAction(app_icon(None, "document-print", widget=self), self.tr("Print"), self),
+            "preview": QAction(app_icon(None, "dialog-information", widget=self), self.tr("Preview"), self),
+            "extract_here": QAction(app_icon(None, "package-x-generic", widget=self), self.tr("Extract Here"), self),
             "extract_to": QAction(self.tr("Extract to..."), self),
-            "compress": QAction(QIcon.fromTheme("package-x-generic"), self.tr("Compress to ZIP"), self),
+            "compress": QAction(app_icon(None, "package-x-generic", widget=self), self.tr("Compress to ZIP"), self),
             "advanced_security": QAction(
-                QIcon.fromTheme("document-properties"),
+                app_icon(None, "document-properties", widget=self),
                 self.tr("Advanced Security..."),
                 self,
             ),
-            "pin": QAction(QIcon.fromTheme("emblem-favorite"), self.tr("Pin to Quick Access"), self),
-            "properties": QAction(QIcon.fromTheme("document-properties"), self.tr("Properties"), self),
+            "pin": QAction(app_icon(None, "emblem-favorite", widget=self), self.tr("Pin to Quick Access"), self),
+            "properties": QAction(app_icon(None, "document-properties", widget=self), self.tr("Properties"), self),
         }
         self.context_actions["open"].triggered.connect(self.open_selected)
         self.context_actions["open_with"].triggered.connect(self.open_with_dialog)
