@@ -27,3 +27,6 @@ linuxfm-daemon = "lfm.daemon:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["lfm*"]
+
+[tool.setuptools.package-data]
+lfm = ["assets/icons/tabler/**/*.svg", "assets/icons/tabler/README.md"]
