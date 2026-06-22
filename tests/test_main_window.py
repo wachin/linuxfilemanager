@@ -284,6 +284,8 @@ class MainWindowMenuTests(unittest.TestCase):
                         "window_remember_size": True,
                         "window_width": 840,
                         "window_height": 560,
+                        "startup_location_mode": "custom",
+                        "startup_location_custom_path": tmpdir,
                         "ui_font_family": "DejaVu Sans",
                         "ui_font_size": 13,
                         "ui_font_weight": 700,
@@ -300,6 +302,8 @@ class MainWindowMenuTests(unittest.TestCase):
                 self.assertFalse(window.config.remember_folder_view)
                 self.assertEqual(window.config.window_width, 840)
                 self.assertEqual(window.config.window_height, 560)
+                self.assertEqual(window.config.startup_location_mode, "custom")
+                self.assertEqual(window.config.startup_location_custom_path, tmpdir)
                 self.assertEqual(window.config.ui_font_family, "DejaVu Sans")
                 self.assertEqual(window.config.ui_font_size, 13)
                 self.assertEqual(window.config.ui_font_weight, 700)
@@ -320,6 +324,51 @@ class MainWindowMenuTests(unittest.TestCase):
         self.assertIn("https://github.com/wachin/linuxfilemanager", text)
         self.assertIn("GPL3", text)
         self.assertIn("Washington Indacochea Delgado", text)
+
+    def test_startup_path_uses_custom_folder_when_configured(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                startup_folder = Path(tmpdir) / "startup"
+                startup_folder.mkdir()
+
+                cfg = config_module.Config()
+                cfg.set_startup_location_mode("custom")
+                cfg.set_startup_location_custom_path(str(startup_folder))
+
+                window = MainWindow()
+
+                self.assertEqual(window.workspace.current_path(), startup_folder)
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
+    def test_startup_path_falls_back_to_home_when_custom_folder_is_missing(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                cfg = config_module.Config()
+                cfg.set_startup_location_mode("custom")
+                cfg.set_startup_location_custom_path(str(Path(tmpdir) / "missing"))
+
+                window = MainWindow()
+
+                self.assertEqual(window.workspace.current_path(), Path.home())
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
 
 
 if __name__ == "__main__":

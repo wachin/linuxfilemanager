@@ -13,6 +13,36 @@ def _default_bookmarks():
     ]
 
 
+def _default_config_data():
+    return {
+        "bookmarks": _default_bookmarks(),
+        "text_index_enabled": False,
+        "remember_folder_view": True,
+        "selection_checkboxes": False,
+        "show_hidden_files": True,
+        "show_file_extensions": True,
+        "icon_grid_size": "medium",
+        "extensions_enabled": False,
+        "enabled_extensions": [],
+        "sidebar_visible": True,
+        "preview_visible": True,
+        "window_remember_size": True,
+        "window_width": 980,
+        "window_height": 620,
+        "ui_font_family": "",
+        "ui_font_size": 10,
+        "ui_font_weight": 400,
+        "ui_font_italic": False,
+        "last_visited": None,
+        "startup_location_mode": "last_visited",
+        "startup_location_custom_path": "",
+        "recent_locations": [],
+        "recent_files": [],
+        "folder_visit_counts": {},
+        "folder_views": {},
+    }
+
+
 class Config:
     def __init__(self):
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -28,56 +58,12 @@ class Config:
                     return data
                 if isinstance(data, list):
                     # Migrate old-format bookmarks list to new dict shape
-                    return {
-                        "bookmarks": data,
-                        "text_index_enabled": False,
-                        "remember_folder_view": True,
-                        "selection_checkboxes": False,
-                        "show_hidden_files": True,
-                        "show_file_extensions": True,
-                        "icon_grid_size": "medium",
-                        "extensions_enabled": False,
-                        "enabled_extensions": [],
-                        "window_remember_size": True,
-                        "window_width": 980,
-                        "window_height": 620,
-                        "ui_font_family": "",
-                        "ui_font_size": 10,
-                        "ui_font_weight": 400,
-                        "ui_font_italic": False,
-                        "last_visited": None,
-                        "recent_locations": [],
-                        "recent_files": [],
-                        "folder_visit_counts": {},
-                        "folder_views": {},
-                    }
+                    defaults = _default_config_data()
+                    defaults["bookmarks"] = data
+                    return defaults
             except Exception:
                 pass
-        return {
-            "bookmarks": _default_bookmarks(),
-            "text_index_enabled": False,
-            "remember_folder_view": True,
-            "selection_checkboxes": False,
-            "show_hidden_files": True,
-            "show_file_extensions": True,
-            "icon_grid_size": "medium",
-            "extensions_enabled": False,
-            "enabled_extensions": [],
-            "sidebar_visible": True,
-            "preview_visible": True,
-            "window_remember_size": True,
-            "window_width": 980,
-            "window_height": 620,
-            "ui_font_family": "",
-            "ui_font_size": 10,
-            "ui_font_weight": 400,
-            "ui_font_italic": False,
-            "last_visited": None,
-            "recent_locations": [],
-            "recent_files": [],
-            "folder_visit_counts": {},
-            "folder_views": {},
-        }
+        return _default_config_data()
 
     def save(self):
         CONFIG_FILE.write_text(
@@ -128,6 +114,29 @@ class Config:
 
     def set_last_visited(self, path: str | None):
         self.data["last_visited"] = str(path) if path is not None else None
+        self.save()
+
+    @property
+    def startup_location_mode(self) -> str:
+        mode = str(self.data.setdefault("startup_location_mode", "last_visited"))
+        if mode not in {"home", "last_visited", "custom"}:
+            return "last_visited"
+        return mode
+
+    def set_startup_location_mode(self, mode: str):
+        mode = str(mode or "").strip().lower()
+        if mode not in {"home", "last_visited", "custom"}:
+            return
+        self.data["startup_location_mode"] = mode
+        self.save()
+
+    @property
+    def startup_location_custom_path(self) -> str:
+        path = self.data.setdefault("startup_location_custom_path", "")
+        return str(path) if path is not None else ""
+
+    def set_startup_location_custom_path(self, path: str):
+        self.data["startup_location_custom_path"] = str(path or "")
         self.save()
 
     @property

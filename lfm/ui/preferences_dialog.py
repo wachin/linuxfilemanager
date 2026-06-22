@@ -1,5 +1,6 @@
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
+    QFileDialog,
     QCheckBox,
     QComboBox,
     QDialog,
@@ -9,6 +10,8 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
+    QPushButton,
     QSpinBox,
     QVBoxLayout,
     QWidget,
@@ -21,6 +24,11 @@ class PreferencesDialog(QDialog):
         ("Bold", 700, False),
         ("Italic", 400, True),
         ("Bold Italic", 700, True),
+    ]
+    STARTUP_LOCATION_OPTIONS = [
+        ("Home folder", "home"),
+        ("Last visited folder", "last_visited"),
+        ("Custom folder", "custom"),
     ]
 
     def __init__(self, config, terminal_service, parent=None):
@@ -90,8 +98,30 @@ class PreferencesDialog(QDialog):
         window_size_layout.addWidget(QLabel("x", self))
         window_size_layout.addWidget(self.window_height_spin)
 
+        self.startup_location_combo = QComboBox(self)
+        for label, value in self.STARTUP_LOCATION_OPTIONS:
+            self.startup_location_combo.addItem(self.tr(label), value)
+        self.startup_location_combo.currentIndexChanged.connect(
+            self._update_startup_location_controls
+        )
+
+        startup_folder_row = QWidget(self)
+        startup_folder_layout = QHBoxLayout(startup_folder_row)
+        startup_folder_layout.setContentsMargins(0, 0, 0, 0)
+        startup_folder_layout.setSpacing(8)
+
+        self.startup_custom_path_edit = QLineEdit(self)
+        self.startup_custom_path_edit.setPlaceholderText(self.tr("Select a startup folder"))
+        self.startup_custom_path_button = QPushButton(self.tr("Browse..."), self)
+        self.startup_custom_path_button.clicked.connect(self._browse_startup_folder)
+
+        startup_folder_layout.addWidget(self.startup_custom_path_edit)
+        startup_folder_layout.addWidget(self.startup_custom_path_button)
+
         layout.addRow(self.remember_window_size_checkbox)
         layout.addRow(self.tr("Default size"), window_size_row)
+        layout.addRow(self.tr("Startup location"), self.startup_location_combo)
+        layout.addRow(self.tr("Custom startup folder"), startup_folder_row)
         return group
 
     def _build_font_group(self):
@@ -147,6 +177,11 @@ class PreferencesDialog(QDialog):
         self.remember_window_size_checkbox.setChecked(self.config.window_remember_size)
         self.window_width_spin.setValue(self.config.window_width)
         self.window_height_spin.setValue(self.config.window_height)
+        startup_index = self.startup_location_combo.findData(self.config.startup_location_mode)
+        if startup_index >= 0:
+            self.startup_location_combo.setCurrentIndex(startup_index)
+        self.startup_custom_path_edit.setText(self.config.startup_location_custom_path)
+        self._update_startup_location_controls()
 
         font = QFont()
         if self.config.ui_font_family.strip():
@@ -173,6 +208,20 @@ class PreferencesDialog(QDialog):
         font = self.selected_font()
         self.font_preview_label.setFont(font)
 
+    def _update_startup_location_controls(self):
+        is_custom = self.startup_location_combo.currentData() == "custom"
+        self.startup_custom_path_edit.setEnabled(is_custom)
+        self.startup_custom_path_button.setEnabled(is_custom)
+
+    def _browse_startup_folder(self):
+        directory = QFileDialog.getExistingDirectory(
+            self,
+            self.tr("Choose Startup Folder"),
+            self.startup_custom_path_edit.text().strip() or "",
+        )
+        if directory:
+            self.startup_custom_path_edit.setText(directory)
+
     def selected_font(self):
         font = QFont(self.font_family_combo.currentFont())
         _label, weight, italic = self.STYLE_OPTIONS[self.font_style_combo.currentIndex()]
@@ -193,6 +242,8 @@ class PreferencesDialog(QDialog):
             "window_remember_size": self.remember_window_size_checkbox.isChecked(),
             "window_width": self.window_width_spin.value(),
             "window_height": self.window_height_spin.value(),
+            "startup_location_mode": self.startup_location_combo.currentData(),
+            "startup_location_custom_path": self.startup_custom_path_edit.text().strip(),
             "ui_font_family": font.family(),
             "ui_font_size": font.pointSize(),
             "ui_font_weight": font.weight(),

@@ -282,6 +282,15 @@ class MainWindow(QMainWindow):
 
     def _startup_path(self) -> Path:
         """Return the first folder to show without forcing a second model load."""
+        mode = self.config.startup_location_mode
+        if mode == "home":
+            return Path.home()
+        if mode == "custom":
+            custom_path = self.config.startup_location_custom_path
+            if custom_path:
+                custom_location = Path(custom_path).expanduser()
+                if custom_location.exists() and custom_location.is_dir():
+                    return custom_location
         last_path = self.config.last_visited
         if last_path:
             last_location = Path(last_path).expanduser()

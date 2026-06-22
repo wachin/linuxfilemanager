@@ -100,6 +100,10 @@ class SettingsController:
             preferences["window_width"],
             preferences["window_height"],
         )
+        self.set_startup_location_preferences(
+            preferences["startup_location_mode"],
+            preferences["startup_location_custom_path"],
+        )
         self.set_font_preferences(
             preferences["ui_font_family"],
             preferences["ui_font_size"],
@@ -163,6 +167,10 @@ class SettingsController:
         self.config.set_window_remember_size(remember_size)
         self.config.set_window_size(width, height)
         self.window.resize(width, height)
+
+    def set_startup_location_preferences(self, mode: str, custom_path: str):
+        self.config.set_startup_location_mode(mode)
+        self.config.set_startup_location_custom_path(custom_path)
 
     def set_font_preferences(
         self,

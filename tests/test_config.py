@@ -168,6 +168,19 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(cfg2.ui_font_weight, 700)
         self.assertTrue(cfg2.ui_font_italic)
 
+    def test_startup_location_preferences_persist(self):
+        cfg = config_module.Config()
+
+        self.assertEqual(cfg.startup_location_mode, "last_visited")
+        self.assertEqual(cfg.startup_location_custom_path, "")
+
+        cfg.set_startup_location_mode("custom")
+        cfg.set_startup_location_custom_path("/tmp/start-here")
+
+        cfg2 = config_module.Config()
+        self.assertEqual(cfg2.startup_location_mode, "custom")
+        self.assertEqual(cfg2.startup_location_custom_path, "/tmp/start-here")
+
 
 if __name__ == "__main__":
     unittest.main()

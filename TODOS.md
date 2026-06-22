@@ -8,7 +8,7 @@ Purpose: keep only forward-looking tasks that are suitable for issues and increm
 - Use labels such as `feature`, `cleanup`, `ux`, `tests`, and `good-first-issue`.
 
 ## Workflow and UX tasks
-- [ ] Startup location preference: let users choose `Home`, `Last visited`, or a fixed custom folder.
+- [x] Startup location preference: let users choose `Home`, `Last visited`, or a fixed custom folder.
 - [ ] Quick Access reset/restore action: restore default known folders after users unpin them.
 - [ ] Per-folder details columns persistence: remember visible columns, widths, and order in Details view.
 - [ ] Better conflict resolution dialog for copy/move: replace/skip/rename/apply to all.
