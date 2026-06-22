@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "linuxfilemanager"
+version = "0.1.0"
+description = "Lightweight file manager for Linux built with PyQt6"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["PyQt6>=6.0"]
+authors = [{name = "Linux File Manager contributors"}]
+license = {text = "GPL-3.0-or-later"}
+
+[project.urls]
+Homepage = "https://github.com/wachin/linuxfilemanager"
+Repository = "https://github.com/wachin/linuxfilemanager"
+Issues = "https://github.com/wachin/linuxfilemanager/issues"
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+linuxfm = "lfm.app:main"
+linuxfm-daemon = "lfm.daemon:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["lfm*"]

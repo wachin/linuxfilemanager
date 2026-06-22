@@ -1,0 +1,27 @@
+#!/usr/bin/make -f
+
+export DH_VERBOSE=1
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	if ls translations/app_*.ts >/dev/null 2>&1; then \
+	  (command -v lrelease-qt6 >/dev/null && lrelease-qt6 translations/app_*.ts) || \
+	  (command -v lrelease >/dev/null && lrelease translations/app_*.ts) || true; \
+	fi
+
+override_dh_auto_install:
+	install -d debian/linux-file-manager/usr/lib/python3/dist-packages
+	cp -R --no-preserve=ownership lfm debian/linux-file-manager/usr/lib/python3/dist-packages/
+	find debian/linux-file-manager/usr/lib/python3/dist-packages/lfm -name __pycache__ -type d -prune -exec rm -rf {} +
+	find debian/linux-file-manager/usr/lib/python3/dist-packages/lfm -name '*.pyc' -delete
+	install -D -m0755 debian/linuxfm debian/linux-file-manager/usr/bin/linuxfm
+	install -D -m0644 debian/linux-file-manager.desktop debian/linux-file-manager/usr/share/applications/linux-file-manager.desktop
+	install -D -m0644 debian/linux-file-manager.metainfo.xml debian/linux-file-manager/usr/share/metainfo/linux-file-manager.metainfo.xml
+	install -D -m0644 data/icons/linux-file-manager.svg debian/linux-file-manager/usr/share/icons/hicolor/scalable/apps/linux-file-manager.svg
+	install -D -m0644 debian/linuxfm.1 debian/linux-file-manager/usr/share/man/man1/linuxfm.1
+	if ls translations/app_*.qm >/dev/null 2>&1; then \
+	  install -d debian/linux-file-manager/usr/share/linux-file-manager/i18n; \
+	  install -m0644 translations/app_*.qm debian/linux-file-manager/usr/share/linux-file-manager/i18n/; \
+	fi

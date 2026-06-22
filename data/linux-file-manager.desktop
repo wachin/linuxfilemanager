@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Linux File Manager
+Comment=Lightweight file manager
+Exec=linuxfm %U
+Icon=linux-file-manager
+Terminal=false
+Categories=System;FileManager;FileTools;
+MimeType=inode/directory;
+StartupNotify=true

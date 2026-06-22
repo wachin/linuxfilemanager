@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.wachin.LinuxFileManager</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>Linux File Manager</name>
+  <summary>Lightweight file manager for Linux</summary>
+  <description>
+    <p>
+      Linux File Manager is a lightweight PyQt6 file manager with common file
+      browsing workflows, bookmarks, trash integration, previews, search,
+      archive extraction, tagging, and a basic hidden-folder vault.
+    </p>
+  </description>
+  <launchable type="desktop-id">linux-file-manager.desktop</launchable>
+  <content_rating type="oars-1.1" />
+  <provides>
+    <binary>linuxfm</binary>
+  </provides>
+  <categories>
+    <category>Utility</category>
+    <category>FileManager</category>
+  </categories>
+  <url type="homepage">https://github.com/wachin/linuxfilemanager</url>
+  <releases>
+    <release version="0.1.0" date="2026-05-20" />
+  </releases>
+</component>

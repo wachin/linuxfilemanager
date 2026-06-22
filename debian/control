@@ -1,0 +1,49 @@
+Source: linux-file-manager
+Section: utils
+Priority: optional
+Maintainer: linufilemanager contributors <maintainers@example.invalid>
+Build-Depends:
+ debhelper-compat (= 13),
+ dh-sequence-python3,
+ python3-all,
+ python3-setuptools,
+ pyqt6-dev-tools,
+ qt6-tools-dev-tools
+Standards-Version: 4.7.3
+Rules-Requires-Root: no
+Homepage: https://github.com/wachin/linuxfilemanager
+
+Package: linux-file-manager
+Architecture: all
+Depends:
+ ${misc:Depends},
+ ${python3:Depends},
+ binutils,
+ desktop-file-utils,
+ gvfs,
+ gvfs-backends,
+ gvfs-common,
+ gvfs-daemons,
+ gvfs-fuse,
+ gvfs-libs,
+ python3-pyqt6,
+ python3-pyqt6.qtsvg,
+ shared-mime-info,
+ xdg-utils
+Recommends:
+ cifs-utils,
+ davfs2,
+ nfs-common,
+ p7zip-full,
+ qt6-translations-l10n,
+ sshfs,
+ unrar-free,
+ unzip,
+ zip
+Suggests:
+ qt6ct,
+ qt6-style-kvantum
+Description: lightweight PyQt6 file manager for Linux
+ linux-file-manager is a lightweight file manager written in Python and PyQt6.
+ It provides common file browsing workflows, bookmarks, trash integration,
+ previews, search, archive extraction, tagging, and a basic hidden-folder vault.
