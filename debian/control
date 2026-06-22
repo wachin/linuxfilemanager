@@ -28,6 +28,7 @@ Depends:
  gvfs-libs,
  python3-pyqt6,
  python3-pyqt6.qtsvg,
+ qt6ct,
  shared-mime-info,
  xdg-utils
 Recommends:
@@ -41,7 +42,6 @@ Recommends:
  unzip,
  zip
 Suggests:
- qt6ct,
  qt6-style-kvantum
 Description: lightweight PyQt6 file manager for Linux
  linux-file-manager is a lightweight file manager written in Python and PyQt6.

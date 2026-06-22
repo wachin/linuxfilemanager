@@ -38,6 +38,7 @@ class DebianPackagingTests(unittest.TestCase):
         self.assertIn("debhelper-compat (= 13)", control)
         self.assertIn("python3-pyqt6", control)
         self.assertIn("python3-pyqt6.qtsvg", control)
+        self.assertIn("qt6ct", control)
         self.assertIn("gvfs", control)
         self.assertIn("gvfs-backends", control)
         self.assertIn("gvfs-common", control)

@@ -53,6 +53,7 @@ Recommended desktop integration packages on Debian 12 / MX Linux 23:
 sudo apt update
 sudo apt install \
   python3 python3-pyqt6 python3-pyqt6.qtsvg \
+  qt6ct \
   xdg-utils shared-mime-info desktop-file-utils \
   gvfs gvfs-common gvfs-daemons gvfs-fuse gvfs-libs gvfs-backends \
   cifs-utils nfs-common sshfs davfs2 \
@@ -65,7 +66,19 @@ These packages enable:
 - desktop file and MIME integration
 - network locations such as SMB, SFTP, WebDAV, and mounted shares
 - practical ZIP, 7z, RAR, TAR, and `.deb` handling
+- Qt 6 icon-theme selection through `qt6ct`
 - Qt translation support where available
+
+## How to change the icon theme for Linux File Manager
+
+To change the icon theme for Linux File Manager when using Qt 6 theme icons:
+
+1. Run `qt6ct`.
+2. Open the `Icon theme` tab and wait for the installed themes to load.
+3. Choose a theme and click `Apply`.
+4. Close Linux File Manager and open it again.
+
+The application will then use the selected system icon theme.
 
 ## Quick Start
 
