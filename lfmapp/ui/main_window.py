@@ -19,7 +19,7 @@ from pathlib import Path
 import subprocess
 
 from PyQt6.QtCore import QDir, Qt
-from PyQt6.QtGui import QAction, QActionGroup, QIcon, QKeySequence, QShortcut
+from PyQt6.QtGui import QAction, QActionGroup, QKeySequence, QShortcut
 from PyQt6.QtGui import QTextDocument
 from PyQt6.QtWidgets import (
     QApplication,
@@ -306,44 +306,44 @@ class MainWindow(QMainWindow):
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
 
-        self.back_action = QAction(app_icon(None, "go-previous", widget=self), self.tr("Back"), self)
+        self.back_action = QAction(app_icon("go-previous", "arrow-left"), self.tr("Back"), self)
         self.back_action.triggered.connect(self.go_back)
         self.back_action.setEnabled(False)
         toolbar.addAction(self.back_action)
 
-        self.forward_action = QAction(app_icon(None, "go-next", widget=self), self.tr("Forward"), self)
+        self.forward_action = QAction(app_icon("go-next", "arrow-right"), self.tr("Forward"), self)
         self.forward_action.triggered.connect(self.go_forward)
         self.forward_action.setEnabled(False)
         toolbar.addAction(self.forward_action)
 
-        self.up_action = QAction(app_icon(None, "go-up", widget=self), self.tr("Up"), self)
+        self.up_action = QAction(app_icon("go-up", "arrow-up"), self.tr("Up"), self)
         self.up_action.triggered.connect(self.go_up)
         toolbar.addAction(self.up_action)
 
-        self.home_action = QAction(app_icon("folder", "go-home", widget=self), self.tr("Home"), self)
+        self.home_action = QAction(app_icon("go-home", "user-home"), self.tr("Home"), self)
         self.home_action.triggered.connect(self.go_home)
         toolbar.addAction(self.home_action)
 
         toolbar.addSeparator()
 
-        self.properties_action = QAction(app_icon(None, "document-properties", widget=self), self.tr("Properties"), self)
+        self.properties_action = QAction(app_icon("document-properties", "settings"), self.tr("Properties"), self)
         self.properties_action.triggered.connect(self.show_context_properties)
         toolbar.addAction(self.properties_action)
 
-        self.quick_access_action = QAction(app_icon(None, "emblem-favorite", widget=self), self.tr("Pin to Quick Access"), self)
+        self.quick_access_action = QAction(app_icon("emblem-favorite", "bookmark-new"), self.tr("Pin to Quick Access"), self)
         self.quick_access_action.triggered.connect(self.toggle_quick_access_pin)
         toolbar.addAction(self.quick_access_action)
 
         toolbar.addSeparator()
 
         # View toggle actions
-        self.preview_action = QAction(app_icon(None, "dialog-information", widget=self), self.tr("Preview"), self)
+        self.preview_action = QAction(app_icon("dialog-information", "view-preview"), self.tr("Preview"), self)
         self.preview_action.setCheckable(True)
         self.preview_action.setChecked(self.config.preview_visible)
         self.preview_action.triggered.connect(self.toggle_preview)
         toolbar.addAction(self.preview_action)
 
-        self.sidebar_action = QAction(app_icon(None, "view-sidebar", widget=self), self.tr("Sidebar"), self)
+        self.sidebar_action = QAction(app_icon("view-sidebar"), self.tr("Sidebar"), self)
         self.sidebar_action.setCheckable(True)
         self.sidebar_action.setChecked(self.config.sidebar_visible)
         self.sidebar_action.triggered.connect(self.toggle_sidebar)
@@ -362,21 +362,21 @@ class MainWindow(QMainWindow):
         self.context_toolbar.addSeparator()
 
         self.context_actions = {
-            "open": QAction(app_icon("folder", "document-open", widget=self), self.tr("Open"), self),
+            "open": QAction(app_icon("document-open", "folder-open"), self.tr("Open"), self),
             "open_with": QAction(self.tr("Open with..."), self),
             "set_default": QAction(self.tr("Set default application..."), self),
-            "print": QAction(app_icon(None, "document-print", widget=self), self.tr("Print"), self),
-            "preview": QAction(app_icon(None, "dialog-information", widget=self), self.tr("Preview"), self),
-            "extract_here": QAction(app_icon(None, "package-x-generic", widget=self), self.tr("Extract Here"), self),
+            "print": QAction(app_icon("document-print", "printer"), self.tr("Print"), self),
+            "preview": QAction(app_icon("dialog-information", "view-preview"), self.tr("Preview"), self),
+            "extract_here": QAction(app_icon("package-x-generic", "archive-extract"), self.tr("Extract Here"), self),
             "extract_to": QAction(self.tr("Extract to..."), self),
-            "compress": QAction(app_icon(None, "package-x-generic", widget=self), self.tr("Compress to ZIP"), self),
+            "compress": QAction(app_icon("package-x-generic", "folder-compressed"), self.tr("Compress to ZIP"), self),
             "advanced_security": QAction(
-                app_icon(None, "document-properties", widget=self),
+                app_icon("document-properties", "security-medium"),
                 self.tr("Advanced Security..."),
                 self,
             ),
-            "pin": QAction(app_icon(None, "emblem-favorite", widget=self), self.tr("Pin to Quick Access"), self),
-            "properties": QAction(app_icon(None, "document-properties", widget=self), self.tr("Properties"), self),
+            "pin": QAction(app_icon("emblem-favorite", "bookmark-new"), self.tr("Pin to Quick Access"), self),
+            "properties": QAction(app_icon("document-properties", "settings"), self.tr("Properties"), self),
         }
         self.context_actions["open"].triggered.connect(self.open_selected)
         self.context_actions["open_with"].triggered.connect(self.open_with_dialog)
@@ -1105,14 +1105,14 @@ class MainWindow(QMainWindow):
         menu.exec(self.workspace.viewport().mapToGlobal(pos))
 
     def _build_file_context_menu(self, menu: QMenu, path: Path):
-        menu.addAction(app_icon("folder", "document-open", widget=self), self.tr("Open"), self.open_selected)
+        menu.addAction(app_icon("document-open", "folder-open"), self.tr("Open"), self.open_selected)
         menu.addAction(self.tr("Open with..."), self.open_with_dialog)
         menu.addAction(self.tr("Set default application..."), self.set_default_application_dialog)
         menu.addSeparator()
-        menu.addAction(app_icon(None, "utilities-terminal", widget=self), self.tr("Open in Terminal"), lambda: self.open_terminal_in_directory(path.parent))
+        menu.addAction(app_icon("utilities-terminal", "terminal"), self.tr("Open in Terminal"), lambda: self.open_terminal_in_directory(path.parent))
         menu.addSeparator()
-        menu.addAction(app_icon(None, "edit-cut", widget=self), self.tr("Cut"), self.cut_selected)
-        menu.addAction(app_icon(None, "edit-copy", widget=self), self.tr("Copy"), self.copy_selected)
+        menu.addAction(app_icon("edit-cut"), self.tr("Cut"), self.cut_selected)
+        menu.addAction(app_icon("edit-copy"), self.tr("Copy"), self.copy_selected)
         menu.addAction(self.tr("Copy path"), self.copy_path)
         menu.addAction(self.tr("Copy to..."), self.copy_selected_to)
         menu.addAction(self.tr("Move to..."), self.move_selected_to)
@@ -1124,22 +1124,22 @@ class MainWindow(QMainWindow):
         menu.addSeparator()
         self._add_share_with_menu(menu, path)
         menu.addSeparator()
-        menu.addAction(app_icon(None, "document-print", widget=self), self.tr("Print"), self.print_selected)
+        menu.addAction(app_icon("document-print", "printer"), self.tr("Print"), self.print_selected)
         menu.addSeparator()
 
         # Archive extraction
         if is_archive(path):
-            menu.addAction(app_icon(None, "package-x-generic", widget=self), self.tr("Extract Here"), lambda: self.extract_archive(path))
+            menu.addAction(app_icon("package-x-generic", "archive-extract"), self.tr("Extract Here"), lambda: self.extract_archive(path))
             menu.addAction(self.tr("Extract to..."), lambda: self.extract_archive_to(path))
             menu.addSeparator()
 
         # Compress to ZIP
-        menu.addAction(app_icon(None, "package-x-generic", widget=self), self.tr("Compress to ZIP"), lambda: self.compress_to_zip(path))
-        menu.addAction(app_icon(None, "document-properties", widget=self), self.tr("Advanced Security..."), self.show_advanced_security)
+        menu.addAction(app_icon("package-x-generic", "folder-compressed"), self.tr("Compress to ZIP"), lambda: self.compress_to_zip(path))
+        menu.addAction(app_icon("document-properties", "security-medium"), self.tr("Advanced Security..."), self.show_advanced_security)
 
-        menu.addAction(app_icon(None, "document-save-as", widget=self), self.tr("Rename"), self.rename_selected_dialog)
-        menu.addAction(app_icon(None, "user-trash", widget=self), self.tr("Move to Trash"), self.trash_selected)
-        menu.addAction(app_icon(None, "edit-delete", widget=self), self.tr("Delete Permanently"), self.delete_selected)
+        menu.addAction(app_icon("document-save-as", "edit-rename"), self.tr("Rename"), self.rename_selected_dialog)
+        menu.addAction(app_icon("user-trash", "trash-empty"), self.tr("Move to Trash"), self.trash_selected)
+        menu.addAction(app_icon("edit-delete"), self.tr("Delete Permanently"), self.delete_selected)
         menu.addSeparator()
 
         # Tags submenu
@@ -1154,14 +1154,14 @@ class MainWindow(QMainWindow):
                 )
 
         menu.addSeparator()
-        menu.addAction(app_icon(None, "document-properties", widget=self), self.tr("Properties"), self.show_properties)
+        menu.addAction(app_icon("document-properties", "settings"), self.tr("Properties"), self.show_properties)
 
     def _build_folder_context_menu(self, menu: QMenu, path: Path):
-        menu.addAction(app_icon("folder", "document-open", widget=self), self.tr("Open"), self.open_selected)
-        menu.addAction(app_icon(None, "utilities-terminal", widget=self), self.tr("Open in Terminal"), lambda: self.open_terminal_in_directory(path))
+        menu.addAction(app_icon("document-open", "folder-open"), self.tr("Open"), self.open_selected)
+        menu.addAction(app_icon("utilities-terminal", "terminal"), self.tr("Open in Terminal"), lambda: self.open_terminal_in_directory(path))
         menu.addSeparator()
-        menu.addAction(app_icon(None, "edit-cut", widget=self), self.tr("Cut"), self.cut_selected)
-        menu.addAction(app_icon(None, "edit-copy", widget=self), self.tr("Copy"), self.copy_selected)
+        menu.addAction(app_icon("edit-cut"), self.tr("Cut"), self.cut_selected)
+        menu.addAction(app_icon("edit-copy"), self.tr("Copy"), self.copy_selected)
         menu.addAction(self.tr("Copy path"), self.copy_path)
         menu.addAction(self.tr("Copy to..."), self.copy_selected_to)
         menu.addAction(self.tr("Move to..."), self.move_selected_to)
@@ -1173,16 +1173,16 @@ class MainWindow(QMainWindow):
         menu.addSeparator()
         self._add_share_with_menu(menu, path)
         menu.addSeparator()
-        menu.addAction(app_icon(None, "document-print", widget=self), self.tr("Print"), self.print_selected)
+        menu.addAction(app_icon("document-print", "printer"), self.tr("Print"), self.print_selected)
         menu.addSeparator()
 
         # Compress to ZIP
-        menu.addAction(app_icon(None, "package-x-generic", widget=self), self.tr("Compress to ZIP"), lambda: self.compress_to_zip(path))
-        menu.addAction(app_icon(None, "document-properties", widget=self), self.tr("Advanced Security..."), self.show_advanced_security)
+        menu.addAction(app_icon("package-x-generic", "folder-compressed"), self.tr("Compress to ZIP"), lambda: self.compress_to_zip(path))
+        menu.addAction(app_icon("document-properties", "security-medium"), self.tr("Advanced Security..."), self.show_advanced_security)
 
-        menu.addAction(app_icon(None, "document-save-as", widget=self), self.tr("Rename"), self.rename_selected_dialog)
-        menu.addAction(app_icon(None, "user-trash", widget=self), self.tr("Move to Trash"), self.trash_selected)
-        menu.addAction(app_icon(None, "edit-delete", widget=self), self.tr("Delete Permanently"), self.delete_selected)
+        menu.addAction(app_icon("document-save-as", "edit-rename"), self.tr("Rename"), self.rename_selected_dialog)
+        menu.addAction(app_icon("user-trash", "trash-empty"), self.tr("Move to Trash"), self.trash_selected)
+        menu.addAction(app_icon("edit-delete"), self.tr("Delete Permanently"), self.delete_selected)
         menu.addSeparator()
 
         new_menu = menu.addMenu(self.tr("New"))
@@ -1192,12 +1192,12 @@ class MainWindow(QMainWindow):
         menu.addSeparator()
 
         menu.addAction(self.tr("Add folder to Quick Access"), self.add_bookmark)
-        menu.addAction(app_icon(None, "document-properties", widget=self), self.tr("Properties"), self.show_properties)
+        menu.addAction(app_icon("document-properties", "settings"), self.tr("Properties"), self.show_properties)
 
     def _build_empty_context_menu(self, menu: QMenu):
-        menu.addAction(app_icon(None, "utilities-terminal", widget=self), self.tr("Open in Terminal"), self.open_current_directory_in_terminal)
+        menu.addAction(app_icon("utilities-terminal", "terminal"), self.tr("Open in Terminal"), self.open_current_directory_in_terminal)
         menu.addSeparator()
-        menu.addAction(app_icon(None, "edit-paste", widget=self), self.tr("Paste"), self.paste_from_clipboard)
+        menu.addAction(app_icon("edit-paste"), self.tr("Paste"), self.paste_from_clipboard)
         menu.addSeparator()
 
         new_menu = menu.addMenu(self.tr("New"))
@@ -1224,7 +1224,7 @@ class MainWindow(QMainWindow):
         menu.addSeparator()
 
         menu.addAction(self.tr("Refresh"), self.refresh_view)
-        menu.addAction(app_icon(None, "document-properties", widget=self), self.tr("Properties"), self.show_folder_properties)
+        menu.addAction(app_icon("document-properties", "settings"), self.tr("Properties"), self.show_folder_properties)
 
     def _add_share_with_menu(self, menu: QMenu, path: Path):
         """Add a dynamic Share with submenu for a file or folder."""

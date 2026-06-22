@@ -3,7 +3,6 @@ import stat
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
-import tomllib
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -98,14 +97,6 @@ class DebianPackagingTests(unittest.TestCase):
         self.assertIn("Bug-Submit: https://github.com/wachin/linuxfilemanager/issues/new", metadata)
         self.assertIn("Repository: https://github.com/wachin/linuxfilemanager.git", metadata)
         self.assertIn("Repository-Browse: https://github.com/wachin/linuxfilemanager", metadata)
-
-    def test_python_package_declares_tabler_asset_package_data(self):
-        pyproject = tomllib.loads((PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-
-        package_data = pyproject["tool"]["setuptools"]["package-data"]["lfmapp"]
-        self.assertIn("assets/icons/tabler/**/*.svg", package_data)
-        self.assertIn("assets/icons/tabler/README.md", package_data)
-
 
 if __name__ == "__main__":
     unittest.main()

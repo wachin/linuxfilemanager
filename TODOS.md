@@ -9,7 +9,7 @@ Purpose: keep only forward-looking tasks that are suitable for issues and increm
 
 ## Workflow and UX tasks
 - [x] Startup location preference: let users choose `Home`, `Last visited`, or a fixed custom folder.
-- [ ] Tabler icon integration: define a development-time icon pipeline and runtime lookup strategy for light/dark theme variants without making the app depend on the Git submodule at install time.
+- [ ] System icon theme audit: review icon names used via `QIcon.fromTheme()` so the UI follows the active desktop icon theme with sensible fallbacks.
 - [ ] Quick Access reset/restore action: restore default known folders after users unpin them.
 - [ ] Per-folder details columns persistence: remember visible columns, widths, and order in Details view.
 - [ ] Better conflict resolution dialog for copy/move: replace/skip/rename/apply to all.
@@ -23,7 +23,6 @@ Purpose: keep only forward-looking tasks that are suitable for issues and increm
 ## Public repository cleanup follow-ups
 - [ ] Add a release checklist for public publishing: metadata, screenshots, docs, packaging, tests, and license review.
 - [ ] Add CI for tests plus package validation on pushes and pull requests.
-- [ ] Debian third-party asset compliance: document `third-party/tabler-icons` in `debian/copyright`, decide whether to vendor only selected generated icons in release tarballs, and avoid any network or VCS-submodule requirement during Debian builds.
 - [ ] Replace broad `except Exception: pass` blocks with targeted handling and logging.
 - [ ] Continue splitting `MainWindow` into smaller controllers/widgets.
 

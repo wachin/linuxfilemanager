@@ -53,22 +53,22 @@ class ContextMenu(QMenu):
     def _build_file_menu(self):
         """Build context menu for a file."""
         # Open section
-        self.addAction(app_icon("folder", "document-open", widget=self), self.tr("Open"), self._on_open)
+        self.addAction(app_icon("document-open", "folder-open"), self.tr("Open"), self._on_open)
         self.addAction(self.tr("Open with..."), self._on_open_with)
 
         self.addSeparator()
 
         # Clipboard section
-        self.addAction(app_icon(None, "edit-cut", widget=self), self.tr("Cut"), self._on_cut)
-        self.addAction(app_icon(None, "edit-copy", widget=self), self.tr("Copy"), self._on_copy)
+        self.addAction(app_icon("edit-cut"), self.tr("Cut"), self._on_cut)
+        self.addAction(app_icon("edit-copy"), self.tr("Copy"), self._on_copy)
         self.addAction(self.tr("Copy path"), self._on_copy_path)
 
         self.addSeparator()
 
         # File operations section
-        self.addAction(app_icon(None, "document-save-as", widget=self), self.tr("Rename"), self._on_rename)
-        self.addAction(app_icon(None, "edit-delete", widget=self), self.tr("Delete"), self._on_delete)
-        self.addAction(app_icon(None, "user-trash", widget=self), self.tr("Move to Trash"), self._on_trash)
+        self.addAction(app_icon("document-save-as", "edit-rename"), self.tr("Rename"), self._on_rename)
+        self.addAction(app_icon("edit-delete"), self.tr("Delete"), self._on_delete)
+        self.addAction(app_icon("user-trash", "trash-empty"), self.tr("Move to Trash"), self._on_trash)
 
         self.addSeparator()
 
@@ -81,26 +81,26 @@ class ContextMenu(QMenu):
         self.addSeparator()
 
         # Properties
-        self.addAction(app_icon(None, "document-properties", widget=self), self.tr("Properties"), self._on_properties)
+        self.addAction(app_icon("document-properties", "settings"), self.tr("Properties"), self._on_properties)
 
     def _build_folder_menu(self):
         """Build context menu for a folder."""
-        self.addAction(app_icon("folder", "document-open", widget=self), self.tr("Open"), self._on_open)
-        self.addAction(app_icon(None, "utilities-terminal", widget=self), self.tr("Open in Terminal"), self._on_open_terminal)
+        self.addAction(app_icon("document-open", "folder-open"), self.tr("Open"), self._on_open)
+        self.addAction(app_icon("utilities-terminal", "terminal"), self.tr("Open in Terminal"), self._on_open_terminal)
 
         self.addSeparator()
 
         # Clipboard section
-        self.addAction(app_icon(None, "edit-cut", widget=self), self.tr("Cut"), self._on_cut)
-        self.addAction(app_icon(None, "edit-copy", widget=self), self.tr("Copy"), self._on_copy)
+        self.addAction(app_icon("edit-cut"), self.tr("Cut"), self._on_cut)
+        self.addAction(app_icon("edit-copy"), self.tr("Copy"), self._on_copy)
         self.addAction(self.tr("Copy path"), self._on_copy_path)
 
         self.addSeparator()
 
         # Folder operations
-        self.addAction(app_icon(None, "document-save-as", widget=self), self.tr("Rename"), self._on_rename)
-        self.addAction(app_icon(None, "edit-delete", widget=self), self.tr("Delete"), self._on_delete)
-        self.addAction(app_icon(None, "user-trash", widget=self), self.tr("Move to Trash"), self._on_trash)
+        self.addAction(app_icon("document-save-as", "edit-rename"), self.tr("Rename"), self._on_rename)
+        self.addAction(app_icon("edit-delete"), self.tr("Delete"), self._on_delete)
+        self.addAction(app_icon("user-trash", "trash-empty"), self.tr("Move to Trash"), self._on_trash)
 
         self.addSeparator()
 
@@ -113,11 +113,11 @@ class ContextMenu(QMenu):
         self.addSeparator()
 
         # Properties
-        self.addAction(app_icon(None, "document-properties", widget=self), self.tr("Properties"), self._on_properties)
+        self.addAction(app_icon("document-properties", "settings"), self.tr("Properties"), self._on_properties)
 
     def _build_empty_area_menu(self):
         """Build context menu for empty workspace area."""
-        self.addAction(app_icon(None, "utilities-terminal", widget=self), self.tr("Open in Terminal"), self._on_open_terminal)
+        self.addAction(app_icon("utilities-terminal", "terminal"), self.tr("Open in Terminal"), self._on_open_terminal)
 
         self.addSeparator()
 
@@ -152,7 +152,7 @@ class ContextMenu(QMenu):
         self.addSeparator()
 
         self.addAction(self.tr("Paste"), self._on_paste)
-        self.addAction(app_icon(None, "document-properties", widget=self), self.tr("Properties"), self._on_properties)
+        self.addAction(app_icon("document-properties", "settings"), self.tr("Properties"), self._on_properties)
 
     def _on_open(self):
         self.openRequested.emit(self.path)
