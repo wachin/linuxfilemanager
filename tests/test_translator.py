@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 
-from lfm.core.translator import locale_candidates, translation_file_candidates
+from lfmapp.core.translator import locale_candidates, translation_file_candidates
 
 
 class TranslatorTests(unittest.TestCase):

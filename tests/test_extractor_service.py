@@ -5,7 +5,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from lfm.services.extractor_service import create_zip, extract_to
+from lfmapp.services.extractor_service import create_zip, extract_to
 
 
 class ExtractorServiceTests(unittest.TestCase):

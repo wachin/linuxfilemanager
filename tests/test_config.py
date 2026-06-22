@@ -4,8 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import lfm.core.paths as paths_module
-import lfm.core.config as config_module
+import lfmapp.core.paths as paths_module
+import lfmapp.core.config as config_module
 
 
 class ConfigTests(unittest.TestCase):

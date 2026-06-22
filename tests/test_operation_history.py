@@ -2,9 +2,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import lfm.services.operation_history as operation_history
-import lfm.services.trash_service as trash_service
-from lfm.services.operation_history import (
+import lfmapp.services.operation_history as operation_history
+import lfmapp.services.trash_service as trash_service
+from lfmapp.services.operation_history import (
     CompositeOperation,
     CopyOperation,
     CreateOperation,

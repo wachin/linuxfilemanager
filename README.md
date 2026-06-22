@@ -75,7 +75,7 @@ Run from the repository root:
 python3 main.py
 ```
 
-![](images/01-lfm.png)
+![](images/01-lfmapp.png)
 
 Or install locally and use the console entry point:
 
@@ -108,7 +108,7 @@ python3 -m pytest -q
 
 ```text
 .
-├── lfm/            Application package
+├── lfmapp/         Application package
 ├── data/           Desktop entry, icon, AppStream metadata
 ├── debian/         Debian packaging files
 ├── tests/          Automated tests

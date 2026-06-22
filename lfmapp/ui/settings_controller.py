@@ -6,10 +6,10 @@ from PyQt6.QtCore import QDir
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import QApplication, QDialog, QInputDialog
 
-from lfm.ui.preferences_dialog import PreferencesDialog
+from lfmapp.ui.preferences_dialog import PreferencesDialog
 
 if TYPE_CHECKING:
-    from lfm.ui.main_window import MainWindow
+    from lfmapp.ui.main_window import MainWindow
 
 
 class SettingsController:

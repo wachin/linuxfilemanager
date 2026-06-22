@@ -14,8 +14,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-from lfm.core.config import Config
-from lfm.services.textindex_service import TextIndexService
+from lfmapp.core.config import Config
+from lfmapp.services.textindex_service import TextIndexService
 
 
 @dataclass(frozen=True)

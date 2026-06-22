@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from lfm.extensions import ExtensionManager
+from lfmapp.extensions import ExtensionManager
 
 
 class ExtensionManagerTests(unittest.TestCase):

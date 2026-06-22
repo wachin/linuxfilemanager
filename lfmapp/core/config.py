@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from lfm.core.paths import CONFIG_DIR, CONFIG_FILE
+from lfmapp.core.paths import CONFIG_DIR, CONFIG_FILE
 
 
 def _default_bookmarks():

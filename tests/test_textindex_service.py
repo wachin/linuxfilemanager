@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from lfm.services.textindex_service import TextIndexService
+from lfmapp.services.textindex_service import TextIndexService
 
 
 class TextIndexServiceTests(unittest.TestCase):

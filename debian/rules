@@ -13,9 +13,9 @@ override_dh_auto_build:
 
 override_dh_auto_install:
 	install -d debian/linux-file-manager/usr/lib/python3/dist-packages
-	cp -R --no-preserve=ownership lfm debian/linux-file-manager/usr/lib/python3/dist-packages/
-	find debian/linux-file-manager/usr/lib/python3/dist-packages/lfm -name __pycache__ -type d -prune -exec rm -rf {} +
-	find debian/linux-file-manager/usr/lib/python3/dist-packages/lfm -name '*.pyc' -delete
+	cp -R --no-preserve=ownership lfmapp debian/linux-file-manager/usr/lib/python3/dist-packages/
+	find debian/linux-file-manager/usr/lib/python3/dist-packages/lfmapp -name __pycache__ -type d -prune -exec rm -rf {} +
+	find debian/linux-file-manager/usr/lib/python3/dist-packages/lfmapp -name '*.pyc' -delete
 	install -D -m0755 debian/linuxfm debian/linux-file-manager/usr/bin/linuxfm
 	install -D -m0644 debian/linux-file-manager.desktop debian/linux-file-manager/usr/share/applications/linux-file-manager.desktop
 	install -D -m0644 debian/linux-file-manager.metainfo.xml debian/linux-file-manager/usr/share/metainfo/linux-file-manager.metainfo.xml

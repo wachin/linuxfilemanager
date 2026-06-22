@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Optional
 
-from lfm.core.paths import CONFIG_DIR
+from lfmapp.core.paths import CONFIG_DIR
 
 BOOKMARKS_FILE = CONFIG_DIR / "bookmarks.json"
 

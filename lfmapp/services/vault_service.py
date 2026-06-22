@@ -10,7 +10,7 @@ import zipfile
 from io import BytesIO
 from pathlib import Path
 
-from lfm.core.paths import VAULT_DIR
+from lfmapp.core.paths import VAULT_DIR
 
 
 _META_FILE = ".vault_meta.json"

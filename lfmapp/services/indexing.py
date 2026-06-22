@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List, Optional
 
-from lfm.core.paths import CONFIG_DIR
+from lfmapp.core.paths import CONFIG_DIR
 
 
 INDEX_DB = CONFIG_DIR / "fulltext_index.db"

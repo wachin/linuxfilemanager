@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from lfm.ui.property_dialog import AdvancedSecurityDialog, PropertyDialog
+from lfmapp.ui.property_dialog import AdvancedSecurityDialog, PropertyDialog
 
 
 class PropertyDialogTests(unittest.TestCase):

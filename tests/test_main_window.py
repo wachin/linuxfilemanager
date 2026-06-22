@@ -9,10 +9,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QApplication, QLabel
 
-import lfm.core.config as config_module
-from lfm.ui.about_dialog import AboutDialog
-from lfm.ui.main_window import MainWindow
-from lfm.services.operation_history import RenameOperation
+import lfmapp.core.config as config_module
+from lfmapp.ui.about_dialog import AboutDialog
+from lfmapp.ui.main_window import MainWindow
+from lfmapp.services.operation_history import RenameOperation
 
 
 _APP = None
@@ -31,7 +31,7 @@ class MainWindowMenuTests(unittest.TestCase):
     def setUpClass(cls):
         ensure_qapplication()
 
-    @patch("lfm.ui.main_window.get_available_applications", return_value=[("testapp.desktop", "Test App")])
+    @patch("lfmapp.ui.main_window.get_available_applications", return_value=[("testapp.desktop", "Test App")])
     def test_share_menu_contains_share_actions(self, _mock_apps):
         with tempfile.TemporaryDirectory() as tmpdir:
             old_config_dir = config_module.CONFIG_DIR

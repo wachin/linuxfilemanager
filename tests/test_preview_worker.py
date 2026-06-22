@@ -5,7 +5,7 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
-from lfm.services.preview_worker import PreviewWorker
+from lfmapp.services.preview_worker import PreviewWorker
 
 
 class PreviewWorkerMetadataTests(unittest.TestCase):
@@ -59,7 +59,7 @@ class PreviewWorkerMetadataTests(unittest.TestCase):
             path = Path(tmpdir) / "clip.mp4"
             path.write_bytes(b"not a real video")
 
-            with patch("lfm.services.preview_worker.shutil.which", return_value=None):
+            with patch("lfmapp.services.preview_worker.shutil.which", return_value=None):
                 metadata = PreviewWorker.metadata_for_path(path)
 
         self.assertIn("Video: Yes", metadata)
@@ -97,7 +97,7 @@ class PreviewWorkerMetadataTests(unittest.TestCase):
             path = Path(tmpdir) / "document.pdf"
             path.write_bytes(b"%PDF-1.4")
 
-            with patch("lfm.services.preview_worker.shutil.which", return_value=None):
+            with patch("lfmapp.services.preview_worker.shutil.which", return_value=None):
                 preview = PreviewWorker.document_preview_for_path(path)
 
         self.assertIn("Install poppler-utils", preview)

@@ -190,7 +190,7 @@ class TrashWorker(QThread):
         self._running = True
 
     def run(self):
-        from lfm.services.trash_service import TRASH_FILES_DIR, TRASH_INFO_DIR, send_to_trash
+        from lfmapp.services.trash_service import TRASH_FILES_DIR, TRASH_INFO_DIR, send_to_trash
         total = len(self.paths)
         errors = []
         for i, path in enumerate(self.paths):

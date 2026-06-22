@@ -6,8 +6,8 @@ from pathlib import Path
 
 from PyQt6.QtCore import QObject, QCoreApplication, pyqtSignal
 
-from lfm.services.operation_queue import BackgroundOperationQueue
-from lfm.services.worker_threads import CopyWorker, MoveWorker
+from lfmapp.services.operation_queue import BackgroundOperationQueue
+from lfmapp.services.worker_threads import CopyWorker, MoveWorker
 
 
 def ensure_qcore_application():

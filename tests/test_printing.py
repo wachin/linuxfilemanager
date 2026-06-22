@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from lfm.ui.main_window import MainWindow
+from lfmapp.ui.main_window import MainWindow
 
 
 class PrintingTests(unittest.TestCase):

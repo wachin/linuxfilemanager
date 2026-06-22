@@ -17,8 +17,8 @@ from PyQt6.QtWidgets import (
     QStyle, QVBoxLayout, QWidget
 )
 
-from lfm.core.paths import HOME_DIR
-from lfm.services.network_service import discover_network_locations
+from lfmapp.core.paths import HOME_DIR
+from lfmapp.services.network_service import discover_network_locations
 
 
 class _SectionHeader(QLabel):

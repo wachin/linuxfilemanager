@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from lfm.services.network_service import (
+from lfmapp.services.network_service import (
     discover_gvfs_locations,
     discover_network_locations,
     discover_proc_mount_network_locations,

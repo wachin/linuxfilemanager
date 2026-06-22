@@ -7,7 +7,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PyQt6.QtWidgets import QApplication
 
-from lfm.ui.menus import ContextMenu, ToolbarMenu
+from lfmapp.ui.menus import ContextMenu, ToolbarMenu
 
 
 _APP = None

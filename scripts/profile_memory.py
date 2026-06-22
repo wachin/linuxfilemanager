@@ -69,7 +69,7 @@ def profile_startup(initial_path: Path | None, offscreen: bool) -> list[dict[str
 
     from PyQt6.QtWidgets import QApplication
 
-    from lfm.ui.main_window import MainWindow
+    from lfmapp.ui.main_window import MainWindow
 
     samples.append(memory_sample("after_imports", baseline))
 

@@ -8,7 +8,7 @@ import sqlite3
 from pathlib import Path
 from typing import List
 
-from lfm.core.paths import CONFIG_DIR
+from lfmapp.core.paths import CONFIG_DIR
 
 TEXT_INDEX_DB = CONFIG_DIR / "text_index.db"
 

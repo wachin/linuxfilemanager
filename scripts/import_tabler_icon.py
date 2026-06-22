@@ -11,7 +11,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TABLER_ROOT = PROJECT_ROOT / "third-party" / "tabler-icons"
 SOURCE_ROOT = TABLER_ROOT / "icons"
-DESTINATION_ROOT = PROJECT_ROOT / "lfm" / "assets" / "icons" / "tabler"
+DESTINATION_ROOT = PROJECT_ROOT / "lfmapp" / "assets" / "icons" / "tabler"
 VALID_VARIANTS = ("outline", "filled")
 
 

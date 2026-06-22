@@ -16,7 +16,7 @@ from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtGui import QDesktopServices, QPixmap
 from PyQt6.QtWidgets import QLabel, QListWidget, QListWidgetItem, QTextEdit, QVBoxLayout, QWidget
 
-from lfm.services.preview_worker import PreviewWorker
+from lfmapp.services.preview_worker import PreviewWorker
 
 
 class PreviewPanel(QWidget):

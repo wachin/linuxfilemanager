@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from lfm.services.vault_service import VaultService
+from lfmapp.services.vault_service import VaultService
 
 
 class VaultServiceTests(unittest.TestCase):

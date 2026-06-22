@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from lfm.core.paths import HOME_DIR
+from lfmapp.core.paths import HOME_DIR
 
 TRASH_DIR = HOME_DIR / ".local" / "share" / "Trash"
 TRASH_FILES_DIR = TRASH_DIR / "files"

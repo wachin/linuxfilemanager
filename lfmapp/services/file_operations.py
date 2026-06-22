@@ -4,7 +4,7 @@ from typing import Optional
 
 from PyQt6.QtWidgets import QFileDialog
 
-from lfm.core.paths import VAULT_DIR
+from lfmapp.core.paths import VAULT_DIR
 
 
 class FileOperations:

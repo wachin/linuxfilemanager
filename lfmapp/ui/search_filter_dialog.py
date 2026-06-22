@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QSpinBox,
 )
 
-from lfm.services.search_service import SearchFilters
+from lfmapp.services.search_service import SearchFilters
 
 
 class SearchFilterDialog(QDialog):

@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from lfm.services.file_operations import FileOperations
+from lfmapp.services.file_operations import FileOperations
 
 
 class FileOperationsTests(unittest.TestCase):

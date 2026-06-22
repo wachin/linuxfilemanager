@@ -9,7 +9,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication
 
-from lfm.ui.sidebar import Sidebar
+from lfmapp.ui.sidebar import Sidebar
 
 
 _APP = None
@@ -69,14 +69,14 @@ class SidebarTests(unittest.TestCase):
             self.assertIn(str(unpinned), bookmark_paths)
 
     def test_network_discovery_is_deferred_by_default(self):
-        with patch("lfm.ui.sidebar.discover_network_locations") as discover:
+        with patch("lfmapp.ui.sidebar.discover_network_locations") as discover:
             sidebar = Sidebar([])
 
             discover.assert_not_called()
             self.assertEqual(sidebar.network_list.item(0).text(), "Loading network locations...")
 
     def test_network_discovery_can_run_synchronously_for_tests(self):
-        with patch("lfm.ui.sidebar.discover_network_locations", return_value=[Path("/mnt/share")]) as discover:
+        with patch("lfmapp.ui.sidebar.discover_network_locations", return_value=[Path("/mnt/share")]) as discover:
             sidebar = Sidebar([], lazy_network=False)
 
             discover.assert_called_once()

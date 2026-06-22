@@ -4,15 +4,15 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-import lfm.services.tag_service as tag_service_module
-from lfm.services.tag_service import TagService
+import lfmapp.services.tag_service as tag_service_module
+from lfmapp.services.tag_service import TagService
 
 
 class TagServiceTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = Path(tempfile.mkdtemp())
         self.db_file = self.temp_dir / "tags.db"
-        self.patcher = patch("lfm.services.tag_service.TAGS_DB_FILE", self.db_file)
+        self.patcher = patch("lfmapp.services.tag_service.TAGS_DB_FILE", self.db_file)
         self.patcher.start()
         self.service = TagService()
 

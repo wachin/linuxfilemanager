@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from lfm.services import TpmControlService, TpmControlStatus
+from lfmapp.services import TpmControlService, TpmControlStatus
 
 
 class TpmControlServiceTests(unittest.TestCase):

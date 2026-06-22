@@ -7,7 +7,7 @@ import sqlite3
 from pathlib import Path
 from typing import Optional
 
-from lfm.core.paths import CONFIG_DIR
+from lfmapp.core.paths import CONFIG_DIR
 
 TAGS_DB_FILE = CONFIG_DIR / "tags.db"
 

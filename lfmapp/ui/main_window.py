@@ -46,8 +46,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtPrintSupport import QPrintDialog, QPrinter
 
-from lfm.core.config import Config
-from lfm.services import (
+from lfmapp.core.config import Config
+from lfmapp.services import (
     FileOperations,
     BookmarkService,
     SearchFilters,
@@ -74,19 +74,19 @@ from lfm.services import (
     CompositeOperation,
     TerminalService,
 )
-from lfm.services.textindex_service import TextIndexService
-from lfm.ui.about_dialog import AboutDialog
-from lfm.ui.create_multiple_dialog import CreateMultipleDialog
-from lfm.ui.property_dialog import AdvancedSecurityDialog, PropertyDialog
-from lfm.ui.preview_panel import PreviewPanel
-from lfm.ui.settings_controller import SettingsController
-from lfm.services.preview_worker import PreviewWorker
-from lfm.ui.search_filter_dialog import SearchFilterDialog
-from lfm.ui.sidebar import Sidebar
-from lfm.ui.tag_management_dialog import TagManagementDialog
-from lfm.ui.tag_search_dialog import TagSearchDialog
-from lfm.ui.workspace import IconGridSize, Workspace, ViewMode
-from lfm.utils.open_with import (
+from lfmapp.services.textindex_service import TextIndexService
+from lfmapp.ui.about_dialog import AboutDialog
+from lfmapp.ui.create_multiple_dialog import CreateMultipleDialog
+from lfmapp.ui.property_dialog import AdvancedSecurityDialog, PropertyDialog
+from lfmapp.ui.preview_panel import PreviewPanel
+from lfmapp.ui.settings_controller import SettingsController
+from lfmapp.services.preview_worker import PreviewWorker
+from lfmapp.ui.search_filter_dialog import SearchFilterDialog
+from lfmapp.ui.sidebar import Sidebar
+from lfmapp.ui.tag_management_dialog import TagManagementDialog
+from lfmapp.ui.tag_search_dialog import TagSearchDialog
+from lfmapp.ui.workspace import IconGridSize, Workspace, ViewMode
+from lfmapp.utils.open_with import (
     get_available_applications,
     launch_application_for_path,
     open_with_default,
@@ -204,7 +204,7 @@ class MainWindow(QMainWindow):
     @property
     def indexer_service(self):
         if self._indexer_service is None:
-            from lfm.services import IndexerService
+            from lfmapp.services import IndexerService
 
             self._indexer_service = IndexerService(self)
             self._indexer_service.connect_changed(self._on_indexer_changed)
@@ -229,7 +229,7 @@ class MainWindow(QMainWindow):
     @property
     def tag_service(self):
         if self._tag_service is None:
-            from lfm.services.tag_service import TagService
+            from lfmapp.services.tag_service import TagService
 
             self._tag_service = TagService()
         return self._tag_service
@@ -237,7 +237,7 @@ class MainWindow(QMainWindow):
     @property
     def vault_service(self):
         if self._vault_service is None:
-            from lfm.services.vault_service import VaultService
+            from lfmapp.services.vault_service import VaultService
 
             self._vault_service = VaultService()
         return self._vault_service

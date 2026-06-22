@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
-from lfm.services.trash_service import TRASH_FILES_DIR, TRASH_INFO_DIR, send_to_trash
+from lfmapp.services.trash_service import TRASH_FILES_DIR, TRASH_INFO_DIR, send_to_trash
 
 
 class ReversibleOperation(Protocol):

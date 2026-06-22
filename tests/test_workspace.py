@@ -9,9 +9,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtWidgets import QApplication
 
-from lfm.ui.workspace import IconGridSize
-from lfm.ui.workspace import ViewMode
-from lfm.ui.workspace import Workspace
+from lfmapp.ui.workspace import IconGridSize
+from lfmapp.ui.workspace import ViewMode
+from lfmapp.ui.workspace import Workspace
 
 
 _APP = None

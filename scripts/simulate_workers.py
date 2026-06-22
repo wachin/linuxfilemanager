@@ -15,7 +15,7 @@ from PyQt6.QtCore import QCoreApplication, QTimer
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-from lfm.services.worker_threads import CopyWorker
+from lfmapp.services.worker_threads import CopyWorker
 
 
 def main():

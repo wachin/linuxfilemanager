@@ -3,9 +3,9 @@ import sys
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import QApplication
 
-from lfm.core.config import Config
-from lfm.core.translator import load_translator
-from lfm.ui.main_window import MainWindow
+from lfmapp.core.config import Config
+from lfmapp.core.translator import load_translator
+from lfmapp.ui.main_window import MainWindow
 
 
 def main(argv=None):

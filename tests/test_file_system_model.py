@@ -8,7 +8,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication, QFileIconProvider
 
-from lfm.models.file_system_model import FileSystemModel
+from lfmapp.models.file_system_model import FileSystemModel
 
 
 class FileSystemModelTests(unittest.TestCase):

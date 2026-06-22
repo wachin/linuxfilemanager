@@ -102,7 +102,7 @@ class DebianPackagingTests(unittest.TestCase):
     def test_python_package_declares_tabler_asset_package_data(self):
         pyproject = tomllib.loads((PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
-        package_data = pyproject["tool"]["setuptools"]["package-data"]["lfm"]
+        package_data = pyproject["tool"]["setuptools"]["package-data"]["lfmapp"]
         self.assertIn("assets/icons/tabler/**/*.svg", package_data)
         self.assertIn("assets/icons/tabler/README.md", package_data)
 

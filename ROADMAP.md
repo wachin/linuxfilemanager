@@ -239,7 +239,7 @@ linux-file-manager/
 ├── pyproject.toml                   [x] Build configuration
 ├── README.md                        [x] Project readme
 ├── Roadmap.md                       [x] This file
-├── lfm/
+├── lfmapp/
 │   ├── __init__.py                  [x] Package init
 │   ├── app.py                       [x] QApplication setup, translator loading
 │   ├── core/
@@ -308,16 +308,16 @@ linux-file-manager/
 ### Core
 
 ```text
-lfm-base        → lfm/core/         [x] config.py, paths.py, translator.py
-lfm-framework   → lfm/app.py        [x] Application bootstrap
-lfm-extension   → lfm/extensions/   [x] Plugin/extension manifest discovery
+lfm-base        → lfmapp/core/         [x] config.py, paths.py, translator.py
+lfm-framework   → lfmapp/app.py        [x] Application bootstrap
+lfm-extension   → lfmapp/extensions/   [x] Plugin/extension manifest discovery
 ```
 
 ### Main application
 
 ```text
-linux-file-manager       → lfm/      [x] Main application package
-linux-file-manager-daemon → lfm/daemon.py [x] Minimal background maintenance daemon for optional text indexing
+linux-file-manager       → lfmapp/   [x] Main application package
+linux-file-manager-daemon → lfmapp/daemon.py [x] Minimal background maintenance daemon for optional text indexing
 ```
 
 The daemon can be minimal at first, or simulated only for background tasks.
@@ -325,26 +325,26 @@ The daemon can be minimal at first, or simulated only for background tasks.
 ### UI
 
 ```text
-workspace        → lfm/ui/workspace.py       [x] Main file view
-sidebar          → lfm/ui/sidebar.py         [x] Left panel with sections
-menu             → lfm/ui/menus.py           [x] Context and toolbar menus with Qt signal hooks
-propertydialog   → lfm/ui/property_dialog.py [x] Properties dialog
+workspace        → lfmapp/ui/workspace.py       [x] Main file view
+sidebar          → lfmapp/ui/sidebar.py         [x] Left panel with sections
+menu             → lfmapp/ui/menus.py           [x] Context and toolbar menus with Qt signal hooks
+propertydialog   → lfmapp/ui/property_dialog.py [x] Properties dialog
 ```
 
 ### Features
 
 ```text
-fileoperations   → lfm/services/file_operations.py  [x] Basic file operations
-trash            → lfm/services/trash_service.py     [x] FreeDesktop trash spec
-bookmark         → lfm/services/bookmark_service.py  [x] Persistent bookmarks
-preview          → lfm/ui/preview_panel.py           [x] Text/image preview
-search           → lfm/services/search_service.py    [x] Background search
-tag              → lfm/services/tag_service.py       [x] SQLite file tagging
-vault            → lfm/services/vault_service.py     [x] Basic hidden-folder vault
-textindex        → lfm/services/textindex_service.py [x] Optional text indexing
-operationqueue   → lfm/services/operation_queue.py   [x] Background operation queue
-tpmcontrol       → lfm/services/tpm_control.py       [x] TPM availability stub only
-extractor        → lfm/services/extractor_service.py [x] Archive extraction
+fileoperations   → lfmapp/services/file_operations.py  [x] Basic file operations
+trash            → lfmapp/services/trash_service.py     [x] FreeDesktop trash spec
+bookmark         → lfmapp/services/bookmark_service.py  [x] Persistent bookmarks
+preview          → lfmapp/ui/preview_panel.py           [x] Text/image preview
+search           → lfmapp/services/search_service.py    [x] Background search
+tag              → lfmapp/services/tag_service.py       [x] SQLite file tagging
+vault            → lfmapp/services/vault_service.py     [x] Basic hidden-folder vault
+textindex        → lfmapp/services/textindex_service.py [x] Optional text indexing
+operationqueue   → lfmapp/services/operation_queue.py   [x] Background operation queue
+tpmcontrol       → lfmapp/services/tpm_control.py       [x] TPM availability stub only
+extractor        → lfmapp/services/extractor_service.py [x] Archive extraction
 ```
 
 
@@ -609,7 +609,7 @@ Install command:
 Python modules should be installed according to Debian Python policy:
 
 ```text
-/usr/lib/python3/dist-packages/lfm/
+/usr/lib/python3/dist-packages/lfmapp/
 ```
 
 Data files should go under:
@@ -883,7 +883,7 @@ linuxfm
 
 1. Read this Roadmap.md first to understand project status.
 2. Check the `[x]` and `[ ]` markers to know what is done and what remains.
-3. The project structure is in `lfm/` with subpackages: `core/`, `ui/`, `services/`, `models/`, `utils/`.
+3. The project structure is in `lfmapp/` with subpackages: `core/`, `ui/`, `services/`, `models/`, `utils/`.
 4. All code and comments must be in English.
 5. User-visible strings should use `self.tr()` for future translation support.
 6. Performance is critical: never block the UI thread for file operations.

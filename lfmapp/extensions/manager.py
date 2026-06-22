@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-from lfm.core.paths import SYSTEM_EXTENSIONS_DIR, USER_EXTENSIONS_DIR
+from lfmapp.core.paths import SYSTEM_EXTENSIONS_DIR, USER_EXTENSIONS_DIR
 
 
 class ExtensionDiscoveryError(ValueError):

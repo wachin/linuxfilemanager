@@ -25,7 +25,7 @@ from PyQt6.QtWidgets import (
     QStackedWidget,
 )
 
-from lfm.models import FileSystemModel
+from lfmapp.models import FileSystemModel
 
 
 class ViewMode(Enum):

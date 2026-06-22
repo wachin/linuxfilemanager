@@ -21,12 +21,12 @@ Issues = "https://github.com/wachin/linuxfilemanager/issues"
 dev = ["pytest>=7"]
 
 [project.scripts]
-linuxfm = "lfm.app:main"
-linuxfm-daemon = "lfm.daemon:main"
+linuxfm = "lfmapp.app:main"
+linuxfm-daemon = "lfmapp.daemon:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["lfm*"]
+include = ["lfmapp*"]
 
 [tool.setuptools.package-data]
-lfm = ["assets/icons/tabler/**/*.svg", "assets/icons/tabler/README.md"]
+lfmapp = ["assets/icons/tabler/**/*.svg", "assets/icons/tabler/README.md"]

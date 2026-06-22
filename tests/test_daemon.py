@@ -5,8 +5,8 @@ from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
 
-from lfm.daemon import FileManagerDaemon, main
-from lfm.services.textindex_service import TextIndexService
+from lfmapp.daemon import FileManagerDaemon, main
+from lfmapp.services.textindex_service import TextIndexService
 
 
 class DummyConfig:

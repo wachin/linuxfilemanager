@@ -1,7 +1,7 @@
 from pathlib import Path
 from PyQt6.QtCore import QLocale, QTranslator
 
-from lfm.core.paths import TRANSLATIONS_DIR
+from lfmapp.core.paths import TRANSLATIONS_DIR
 
 
 INSTALLED_TRANSLATION_DIRS = (
