@@ -48,7 +48,8 @@ The file manager should implement the core capabilities expected from a modern L
 **Navigation Panel (Sidebar)**
 * [x] Quick Access with dynamically pinned items
 * [x] Known folders: Desktop, Documents, Downloads, Pictures, Music, Videos
-* [x] This Computer: local drives
+* [x] XDG User Directories compliance for localized/custom standard folders
+* [x] This Computer: home, root filesystem, local drives, removable media, trash
 * [x] Network locations
 * [x] Recent locations
 * [x] Persistence of pinned items
@@ -253,7 +254,7 @@ linux-file-manager/
 │   ├── ui/
 │   │   ├── __init__.py              [x] Package init
 │   │   ├── main_window.py           [x] Main window with toolbar, menu bar, shortcuts, status bar
-│   │   ├── sidebar.py               [x] Sidebar with Quick Access, This Computer, Bookmarks sections
+│   │   ├── sidebar.py               [x] Sidebar with Quick Access, This Computer, Network, Bookmarks, and Recent sections
 │   │   ├── workspace.py             [x] QTreeView file listing with multi-selection
 │   │   ├── preview_panel.py         [x] Right-side preview (text, images, metadata)
 │   │   ├── property_dialog.py       [x] File/folder properties dialog
@@ -266,7 +267,8 @@ linux-file-manager/
 │   │   ├── trash_service.py         [x] FreeDesktop trash spec: send, restore, empty, list, count
 │   │   ├── search_service.py        [x] Background search thread (current folder, recursive)
 │   │   ├── extractor_service.py     [x] Archive extraction: ZIP, TAR, RAR, 7Z, DEB + ExtractThread
-│   │   ├── bookmark_service.py      [x] Persistent bookmarks with JSON, XDG defaults
+│   │   ├── bookmark_service.py      [x] Persistent user-created bookmarks with JSON storage
+│   │   ├── xdg.py                   [x] XDG User Directories resolution helper (command + config fallback)
 │   │   ├── tag_service.py           [x] SQLite-based file tagging: add, remove, search by tags
 │   │   ├── operation_history.py     [x] Undo/redo stack for reversible and grouped operations
 │   │   ├── operation_queue.py       [x] Background queue for file operation workers

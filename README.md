@@ -16,6 +16,7 @@ This project aims to provide a familiar, efficient file management workflow whil
 - Modular PyQt6 application structure
 - Multiple view modes: icons, list, details, compact
 - Quick Access, bookmarks, recent locations, and tabbed navigation
+- XDG User Directories support for localized and user-customized standard folders
 - Core file operations: copy, move, rename, delete, trash, create folder/file
 - Search in the current folder with filters
 - Preview and properties panels
@@ -33,6 +34,8 @@ Already implemented:
 - Main window, sidebar, workspace, preview panel, and status bar
 - File navigation history and multiple tabs
 - Context menus and toolbar actions
+- XDG-compliant Quick Access that resolves Desktop, Downloads, Documents, Music, Pictures, and Videos from the system instead of hardcoded English folder names
+- Bookmarks kept separate from built-in Quick Access places by default
 - Search, bookmarks, trash, properties, and basic archive support
 - Configurable UI preferences such as font and window size
 
@@ -147,6 +150,36 @@ Examples of configurable settings:
 - sidebar and preview visibility
 - hidden files, file extensions, and selection checkboxes
 - preferred terminal for `Open in Terminal`
+
+## XDG User Directories
+
+Linux File Manager now follows the FreeDesktop XDG User Directories specification for standard user folders.
+
+This means `Quick Access` resolves:
+
+- Home
+- Desktop
+- Downloads
+- Documents
+- Music
+- Pictures
+- Videos
+
+from the actual system configuration rather than assuming English folder names like `~/Desktop` or `~/Documents`.
+
+Resolution order:
+
+1. `xdg-user-dir`
+2. `~/.config/user-dirs.dirs`
+
+Only existing directories are shown, duplicate paths are avoided, and user-customized or localized folders such as `~/Escritorio`, `~/Documentos`, or `~/Bureau` are supported automatically.
+
+By design:
+
+- `Quick Access` contains the built-in XDG locations.
+- `Bookmarks` contains only user-created bookmarks.
+- `This Computer` focuses on Home, `/`, drives, removable media, and Trash.
+- `Recents` remains dedicated to recent files and folders.
 
 You can change these settings from:
 
