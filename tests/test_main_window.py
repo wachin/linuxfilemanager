@@ -325,6 +325,29 @@ class MainWindowMenuTests(unittest.TestCase):
         self.assertIn("GPL3", text)
         self.assertIn("Washington Indacochea Delgado", text)
 
+    def test_open_terminal_in_directory_uses_parent_for_files(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                root = Path(tmpdir)
+                file_path = root / "note.txt"
+                file_path.write_text("hello", encoding="utf-8")
+                window = MainWindow()
+
+                with patch.object(window.terminal_service, "open_terminal") as open_terminal:
+                    window.open_terminal_in_directory(file_path)
+
+                open_terminal.assert_called_once_with(root)
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
     def test_startup_path_uses_custom_folder_when_configured(self):
         window = None
         with tempfile.TemporaryDirectory() as tmpdir:

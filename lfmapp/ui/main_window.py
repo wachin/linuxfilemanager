@@ -103,7 +103,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("linux-file-manager")
         self.config = Config()
-        self.terminal_service = TerminalService()
+        self.terminal_service = TerminalService(self.config)
         self.settings_controller = SettingsController(self)
         self._apply_window_size_from_config()
         self.bookmark_service = BookmarkService()
