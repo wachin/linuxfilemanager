@@ -43,6 +43,7 @@ from PyQt6.QtWidgets import (
     QScrollArea,
     QProgressBar,
     QFrame,
+    QSizePolicy,
 )
 from PyQt6.QtPrintSupport import QPrintDialog, QPrinter
 
@@ -734,8 +735,12 @@ class MainWindow(QMainWindow):
     # ─── Central Widget ────────────────────────────────────────
 
     def build_central_widget(self):
-        path_widget = QWidget()
-        path_layout = QHBoxLayout(path_widget)
+        self.path_widget = QWidget()
+        self.path_widget.setSizePolicy(
+            QSizePolicy.Policy.Preferred,
+            QSizePolicy.Policy.Fixed,
+        )
+        path_layout = QHBoxLayout(self.path_widget)
         path_layout.setContentsMargins(4, 4, 4, 4)
         path_layout.setSpacing(6)
         path_layout.addWidget(QLabel(self.tr("Path:")))
@@ -750,6 +755,7 @@ class MainWindow(QMainWindow):
         filters_button = QPushButton(self.tr("Filters..."))
         filters_button.clicked.connect(self.on_search_filters_requested)
         path_layout.addWidget(filters_button)
+        self.path_widget.setMaximumHeight(self.path_widget.sizeHint().height())
 
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.splitter.addWidget(self.sidebar)
@@ -764,9 +770,9 @@ class MainWindow(QMainWindow):
         central_layout = QVBoxLayout(central)
         central_layout.setContentsMargins(2, 2, 2, 2)
         central_layout.setSpacing(4)
-        central_layout.addWidget(path_widget)
+        central_layout.addWidget(self.path_widget, 0)
         central_layout.addWidget(self.tabbar)
-        central_layout.addWidget(self.splitter)
+        central_layout.addWidget(self.splitter, 1)
         self.setCentralWidget(central)
 
     # ─── Status Bar ────────────────────────────────────────────

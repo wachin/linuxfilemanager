@@ -10,26 +10,56 @@ Left panel with:
 
 from pathlib import Path
 
-from PyQt6.QtCore import QTimer, Qt, pyqtSignal
-from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import QTimer, Qt, pyqtSignal, QRect, QSize
+from PyQt6.QtGui import QIcon, QPainter, QPalette
 from PyQt6.QtWidgets import (
-    QFrame, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
-    QStyle, QVBoxLayout, QWidget
+    QFrame, QLabel, QListWidget, QListWidgetItem,
+    QStyle, QStyleOptionTab, QTabBar, QTabWidget, QVBoxLayout, QWidget
 )
 
 from lfmapp.core.paths import HOME_DIR
 from lfmapp.services.network_service import discover_network_locations
+from lfmapp.ui.icons import app_icon
 
 
-class _SectionHeader(QLabel):
-    """A styled section header label."""
+class _SidebarTabBar(QTabBar):
+    """Compact icon-first tab bar with tooltips."""
 
-    def __init__(self, text: str, parent=None):
-        super().__init__(text, parent)
-        self.setStyleSheet(
-            "color: #888; font-size: 11px; font-weight: bold; "
-            "padding: 8px 4px 2px 4px; border: none;"
-        )
+    def tabSizeHint(self, index):
+        return QSize(30, 30)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        for index in range(self.count()):
+            option = QStyleOptionTab()
+            self.initStyleOption(option, index)
+            rect = self.tabRect(index)
+            is_active = index == self.currentIndex()
+
+            fill = option.palette.color(QPalette.ColorRole.Base if is_active else QPalette.ColorRole.Window)
+            border = option.palette.color(QPalette.ColorRole.Mid)
+            text_color = option.palette.color(QPalette.ColorRole.WindowText)
+            active_accent = option.palette.color(QPalette.ColorRole.Highlight)
+
+            painter.save()
+            painter.setPen(border)
+            painter.setBrush(fill)
+            painter.drawRoundedRect(rect.adjusted(1, 2, -1, -1), 6, 6)
+
+            if is_active:
+                painter.fillRect(rect.adjusted(6, rect.height() - 4, -6, -1), active_accent)
+
+            icon = self.tabIcon(index)
+            icon_size = 18
+            icon_y = 7 if is_active else (rect.height() - icon_size) // 2
+            icon_rect = rect.adjusted(0, icon_y, 0, 0)
+            icon.paint(
+                painter,
+                QRect(rect.center().x() - icon_size // 2, icon_rect.top(), icon_size, icon_size),
+            )
+            painter.restore()
 
 
 class Sidebar(QWidget):
@@ -47,59 +77,105 @@ class Sidebar(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        layout.setSpacing(6)
 
-        # Quick Access section
-        layout.addWidget(_SectionHeader(self.tr("Quick Access")))
-        self.quick_list = QListWidget()
-        self.quick_list.setAlternatingRowColors(True)
-        self.quick_list.setFrameShape(QFrame.Shape.NoFrame)
-        self.quick_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.quick_list.itemDoubleClicked.connect(self._on_item_activated)
-        self.quick_list.itemActivated.connect(self._on_item_activated)
-        layout.addWidget(self.quick_list)
+        self.tab_widget = QTabWidget(self)
+        self.tab_widget.setDocumentMode(True)
+        self.tab_widget.setTabBar(_SidebarTabBar(self.tab_widget))
+        self.tab_widget.setTabPosition(QTabWidget.TabPosition.North)
+        self.tab_widget.setMovable(False)
+        self.tab_widget.tabBar().setExpanding(False)
+        self.tab_widget.tabBar().setDrawBase(False)
 
-        # Computer section
-        layout.addWidget(_SectionHeader(self.tr("This Computer")))
-        self.computer_list = QListWidget()
-        self.computer_list.setAlternatingRowColors(True)
-        self.computer_list.setFrameShape(QFrame.Shape.NoFrame)
-        self.computer_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.computer_list.itemDoubleClicked.connect(self._on_item_activated)
-        self.computer_list.itemActivated.connect(self._on_item_activated)
-        layout.addWidget(self.computer_list)
+        self.quick_list = self._create_section_list()
+        self.computer_list = self._create_section_list()
+        self.network_list = self._create_section_list()
+        self.bookmark_list = self._create_section_list()
+        self.recent_list = self._create_section_list()
 
-        # Network section
-        layout.addWidget(_SectionHeader(self.tr("Network")))
-        self.network_list = QListWidget()
-        self.network_list.setAlternatingRowColors(True)
-        self.network_list.setFrameShape(QFrame.Shape.NoFrame)
-        self.network_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.network_list.itemDoubleClicked.connect(self._on_item_activated)
-        self.network_list.itemActivated.connect(self._on_item_activated)
-        layout.addWidget(self.network_list)
+        self.quick_title = self._create_section_title(self.tr("Quick Access"))
+        self.computer_title = self._create_section_title(self.tr("This Computer"))
+        self.network_title = self._create_section_title(self.tr("Network"))
+        self.bookmark_title = self._create_section_title(self.tr("Bookmarks"))
+        self.recent_title = self._create_section_title(self.tr("Recent"))
 
-        # Bookmarks section
-        layout.addWidget(_SectionHeader(self.tr("Bookmarks")))
-        self.bookmark_list = QListWidget()
-        self.bookmark_list.setAlternatingRowColors(True)
-        self.bookmark_list.setFrameShape(QFrame.Shape.NoFrame)
-        self.bookmark_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.bookmark_list.itemDoubleClicked.connect(self._on_item_activated)
-        self.bookmark_list.itemActivated.connect(self._on_item_activated)
-        layout.addWidget(self.bookmark_list)
+        self._add_tab(self.quick_list, self.quick_title, self.tr("Quick Access"), app_icon("user-bookmarks", "emblem-favorite", "bookmark-new"))
+        self._add_tab(self.computer_list, self.computer_title, self.tr("This Computer"), app_icon("computer", "drive-harddisk", "computer-symbolic"))
+        self._add_tab(self.network_list, self.network_title, self.tr("Network"), app_icon("network-workgroup", "network-server", "folder-remote"))
+        self._add_tab(self.bookmark_list, self.bookmark_title, self.tr("Bookmarks"), app_icon("bookmarks", "folder-bookmarks", "bookmark-new"))
+        self._add_tab(self.recent_list, self.recent_title, self.tr("Recent"), app_icon("document-open-recent", "folder-recent", "view-history"))
 
-        # Recent section
-        layout.addWidget(_SectionHeader(self.tr("Recent")))
-        self.recent_list = QListWidget()
-        self.recent_list.setAlternatingRowColors(True)
-        self.recent_list.setFrameShape(QFrame.Shape.NoFrame)
-        self.recent_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.recent_list.itemDoubleClicked.connect(self._on_item_activated)
-        self.recent_list.itemActivated.connect(self._on_item_activated)
-        layout.addWidget(self.recent_list)
+        self.tab_widget.currentChanged.connect(self._on_tab_changed)
+        layout.addWidget(self.tab_widget)
+        self._apply_sidebar_style()
+        self._on_tab_changed(self.tab_widget.currentIndex())
 
         self.populate()
+
+    def _create_section_list(self) -> QListWidget:
+        section_list = QListWidget()
+        section_list.setAlternatingRowColors(True)
+        section_list.setFrameShape(QFrame.Shape.NoFrame)
+        section_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        section_list.itemDoubleClicked.connect(self._on_item_activated)
+        section_list.itemActivated.connect(self._on_item_activated)
+        return section_list
+
+    def _create_section_title(self, title: str) -> QLabel:
+        label = QLabel(title, self)
+        label.setObjectName("sidebarSectionTitle")
+        label.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+        return label
+
+    def _create_tab_page(self, title_label: QLabel, section_list: QListWidget) -> QWidget:
+        page = QWidget(self)
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+        layout.addWidget(title_label)
+        layout.addWidget(section_list)
+        return page
+
+    def _add_tab(self, section_list: QListWidget, title_label: QLabel, title: str, icon: QIcon):
+        page = self._create_tab_page(title_label, section_list)
+        index = self.tab_widget.addTab(page, icon, title)
+        self.tab_widget.tabBar().setTabToolTip(index, title)
+
+    def _on_tab_changed(self, index: int):
+        self.tab_widget.tabBar().update()
+        self.tab_widget.tabBar().updateGeometry()
+
+    def _apply_sidebar_style(self):
+        self.tab_widget.setStyleSheet(
+            """
+            QTabWidget::pane {
+                border: 1px solid palette(mid);
+                border-top: none;
+                background: palette(base);
+            }
+            QTabWidget::tab-bar {
+                alignment: left;
+            }
+            QLabel#sidebarSectionTitle {
+                padding: 6px 8px 2px 8px;
+                color: palette(window-text);
+                font-weight: 600;
+            }
+            QListWidget {
+                border: none;
+                background: palette(base);
+                padding: 4px 0;
+            }
+            QListWidget::item {
+                padding: 4px 8px;
+            }
+            QListWidget::item:selected {
+                background: palette(highlight);
+                color: palette(highlighted-text);
+                border-radius: 4px;
+            }
+            """
+        )
 
     def _on_item_activated(self, item):
         if item is not None:

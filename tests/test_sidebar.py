@@ -42,6 +42,37 @@ class SidebarTests(unittest.TestCase):
             ]
             self.assertIn(str(frequent), paths)
 
+    def test_sidebar_uses_five_icon_tabs_with_tooltips(self):
+        sidebar = Sidebar([])
+
+        self.assertEqual(sidebar.tab_widget.count(), 5)
+        self.assertEqual(sidebar.tab_widget.tabToolTip(0), "Quick Access")
+        self.assertEqual(sidebar.tab_widget.tabToolTip(1), "This Computer")
+        self.assertEqual(sidebar.tab_widget.tabToolTip(2), "Network")
+        self.assertEqual(sidebar.tab_widget.tabToolTip(3), "Bookmarks")
+        self.assertEqual(sidebar.tab_widget.tabToolTip(4), "Recent")
+
+    def test_tab_titles_are_shown_inside_the_active_page_header(self):
+        sidebar = Sidebar([])
+
+        self.assertEqual(sidebar.quick_title.text(), "Quick Access")
+        self.assertEqual(sidebar.computer_title.text(), "This Computer")
+        self.assertEqual(sidebar.network_title.text(), "Network")
+        self.assertEqual(sidebar.bookmark_title.text(), "Bookmarks")
+        self.assertEqual(sidebar.recent_title.text(), "Recent")
+
+    def test_tabs_stay_compact_icon_buttons(self):
+        sidebar = Sidebar([])
+        tab_bar = sidebar.tab_widget.tabBar()
+
+        first_size = tab_bar.tabSizeHint(0)
+        second_size = tab_bar.tabSizeHint(1 if tab_bar.count() > 1 else 0)
+
+        self.assertEqual(first_size.width(), 30)
+        self.assertEqual(first_size.height(), 30)
+        self.assertEqual(second_size.width(), 30)
+        self.assertEqual(second_size.height(), 30)
+
     def test_pinned_bookmarks_are_added_to_quick_access(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             pinned = Path(tmpdir) / "pinned"
