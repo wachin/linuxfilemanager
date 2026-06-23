@@ -20,7 +20,7 @@ class TerminalServiceTests(unittest.TestCase):
 
         self.assertEqual(
             service.available_terminals,
-            ["konsole", "qterminal", "xfce4-terminal"],
+            ["qterminal", "xfce4-terminal", "konsole"],
         )
 
     @patch("lfmapp.services.terminal_service.subprocess.Popen")

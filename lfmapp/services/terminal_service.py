@@ -31,9 +31,9 @@ class TerminalService:
     }
 
     PREFERRED_TERMINAL_ORDER = [
-        "konsole",
         "qterminal",
         "xfce4-terminal",
+        "konsole",
         "gnome-terminal",
         "mate-terminal",
         "lxterminal",
