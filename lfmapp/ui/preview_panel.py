@@ -64,6 +64,16 @@ class PreviewPanel(QWidget):
 
         self._preview_worker = None
         self._current_path = None
+        self._show_thumbnails_mode = "local_only"
+        self._max_preview_size_mb = 1
+
+    def apply_preferences(self, config):
+        self._show_thumbnails_mode = str(
+            config.data.get("preview_show_thumbnails", "local_only")
+        )
+        self._max_preview_size_mb = int(
+            config.data.get("preview_max_file_size_mb", 1)
+        )
 
     def show_path(self, path: Path):
         """Start loading a file preview in the background."""
@@ -79,6 +89,24 @@ class PreviewPanel(QWidget):
         self.title.setText(self.tr("Preview"))
         self.text_edit.setPlainText(self.tr("Loading preview...") if not path.is_dir() else "")
         self.metadata_edit.setPlainText(self.tr("Loading details...") if path.is_dir() else "")
+        if path.is_file() and self._show_thumbnails_mode == "never":
+            self.text_edit.setVisible(True)
+            self.text_edit.setPlainText(path.name)
+            self.metadata_edit.setVisible(True)
+            self.details_title.setVisible(True)
+            self.metadata_edit.setPlainText(PreviewWorker.metadata_for_path(path))
+            return
+        if path.is_file():
+            try:
+                if path.stat().st_size > self._max_preview_size_mb * 1024 * 1024:
+                    self.text_edit.setVisible(True)
+                    self.text_edit.setPlainText(path.name)
+                    self.metadata_edit.setVisible(True)
+                    self.details_title.setVisible(True)
+                    self.metadata_edit.setPlainText(PreviewWorker.metadata_for_path(path))
+                    return
+            except OSError:
+                pass
 
         # Stop any running preview worker
         if self._preview_worker is not None and self._preview_worker.isRunning():

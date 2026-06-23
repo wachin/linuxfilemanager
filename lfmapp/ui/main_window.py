@@ -137,7 +137,7 @@ class MainWindow(QMainWindow):
         self.sidebar.set_frequent_folders(self.config.frequent_folders())
         self.sidebar.itemActivated.connect(self.on_sidebar_item_activated)
 
-        self.workspace = Workspace(initial_path=startup_path)
+        self.workspace = Workspace(initial_path=startup_path, config=self.config)
         self.workspace.set_icon_grid_size(self.config.icon_grid_size)
         self.workspace.model.show_selection_checkboxes = self.config.selection_checkboxes
         self.workspace.model.show_extensions = self.config.show_file_extensions
@@ -198,6 +198,9 @@ class MainWindow(QMainWindow):
         self.update_view_persistence_indicator()
         self.setup_shortcuts()
         self._progress_dialog = None
+        self.apply_toolbar_preferences()
+        self.apply_workspace_preferences()
+        self.apply_title_preferences()
 
         self.new_tab(startup_path)
 
@@ -355,6 +358,12 @@ class MainWindow(QMainWindow):
         toolbar.addAction(self.sidebar_action)
 
         self.build_context_toolbar()
+        self.toolbar_buttons = {
+            "back": self.back_action,
+            "forward": self.forward_action,
+            "up": self.up_action,
+            "home": self.home_action,
+        }
 
     def build_context_toolbar(self):
         """Build a contextual toolbar that changes with the selected item type."""
@@ -951,8 +960,9 @@ class MainWindow(QMainWindow):
             self.tabbar.setTabText(index, self._tab_title(path))
             self.tabbar.setTabToolTip(index, str(path))
 
-    @staticmethod
-    def _tab_title(path: Path) -> str:
+    def _tab_title(self, path: Path) -> str:
+        if self.config.data.get("title_show_full_path", False):
+            return str(path)
         return path.name or str(path)
 
     # ─── Navigation ────────────────────────────────────────────
@@ -1005,7 +1015,25 @@ class MainWindow(QMainWindow):
         self.update_quick_access_action()
         self.update_statusbar()
         self.update_trash_count()
+        self.apply_title_preferences()
         self._sync_active_tab_state()
+
+    def apply_workspace_preferences(self):
+        self.workspace.apply_preferences()
+        self.preview.apply_preferences(self.config)
+
+    def apply_toolbar_preferences(self):
+        visible = set(self.config.data.get("toolbar_visible_buttons", []))
+        if hasattr(self, "toolbar_buttons"):
+            for key, action in self.toolbar_buttons.items():
+                action.setVisible(key in visible)
+
+    def apply_title_preferences(self):
+        current = self.workspace.current_path()
+        title = str(current) if self.config.data.get("title_show_full_path", False) else (current.name or str(current))
+        self.setWindowTitle(f"linux-file-manager - {title}")
+        for index, state in enumerate(self._tabs):
+            self._update_tab_title(index, state["path"])
 
     def go_up(self):
         current = self.workspace.current_path()
@@ -1117,18 +1145,28 @@ class MainWindow(QMainWindow):
 
         menu.exec(self.workspace.viewport().mapToGlobal(pos))
 
+    def _context_entry_enabled(self, group: str, key: str) -> bool:
+        entries = self.config.data.get(f"context_menu_{group}_entries", [])
+        return key in entries
+
     def _build_file_context_menu(self, menu: QMenu, path: Path):
-        menu.addAction(app_icon("document-open", "folder-open"), self.tr("Open"), self.open_selected)
+        if self._context_entry_enabled("selection", "open"):
+            menu.addAction(app_icon("document-open", "folder-open"), self.tr("Open"), self.open_selected)
         menu.addAction(self.tr("Open with..."), self.open_with_dialog)
         menu.addAction(self.tr("Set default application..."), self.set_default_application_dialog)
         menu.addSeparator()
-        menu.addAction(app_icon("utilities-terminal", "terminal"), self.tr("Open in Terminal"), lambda: self.open_terminal_in_directory(path.parent))
+        if self._context_entry_enabled("selection", "open_in_terminal"):
+            menu.addAction(app_icon("utilities-terminal", "terminal"), self.tr("Open in Terminal"), lambda: self.open_terminal_in_directory(path.parent))
         menu.addSeparator()
-        menu.addAction(app_icon("edit-cut"), self.tr("Cut"), self.cut_selected)
-        menu.addAction(app_icon("edit-copy"), self.tr("Copy"), self.copy_selected)
+        if self._context_entry_enabled("selection", "cut"):
+            menu.addAction(app_icon("edit-cut"), self.tr("Cut"), self.cut_selected)
+        if self._context_entry_enabled("selection", "copy"):
+            menu.addAction(app_icon("edit-copy"), self.tr("Copy"), self.copy_selected)
         menu.addAction(self.tr("Copy path"), self.copy_path)
-        menu.addAction(self.tr("Copy to..."), self.copy_selected_to)
-        menu.addAction(self.tr("Move to..."), self.move_selected_to)
+        if self._context_entry_enabled("selection", "copy_to") and self.config.data.get("move_copy_menu_show_bookmarks", True):
+            menu.addAction(self.tr("Copy to..."), self.copy_selected_to)
+        if self._context_entry_enabled("selection", "move_to") and self.config.data.get("move_copy_menu_show_bookmarks", True):
+            menu.addAction(self.tr("Move to..."), self.move_selected_to)
         menu.addSeparator()
 
         send_to_menu = menu.addMenu(self.tr("Send to"))
@@ -1150,9 +1188,12 @@ class MainWindow(QMainWindow):
         menu.addAction(app_icon("package-x-generic", "folder-compressed"), self.tr("Compress to ZIP"), lambda: self.compress_to_zip(path))
         menu.addAction(app_icon("document-properties", "security-medium"), self.tr("Advanced Security..."), self.show_advanced_security)
 
-        menu.addAction(app_icon("document-save-as", "edit-rename"), self.tr("Rename"), self.rename_selected_dialog)
-        menu.addAction(app_icon("user-trash", "trash-empty"), self.tr("Move to Trash"), self.trash_selected)
-        menu.addAction(app_icon("edit-delete"), self.tr("Delete Permanently"), self.delete_selected)
+        if self._context_entry_enabled("selection", "rename"):
+            menu.addAction(app_icon("document-save-as", "edit-rename"), self.tr("Rename"), self.rename_selected_dialog)
+        if self._context_entry_enabled("selection", "move_to_trash"):
+            menu.addAction(app_icon("user-trash", "trash-empty"), self.tr("Move to Trash"), self.trash_selected)
+        if self.config.data.get("show_delete_bypassing_trash", True):
+            menu.addAction(app_icon("edit-delete"), self.tr("Delete Permanently"), self.delete_selected)
         menu.addSeparator()
 
         # Tags submenu
@@ -1167,17 +1208,24 @@ class MainWindow(QMainWindow):
                 )
 
         menu.addSeparator()
-        menu.addAction(app_icon("document-properties", "settings"), self.tr("Properties"), self.show_properties)
+        if self._context_entry_enabled("selection", "properties"):
+            menu.addAction(app_icon("document-properties", "settings"), self.tr("Properties"), self.show_properties)
 
     def _build_folder_context_menu(self, menu: QMenu, path: Path):
-        menu.addAction(app_icon("document-open", "folder-open"), self.tr("Open"), self.open_selected)
-        menu.addAction(app_icon("utilities-terminal", "terminal"), self.tr("Open in Terminal"), lambda: self.open_terminal_in_directory(path))
+        if self._context_entry_enabled("selection", "open"):
+            menu.addAction(app_icon("document-open", "folder-open"), self.tr("Open"), self.open_selected)
+        if self._context_entry_enabled("selection", "open_in_terminal"):
+            menu.addAction(app_icon("utilities-terminal", "terminal"), self.tr("Open in Terminal"), lambda: self.open_terminal_in_directory(path))
         menu.addSeparator()
-        menu.addAction(app_icon("edit-cut"), self.tr("Cut"), self.cut_selected)
-        menu.addAction(app_icon("edit-copy"), self.tr("Copy"), self.copy_selected)
+        if self._context_entry_enabled("selection", "cut"):
+            menu.addAction(app_icon("edit-cut"), self.tr("Cut"), self.cut_selected)
+        if self._context_entry_enabled("selection", "copy"):
+            menu.addAction(app_icon("edit-copy"), self.tr("Copy"), self.copy_selected)
         menu.addAction(self.tr("Copy path"), self.copy_path)
-        menu.addAction(self.tr("Copy to..."), self.copy_selected_to)
-        menu.addAction(self.tr("Move to..."), self.move_selected_to)
+        if self._context_entry_enabled("selection", "copy_to") and self.config.data.get("move_copy_menu_show_bookmarks", True):
+            menu.addAction(self.tr("Copy to..."), self.copy_selected_to)
+        if self._context_entry_enabled("selection", "move_to") and self.config.data.get("move_copy_menu_show_bookmarks", True):
+            menu.addAction(self.tr("Move to..."), self.move_selected_to)
         menu.addSeparator()
 
         send_to_menu = menu.addMenu(self.tr("Send to"))
@@ -1193,9 +1241,12 @@ class MainWindow(QMainWindow):
         menu.addAction(app_icon("package-x-generic", "folder-compressed"), self.tr("Compress to ZIP"), lambda: self.compress_to_zip(path))
         menu.addAction(app_icon("document-properties", "security-medium"), self.tr("Advanced Security..."), self.show_advanced_security)
 
-        menu.addAction(app_icon("document-save-as", "edit-rename"), self.tr("Rename"), self.rename_selected_dialog)
-        menu.addAction(app_icon("user-trash", "trash-empty"), self.tr("Move to Trash"), self.trash_selected)
-        menu.addAction(app_icon("edit-delete"), self.tr("Delete Permanently"), self.delete_selected)
+        if self._context_entry_enabled("selection", "rename"):
+            menu.addAction(app_icon("document-save-as", "edit-rename"), self.tr("Rename"), self.rename_selected_dialog)
+        if self._context_entry_enabled("selection", "move_to_trash"):
+            menu.addAction(app_icon("user-trash", "trash-empty"), self.tr("Move to Trash"), self.trash_selected)
+        if self.config.data.get("show_delete_bypassing_trash", True):
+            menu.addAction(app_icon("edit-delete"), self.tr("Delete Permanently"), self.delete_selected)
         menu.addSeparator()
 
         new_menu = menu.addMenu(self.tr("New"))
@@ -1204,20 +1255,25 @@ class MainWindow(QMainWindow):
         new_menu.addAction(self.tr("Multiple items..."), self.new_multiple_items)
         menu.addSeparator()
 
-        menu.addAction(self.tr("Add folder to Quick Access"), self.add_bookmark)
-        menu.addAction(app_icon("document-properties", "settings"), self.tr("Properties"), self.show_properties)
+        if self._context_entry_enabled("selection", "pin"):
+            menu.addAction(self.tr("Add folder to Quick Access"), self.add_bookmark)
+        if self._context_entry_enabled("selection", "properties"):
+            menu.addAction(app_icon("document-properties", "settings"), self.tr("Properties"), self.show_properties)
 
     def _build_empty_context_menu(self, menu: QMenu):
-        menu.addAction(app_icon("utilities-terminal", "terminal"), self.tr("Open in Terminal"), self.open_current_directory_in_terminal)
+        if self._context_entry_enabled("background", "open_in_terminal"):
+            menu.addAction(app_icon("utilities-terminal", "terminal"), self.tr("Open in Terminal"), self.open_current_directory_in_terminal)
         menu.addSeparator()
-        menu.addAction(app_icon("edit-paste"), self.tr("Paste"), self.paste_from_clipboard)
+        if self._context_entry_enabled("background", "paste"):
+            menu.addAction(app_icon("edit-paste"), self.tr("Paste"), self.paste_from_clipboard)
         menu.addSeparator()
 
-        new_menu = menu.addMenu(self.tr("New"))
-        new_menu.addAction(self.tr("Folder"), self.new_folder)
-        new_menu.addAction(self.tr("Empty file"), self.new_file)
-        new_menu.addAction(self.tr("Multiple items..."), self.new_multiple_items)
-        menu.addSeparator()
+        if self._context_entry_enabled("background", "create_new_folder"):
+            new_menu = menu.addMenu(self.tr("New"))
+            new_menu.addAction(self.tr("Folder"), self.new_folder)
+            new_menu.addAction(self.tr("Empty file"), self.new_file)
+            new_menu.addAction(self.tr("Multiple items..."), self.new_multiple_items)
+            menu.addSeparator()
 
         view_menu = menu.addMenu(self.tr("View"))
         hidden_action = QAction(self.tr("Hidden files"), self, checkable=True)
@@ -1237,7 +1293,8 @@ class MainWindow(QMainWindow):
         menu.addSeparator()
 
         menu.addAction(self.tr("Refresh"), self.refresh_view)
-        menu.addAction(app_icon("document-properties", "settings"), self.tr("Properties"), self.show_folder_properties)
+        if self._context_entry_enabled("background", "properties"):
+            menu.addAction(app_icon("document-properties", "settings"), self.tr("Properties"), self.show_folder_properties)
 
     def _add_share_with_menu(self, menu: QMenu, path: Path):
         """Add a dynamic Share with submenu for a file or folder."""

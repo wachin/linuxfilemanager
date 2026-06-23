@@ -74,8 +74,9 @@ class Workspace(QWidget):
     filesDropped = pyqtSignal(list, str)  # paths, action: 'copy'|'move'
     selectionChanged = pyqtSignal(object, object)
 
-    def __init__(self, parent=None, initial_path: Path | str | None = None):
+    def __init__(self, parent=None, initial_path: Path | str | None = None, config=None):
         super().__init__(parent)
+        self.config = config
         self._view_mode = ViewMode.DETAILS
         self._current_path = Path(initial_path).expanduser() if initial_path else Path.home()
         self._sort_key = "name"
@@ -139,7 +140,7 @@ class Workspace(QWidget):
         self.stacked_widget.addWidget(self.icon_view)
 
         # Create and set up the custom model
-        self.model = FileSystemModel(self, root_path=self._current_path)
+        self.model = FileSystemModel(self, root_path=self._current_path, config=config)
 
         # Set model for all views
         self.details_view.setModel(self.model)
@@ -187,6 +188,7 @@ class Workspace(QWidget):
         for v in (self.details_view, self.list_view, self.icon_view):
             v.setAcceptDrops(True)
             v.installEventFilter(self)
+        self.apply_preferences()
 
     def _ensure_name_column_width(self):
         """Keep the name column readable in Details view."""
@@ -196,6 +198,48 @@ class Workspace(QWidget):
         width = self.details_view.columnWidth(0)
         if width < self.MIN_NAME_COLUMN_WIDTH:
             self.details_view.setColumnWidth(0, self.MIN_NAME_COLUMN_WIDTH)
+
+    def apply_preferences(self):
+        if self.config is None:
+            return
+        self.model.apply_display_preferences()
+        self.set_icon_grid_size(self.config.icon_grid_size)
+        default_view = ViewMode.from_string(
+            self.config.data.get("default_view_mode", "details"),
+            ViewMode.DETAILS,
+        )
+        self.set_view_mode(default_view)
+        order = (
+            Qt.SortOrder.DescendingOrder
+            if self.config.data.get("default_sort_descending", False)
+            else Qt.SortOrder.AscendingOrder
+        )
+        self.sort_by(
+            str(self.config.data.get("default_sort_key", "name")),
+            order,
+        )
+        self.apply_list_columns_preferences()
+
+    def apply_list_columns_preferences(self):
+        if self.config is None:
+            return
+        visible = set(self.config.data.get("list_columns_visible", ["name", "size", "type", "modified"]))
+        order = list(self.config.data.get("list_columns_order", ["name", "size", "type", "modified"]))
+        column_map = {
+            "name": 0,
+            "size": 1,
+            "type": 2,
+            "modified": 3,
+        }
+        for key, column in column_map.items():
+            self.details_view.setColumnHidden(column, key not in visible)
+        header = self.details_view.header()
+        visual_order = [column_map[key] for key in order if key in column_map]
+        for visual_index, column in enumerate(visual_order):
+            current = header.visualIndex(column)
+            if current != visual_index:
+                header.moveSection(current, visual_index)
+        self._ensure_name_column_width()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

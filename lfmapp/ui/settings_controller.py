@@ -89,6 +89,30 @@ class SettingsController:
         self.window.statusBar().showMessage(self.window.tr("Preferences updated"), 3000)
 
     def apply_preferences(self, preferences: dict):
+        extra_preferences = {
+            key: value
+            for key, value in preferences.items()
+            if key
+            not in {
+                "sidebar_visible",
+                "preview_visible",
+                "show_hidden_files",
+                "show_file_extensions",
+                "selection_checkboxes",
+                "remember_folder_view",
+                "window_remember_size",
+                "window_width",
+                "window_height",
+                "startup_location_mode",
+                "startup_location_custom_path",
+                "ui_font_family",
+                "ui_font_size",
+                "ui_font_weight",
+                "ui_font_italic",
+                "preferred_terminal",
+            }
+        }
+        self.config.set_options(extra_preferences)
         self.set_sidebar_visible(preferences["sidebar_visible"])
         self.set_preview_visible(preferences["preview_visible"])
         self.set_hidden_files_visible(preferences["show_hidden_files"])
@@ -111,6 +135,7 @@ class SettingsController:
             preferences["ui_font_italic"],
         )
         self.set_preferred_terminal(preferences["preferred_terminal"])
+        self.apply_extended_preferences()
 
     def set_sidebar_visible(self, visible: bool):
         self.window.sidebar.setVisible(visible)
@@ -188,3 +213,8 @@ class SettingsController:
     def set_preferred_terminal(self, terminal: str):
         self.config.set_preferred_terminal(terminal)
         self.window.terminal_service.refresh_terminals()
+
+    def apply_extended_preferences(self):
+        self.window.apply_workspace_preferences()
+        self.window.apply_toolbar_preferences()
+        self.window.apply_title_preferences()

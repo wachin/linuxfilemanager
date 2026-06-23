@@ -16,14 +16,20 @@ from PyQt6.QtWidgets import QFileIconProvider
 class FileSystemModel(QFileSystemModel):
     """Extended file system model with improved display."""
 
-    def __init__(self, parent=None, root_path: Path | str | None = None):
+    def __init__(self, parent=None, root_path: Path | str | None = None, config=None):
         super().__init__(parent)
         self.setFilter(QDir.Filter.AllEntries | QDir.Filter.NoDotAndDotDot | QDir.Filter.Hidden)
         self.setIconProvider(self._optimized_icon_provider())
         self.setRootPath(str(root_path or Path.home()))
+        self.config = config
         self._show_extensions = True
         self._show_selection_checkboxes = False
         self._checked_paths: set[str] = set()
+        self._size_prefix_style = "decimal"
+        self._date_format = "yyyy-MM-dd HH:mm"
+        self._tooltips_enabled = False
+        self._tooltip_fields: list[str] = []
+        self.apply_display_preferences()
 
     @staticmethod
     def _optimized_icon_provider() -> QFileIconProvider:
@@ -55,6 +61,26 @@ class FileSystemModel(QFileSystemModel):
     def clear_checked_paths(self):
         """Clear all checkbox selections."""
         self._checked_paths.clear()
+        self.layoutChanged.emit()
+
+    def apply_display_preferences(self):
+        if self.config is None:
+            return
+        self._size_prefix_style = str(
+            self.config.data.get("file_size_prefix_style", "decimal")
+        )
+        self._date_format = str(
+            self.config.data.get("date_display_format", "yyyy-MM-dd HH:mm")
+        ) or "yyyy-MM-dd HH:mm"
+        self._tooltips_enabled = bool(
+            self.config.data.get("preview_tooltips_icon_compact", False)
+            or self.config.data.get("preview_tooltips_list", False)
+        )
+        self._tooltip_fields = [
+            str(value)
+            for value in self.config.data.get("preview_tooltip_fields", [])
+            if value
+        ]
         self.layoutChanged.emit()
 
     def data(self, index, role=Qt.ItemDataRole.DisplayRole):
@@ -100,13 +126,27 @@ class FileSystemModel(QFileSystemModel):
             # Column 3: Date - show formatted date
             if column == 3:
                 file_info = self.fileInfo(index)
-                return file_info.lastModified().toString("yyyy-MM-dd HH:mm")
+                return file_info.lastModified().toString(self._date_format)
 
         elif role == Qt.ItemDataRole.ToolTipRole:
+            if not self._tooltips_enabled:
+                return None
             file_info = self.fileInfo(index)
+            lines = [file_info.fileName()]
             if file_info.isFile():
-                size = self._human_readable_size(file_info.size())
-                return f"{file_info.fileName()}\n{size}\n{file_info.absoluteFilePath()}"
+                lines.append(self._human_readable_size(file_info.size()))
+            if "detailed_type" in self._tooltip_fields:
+                lines.append(self._file_type_description(file_info))
+            if "modified_date" in self._tooltip_fields:
+                lines.append(file_info.lastModified().toString(self._date_format))
+            if "accessed_date" in self._tooltip_fields:
+                lines.append(file_info.lastRead().toString(self._date_format))
+            if "created_date" in self._tooltip_fields:
+                created = getattr(file_info, "birthTime", lambda: file_info.lastModified())()
+                lines.append(created.toString(self._date_format))
+            if "location" in self._tooltip_fields or not self._tooltip_fields:
+                lines.append(file_info.absoluteFilePath())
+            return "\n".join(line for line in lines if line)
 
         elif role == Qt.ItemDataRole.TextAlignmentRole:
             column = index.column()
@@ -137,15 +177,18 @@ class FileSystemModel(QFileSystemModel):
             flags |= Qt.ItemFlag.ItemIsUserCheckable
         return flags
 
+    def _human_readable_size(self, size: int) -> str:
+        base = 1000 if self._size_prefix_style == "decimal" else 1024
+        return self._human_readable_size_with_base(size, base)
+
     @staticmethod
-    def _human_readable_size(size: int) -> str:
-        """Convert bytes to human-readable format."""
+    def _human_readable_size_with_base(size: int, base: int) -> str:
         for unit in ["B", "KB", "MB", "GB", "TB"]:
-            if size < 1024:
+            if size < base:
                 if unit == "B":
                     return f"{size} {unit}"
                 return f"{size:.1f} {unit}"
-            size /= 1024
+            size /= base
         return f"{size:.1f} PB"
 
     @staticmethod
