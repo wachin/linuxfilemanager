@@ -87,8 +87,9 @@ class MainWindowMenuTests(unittest.TestCase):
                 self.assertIsNone(window._tag_service)
                 self.assertIsNone(window._vault_service)
 
-                self.assertIs(window.tag_service, window.tag_service)
-                self.assertIsNotNone(window._tag_service)
+                with patch("lfmapp.services.tag_service.TAGS_DB_FILE", Path(tmpdir) / "tags.db"):
+                    self.assertIs(window.tag_service, window.tag_service)
+                    self.assertIsNotNone(window._tag_service)
                 self.assertIs(window.vault_service, window.vault_service)
                 self.assertIsNotNone(window._vault_service)
             finally:

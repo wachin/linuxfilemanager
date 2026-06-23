@@ -43,6 +43,10 @@ class Config:
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         self.data = self._load()
 
+    @property
+    def file_path(self) -> Path:
+        return CONFIG_FILE
+
     def _load(self):
         if CONFIG_FILE.exists():
             try:

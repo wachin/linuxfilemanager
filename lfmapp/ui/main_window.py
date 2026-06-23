@@ -99,16 +99,19 @@ from lfmapp.utils.open_with import (
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, config: Config | None = None):
         super().__init__()
         self.setWindowTitle("linux-file-manager")
-        self.config = Config()
+        self.config = config or Config()
         self.terminal_service = TerminalService(self.config)
         self.settings_controller = SettingsController(self)
         self._apply_window_size_from_config()
-        self.bookmark_service = BookmarkService()
+        self.bookmark_service = BookmarkService(
+            bookmarks_file=self.config.file_path.parent / "bookmarks.json"
+        )
         self._tag_service = None
         self._vault_service = None
+        self._tag_db_file = self.config.file_path.parent / "tags.db"
         self.history: list[Path] = []
         self.history_index = -1
         self._tabs = []
@@ -234,7 +237,7 @@ class MainWindow(QMainWindow):
         if self._tag_service is None:
             from lfmapp.services.tag_service import TagService
 
-            self._tag_service = TagService()
+            self._tag_service = TagService(db_file=self._tag_db_file)
         return self._tag_service
 
     @property

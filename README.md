@@ -142,6 +142,20 @@ User settings are stored in:
 ~/.local/share/linux-file-manager/config.json
 ```
 
+Related application data is also stored under:
+
+```text
+~/.local/share/linux-file-manager/
+```
+
+This directory can contain:
+
+- `config.json` for preferences and UI state
+- `bookmarks.json` for user-created bookmarks only
+- `tags.db` for persistent file tags
+- `extensions/` for user extensions
+- `vault/` for vault-related data
+
 Examples of configurable settings:
 
 - window width and height
@@ -185,6 +199,22 @@ You can change these settings from:
 
 - `Tools > Preferences...`
 - `View > Font Size`
+
+## Resetting the Program
+
+If you want to reset Linux File Manager to a clean state, you can inspect and remove its saved files from:
+
+```text
+~/.local/share/linux-file-manager/
+```
+
+Common reset actions:
+
+- delete `~/.local/share/linux-file-manager/config.json` to reset preferences and window/UI state
+- delete the whole `~/.local/share/linux-file-manager/` directory to remove all saved application data
+
+After deleting these files, start the program again and it will recreate the missing configuration with default values.
+On first launch after a reset, Linux File Manager now recreates its core app data automatically, including `config.json`, `bookmarks.json`, `tags.db`, and the `extensions/` and `vault/` directories.
 
 ## Packaging
 

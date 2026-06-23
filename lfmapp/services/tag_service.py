@@ -12,43 +12,61 @@ from lfmapp.core.paths import CONFIG_DIR
 TAGS_DB_FILE = CONFIG_DIR / "tags.db"
 
 
+def _create_schema(conn: sqlite3.Connection) -> None:
+    """Create the tag database schema."""
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS tags (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            color TEXT DEFAULT NULL
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS file_tags (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            file_path TEXT NOT NULL,
+            tag_id INTEGER NOT NULL,
+            FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
+            UNIQUE(file_path, tag_id)
+        )
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_file_tags_path
+        ON file_tags(file_path)
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_file_tags_tag
+        ON file_tags(tag_id)
+    """)
+    conn.commit()
+
+
+def initialize_tags_db(db_file: Path | None = None) -> Path:
+    """Create the SQLite tag database and schema if they do not exist."""
+    target = Path(db_file) if db_file is not None else TAGS_DB_FILE
+    target.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(target))
+    try:
+        _create_schema(conn)
+    finally:
+        conn.close()
+    return target
+
+
 class TagService:
     """Manages file tags using SQLite."""
 
-    def __init__(self):
-        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(str(TAGS_DB_FILE))
+    def __init__(self, db_file: Path | None = None):
+        self._db_file = Path(db_file) if db_file is not None else TAGS_DB_FILE
+        self._db_file.parent.mkdir(parents=True, exist_ok=True)
+        self._conn = sqlite3.connect(str(self._db_file))
         self._conn.row_factory = sqlite3.Row
         self._create_tables()
 
     def _create_tables(self):
         """Create database tables if they don't exist."""
-        cursor = self._conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS tags (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE,
-                color TEXT DEFAULT NULL
-            )
-        """)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS file_tags (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                file_path TEXT NOT NULL,
-                tag_id INTEGER NOT NULL,
-                FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
-                UNIQUE(file_path, tag_id)
-            )
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_file_tags_path
-            ON file_tags(file_path)
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_file_tags_tag
-            ON file_tags(tag_id)
-        """)
-        self._conn.commit()
+        _create_schema(self._conn)
 
     def close(self):
         """Close the database connection."""

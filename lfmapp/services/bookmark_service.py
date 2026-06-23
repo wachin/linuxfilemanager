@@ -14,18 +14,30 @@ from lfmapp.core.paths import CONFIG_DIR
 BOOKMARKS_FILE = CONFIG_DIR / "bookmarks.json"
 
 
+def ensure_bookmarks_file(bookmarks_file: Path | None = None) -> Path:
+    """Create the user bookmarks file if it does not exist yet."""
+    target = Path(bookmarks_file) if bookmarks_file is not None else BOOKMARKS_FILE
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if not target.exists():
+        target.write_text("[]\n", encoding="utf-8")
+    return target
+
+
 class BookmarkService:
     """Manages user bookmarks with persistence."""
 
-    def __init__(self):
-        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    def __init__(self, bookmarks_file: Path | None = None):
+        self._bookmarks_file = (
+            Path(bookmarks_file) if bookmarks_file is not None else BOOKMARKS_FILE
+        )
         self._bookmarks: list[dict] = self._load()
 
     def _load(self) -> list[dict]:
         """Load bookmarks from disk."""
-        if BOOKMARKS_FILE.exists():
+        ensure_bookmarks_file(self._bookmarks_file)
+        if self._bookmarks_file.exists():
             try:
-                data = json.loads(BOOKMARKS_FILE.read_text(encoding="utf-8"))
+                data = json.loads(self._bookmarks_file.read_text(encoding="utf-8"))
                 if isinstance(data, list):
                     return data
             except (json.JSONDecodeError, OSError):
@@ -38,7 +50,7 @@ class BookmarkService:
 
     def save(self):
         """Save bookmarks to disk."""
-        BOOKMARKS_FILE.write_text(
+        self._bookmarks_file.write_text(
             json.dumps(self._bookmarks, indent=2, ensure_ascii=False),
             encoding="utf-8"
         )

@@ -42,7 +42,7 @@ class TerminalService:
     ]
 
     def __init__(self, config: Config | None = None):
-        self.config = config or Config()
+        self.config = config
         self._available_terminals: Optional[list[str]] = None
 
     @property
@@ -62,7 +62,9 @@ class TerminalService:
     @property
     def preferred_terminal(self) -> Optional[str]:
         """Get the configured terminal, or the first supported installed one."""
-        terminal = self.config.data.get("preferred_terminal")
+        terminal = None
+        if self.config is not None:
+            terminal = self.config.data.get("preferred_terminal")
         if terminal and terminal in self.available_terminals:
             return terminal
         if self.available_terminals:
@@ -70,6 +72,8 @@ class TerminalService:
         return None
 
     def set_preferred_terminal(self, terminal: str) -> bool:
+        if self.config is None:
+            self.config = Config()
         if terminal not in self.available_terminals:
             return False
         self.config.data["preferred_terminal"] = terminal

@@ -3,6 +3,7 @@ import sys
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import QApplication
 
+from lfmapp.core.app_data import ensure_app_data
 from lfmapp.core.config import Config
 from lfmapp.core.translator import load_translator
 from lfmapp.ui.main_window import MainWindow
@@ -12,7 +13,7 @@ def main(argv=None):
     app = QApplication(argv or sys.argv)
     app.setApplicationName("linux-file-manager")
 
-    config = Config()
+    config = ensure_app_data(Config())
     base_font = app.font()
     if config.ui_font_family.strip():
         base_font.setFamily(config.ui_font_family.strip())
@@ -25,6 +26,6 @@ def main(argv=None):
     if translator is not None:
         app.installTranslator(translator)
 
-    window = MainWindow()
+    window = MainWindow(config=config)
     window.show()
     return app.exec()

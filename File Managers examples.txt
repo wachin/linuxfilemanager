@@ -1,0 +1,20 @@
+
+
+Thunar - The File Manager Window
+https://docs.xfce.org/xfce/thunar/4.20/the-file-manager-window#customizing_the_appearance
+
+Dolphin
+https://userbase.kde.org/Dolphin
+Tutorials
+Discover Dolphin
+Archive Management in Dolphin
+Customize the icon of a folder
+Rename multiple files at the same time
+
+
+Dolphin/File Management
+https://userbase.kde.org/Dolphin/File_Management
+
+
+Dolphin
+https://wiki.archlinux.org/title/Dolphin

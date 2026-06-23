@@ -64,6 +64,8 @@ class IconGridSize(Enum):
 
 
 class Workspace(QWidget):
+    MIN_NAME_COLUMN_WIDTH = 180
+
     doubleClicked = pyqtSignal(object)
     customContextMenuRequested = pyqtSignal(object)
     filesDropped = pyqtSignal(list, str)  # paths, action: 'copy'|'move'
@@ -148,6 +150,7 @@ class Workspace(QWidget):
         self.details_view.header().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.details_view.header().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         self.details_view.header().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        self.details_view.header().setMinimumSectionSize(24)
         self.sort_by(self._sort_key, self._sort_order)
 
         # Set initial path
@@ -178,6 +181,16 @@ class Workspace(QWidget):
         for v in (self.details_view, self.list_view, self.icon_view):
             v.setAcceptDrops(True)
             v.installEventFilter(self)
+
+    def _ensure_name_column_width(self):
+        """Keep the name column readable in Details view."""
+        width = self.details_view.columnWidth(0)
+        if width < self.MIN_NAME_COLUMN_WIDTH:
+            self.details_view.setColumnWidth(0, self.MIN_NAME_COLUMN_WIDTH)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._ensure_name_column_width()
 
     def eventFilter(self, obj, event):
         from PyQt6.QtCore import QEvent
@@ -255,6 +268,7 @@ class Workspace(QWidget):
         self._view_mode = mode
         if mode == ViewMode.DETAILS:
             self.stacked_widget.setCurrentWidget(self.details_view)
+            self._ensure_name_column_width()
         elif mode == ViewMode.LIST:
             self.stacked_widget.setCurrentWidget(self.list_view)
         elif mode == ViewMode.ICON:
@@ -304,6 +318,7 @@ class Workspace(QWidget):
         self.details_view.setRootIndex(index)
         self.list_view.setRootIndex(index)
         self.icon_view.setRootIndex(index)
+        self._ensure_name_column_width()
 
     def current_path(self) -> Path:
         """Get the current root path."""

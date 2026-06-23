@@ -150,6 +150,17 @@ class WorkspaceTests(unittest.TestCase):
             self.assertEqual(workspace.list_view.rootIndex(), root_index)
             self.assertEqual(workspace.icon_view.rootIndex(), root_index)
 
+    def test_details_name_column_keeps_minimum_width(self):
+        workspace = Workspace()
+
+        workspace.details_view.setColumnWidth(0, 40)
+        workspace._ensure_name_column_width()
+
+        self.assertGreaterEqual(
+            workspace.details_view.columnWidth(0),
+            workspace.MIN_NAME_COLUMN_WIDTH,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
