@@ -768,7 +768,10 @@ class MainWindow(QMainWindow):
         self.splitter.setCollapsible(0, False)
         self.splitter.setCollapsible(1, False)
         self.splitter.setCollapsible(2, True)
-        self.splitter.setSizes([220, 620, 260])
+        self.splitter.setStretchFactor(0, 0)
+        self.splitter.setStretchFactor(1, 1)
+        self.splitter.setStretchFactor(2, 0)
+        self.splitter.setSizes([180, 760, 220])
 
         central = QWidget()
         central_layout = QVBoxLayout(central)

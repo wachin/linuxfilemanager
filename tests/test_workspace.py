@@ -153,6 +153,9 @@ class WorkspaceTests(unittest.TestCase):
     def test_details_name_column_keeps_minimum_width(self):
         workspace = Workspace()
 
+        workspace.details_view.setColumnWidth(1, 240)
+        workspace.details_view.setColumnWidth(2, 240)
+        workspace.details_view.setColumnWidth(3, 300)
         workspace.details_view.setColumnWidth(0, 40)
         workspace._ensure_name_column_width()
 
@@ -160,6 +163,9 @@ class WorkspaceTests(unittest.TestCase):
             workspace.details_view.columnWidth(0),
             workspace.MIN_NAME_COLUMN_WIDTH,
         )
+        self.assertEqual(workspace.details_view.columnWidth(1), workspace.SIZE_COLUMN_WIDTH)
+        self.assertEqual(workspace.details_view.columnWidth(2), workspace.TYPE_COLUMN_WIDTH)
+        self.assertEqual(workspace.details_view.columnWidth(3), workspace.DATE_COLUMN_WIDTH)
 
 
 if __name__ == "__main__":

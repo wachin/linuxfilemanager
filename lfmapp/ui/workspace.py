@@ -65,6 +65,9 @@ class IconGridSize(Enum):
 
 class Workspace(QWidget):
     MIN_NAME_COLUMN_WIDTH = 180
+    SIZE_COLUMN_WIDTH = 90
+    TYPE_COLUMN_WIDTH = 120
+    DATE_COLUMN_WIDTH = 160
 
     doubleClicked = pyqtSignal(object)
     customContextMenuRequested = pyqtSignal(object)
@@ -145,11 +148,14 @@ class Workspace(QWidget):
 
         # Configure details view columns
         self.details_view.setColumnWidth(0, 420)
+        self.details_view.setColumnWidth(1, self.SIZE_COLUMN_WIDTH)
+        self.details_view.setColumnWidth(2, self.TYPE_COLUMN_WIDTH)
+        self.details_view.setColumnWidth(3, self.DATE_COLUMN_WIDTH)
         self.details_view.header().setStretchLastSection(False)
         self.details_view.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.details_view.header().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        self.details_view.header().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        self.details_view.header().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        self.details_view.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
+        self.details_view.header().setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
+        self.details_view.header().setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
         self.details_view.header().setMinimumSectionSize(24)
         self.sort_by(self._sort_key, self._sort_order)
 
@@ -184,6 +190,9 @@ class Workspace(QWidget):
 
     def _ensure_name_column_width(self):
         """Keep the name column readable in Details view."""
+        self.details_view.setColumnWidth(1, self.SIZE_COLUMN_WIDTH)
+        self.details_view.setColumnWidth(2, self.TYPE_COLUMN_WIDTH)
+        self.details_view.setColumnWidth(3, self.DATE_COLUMN_WIDTH)
         width = self.details_view.columnWidth(0)
         if width < self.MIN_NAME_COLUMN_WIDTH:
             self.details_view.setColumnWidth(0, self.MIN_NAME_COLUMN_WIDTH)

@@ -22,8 +22,8 @@ from lfmapp.services.preview_worker import PreviewWorker
 class PreviewPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumWidth(260)
-        self.setMaximumWidth(360)
+        self.setMinimumWidth(200)
+        self.setMaximumWidth(300)
 
         self.title = QLabel(self.tr("Preview"))
         self.title.setAlignment(Qt.AlignmentFlag.AlignCenter)
