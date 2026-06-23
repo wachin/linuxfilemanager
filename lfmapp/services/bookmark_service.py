@@ -1,6 +1,8 @@
 """Bookmark service for linux-file-manager.
 
-Manages persistent bookmarks saved in the config directory.
+Manages user-created bookmarks saved in the config directory.
+Built-in places such as Home/Desktop/Documents belong to Quick Access and are
+resolved separately via the FreeDesktop XDG User Directories specification.
 """
 
 import json
@@ -31,25 +33,8 @@ class BookmarkService:
         return self._default_bookmarks()
 
     def _default_bookmarks(self) -> list[dict]:
-        """Return default bookmarks based on XDG user dirs."""
-        home = Path.home()
-        defaults = [
-            ("Home", str(home)),
-        ]
-        xdg_dirs = [
-            ("Desktop", "Desktop"),
-            ("Documents", "Documents"),
-            ("Downloads", "Downloads"),
-            ("Music", "Music"),
-            ("Pictures", "Pictures"),
-            ("Videos", "Videos"),
-        ]
-        for label, dirname in xdg_dirs:
-            path = home / dirname
-            if path.exists():
-                defaults.append((label, str(path)))
-
-        return [{"label": label, "path": path, "pinned": True} for label, path in defaults]
+        """Return empty user-created bookmarks by default."""
+        return []
 
     def save(self):
         """Save bookmarks to disk."""

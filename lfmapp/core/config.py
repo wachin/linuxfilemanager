@@ -5,12 +5,7 @@ from lfmapp.core.paths import CONFIG_DIR, CONFIG_FILE
 
 
 def _default_bookmarks():
-    home = Path.home()
-    return [
-        str(home),
-        str(home / "Downloads"),
-        str(home / "Documents"),
-    ]
+    return []
 
 
 def _default_config_data():

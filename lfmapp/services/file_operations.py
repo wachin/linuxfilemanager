@@ -5,40 +5,22 @@ from typing import Optional
 from PyQt6.QtWidgets import QFileDialog
 
 from lfmapp.core.paths import VAULT_DIR
+from lfmapp.core.xdg import get_xdg_directory
 
 
 class FileOperations:
     @staticmethod
     def desktop_directory(home: Path | None = None, user_dirs_file: Path | None = None) -> Path:
-        """Return the XDG desktop directory, falling back to ~/Desktop."""
+        """Return the XDG desktop directory, falling back to the user's home directory."""
         home = Path(home) if home is not None else Path.home()
-        user_dirs_file = user_dirs_file or home / ".config" / "user-dirs.dirs"
-        desktop = FileOperations._read_xdg_desktop_dir(user_dirs_file, home)
-        return desktop or home / "Desktop"
+        desktop = get_xdg_directory("desktop", home=home, user_dirs_file=user_dirs_file)
+        return desktop or home
 
     @staticmethod
     def ensure_desktop_directory(home: Path | None = None, user_dirs_file: Path | None = None) -> Path:
         desktop = FileOperations.desktop_directory(home, user_dirs_file)
         desktop.mkdir(parents=True, exist_ok=True)
         return desktop
-
-    @staticmethod
-    def _read_xdg_desktop_dir(path: Path, home: Path) -> Path | None:
-        try:
-            lines = path.read_text(encoding="utf-8").splitlines()
-        except OSError:
-            return None
-
-        for line in lines:
-            line = line.strip()
-            if not line.startswith("XDG_DESKTOP_DIR="):
-                continue
-            value = line.split("=", 1)[1].strip().strip('"')
-            if not value:
-                return None
-            value = value.replace("$HOME", str(home))
-            return Path(value).expanduser()
-        return None
 
     @staticmethod
     def create_folder(parent, folder_name: str) -> bool:

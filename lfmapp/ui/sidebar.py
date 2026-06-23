@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
 )
 
 from lfmapp.core.paths import HOME_DIR
+from lfmapp.core.xdg import get_xdg_user_dirs
 from lfmapp.services.network_service import discover_network_locations
 from lfmapp.ui.icons import app_icon
 
@@ -194,7 +195,7 @@ class Sidebar(QWidget):
         self._populate_bookmarks()
 
     def _populate_quick_access(self):
-        """Populate Quick Access with home and known XDG folders."""
+        """Populate Quick Access from the FreeDesktop XDG user directories spec."""
         self.quick_list.clear()
         style = self.quick_list.style()
 
@@ -202,20 +203,20 @@ class Sidebar(QWidget):
             (self.tr("Home"), str(HOME_DIR), QStyle.StandardPixmap.SP_DirHomeIcon),
         ]
 
-        # XDG user directories
-        xdg_dirs = [
-            (self.tr("Desktop"), "Desktop", QStyle.StandardPixmap.SP_DirIcon),
-            (self.tr("Documents"), "Documents", QStyle.StandardPixmap.SP_DirIcon),
-            (self.tr("Downloads"), "Downloads", QStyle.StandardPixmap.SP_DirIcon),
-            (self.tr("Music"), "Music", QStyle.StandardPixmap.SP_DirIcon),
-            (self.tr("Pictures"), "Pictures", QStyle.StandardPixmap.SP_DirIcon),
-            (self.tr("Videos"), "Videos", QStyle.StandardPixmap.SP_DirIcon),
-        ]
-
-        for label, dirname, icon in xdg_dirs:
-            path = HOME_DIR / dirname
-            if path.exists() and path.is_dir():
-                items.append((label, str(path), icon))
+        # Follow the FreeDesktop XDG User Directories specification so localized
+        # or user-customized folders are shown correctly on any Linux desktop.
+        xdg_dirs = get_xdg_user_dirs()
+        for key, label in (
+            ("desktop", self.tr("Desktop")),
+            ("downloads", self.tr("Downloads")),
+            ("documents", self.tr("Documents")),
+            ("music", self.tr("Music")),
+            ("pictures", self.tr("Pictures")),
+            ("videos", self.tr("Videos")),
+        ):
+            path = xdg_dirs.get(key)
+            if path is not None:
+                items.append((label, str(path), QStyle.StandardPixmap.SP_DirIcon))
 
         seen_paths = set()
         for label, path, icon in items:
@@ -273,9 +274,17 @@ class Sidebar(QWidget):
                 self.quick_list.addItem(item)
 
     def _populate_computer(self):
-        """Populate Computer section with root filesystem and trash."""
+        """Populate Computer section with home, root filesystem, drives, and trash."""
         self.computer_list.clear()
         style = self.computer_list.style()
+
+        home_item = QListWidgetItem(
+            style.standardIcon(QStyle.StandardPixmap.SP_DirHomeIcon),
+            self.tr("Home")
+        )
+        home_item.setData(Qt.ItemDataRole.UserRole, str(HOME_DIR))
+        home_item.setToolTip(str(HOME_DIR))
+        self.computer_list.addItem(home_item)
 
         # Root filesystem
         root_item = QListWidgetItem(

@@ -113,6 +113,17 @@ class SidebarTests(unittest.TestCase):
             discover.assert_called_once()
             self.assertEqual(sidebar.network_list.item(0).data(Qt.ItemDataRole.UserRole), "/mnt/share")
 
+    def test_this_computer_contains_home_and_root(self):
+        sidebar = Sidebar([], lazy_network=False)
+
+        paths = [
+            sidebar.computer_list.item(index).data(Qt.ItemDataRole.UserRole)
+            for index in range(sidebar.computer_list.count())
+        ]
+
+        self.assertIn(str(Path.home()), paths)
+        self.assertIn("/", paths)
+
 
 if __name__ == "__main__":
     unittest.main()

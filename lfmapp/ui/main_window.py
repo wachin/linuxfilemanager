@@ -48,6 +48,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtPrintSupport import QPrintDialog, QPrinter
 
 from lfmapp.core.config import Config
+from lfmapp.core.xdg import get_xdg_user_dirs
 from lfmapp.services import (
     FileOperations,
     BookmarkService,
@@ -1474,12 +1475,7 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def is_builtin_quick_access_path(path: Path) -> bool:
-        home = Path.home()
-        builtins = {home}
-        for dirname in ("Desktop", "Documents", "Downloads", "Music", "Pictures", "Videos"):
-            candidate = home / dirname
-            if candidate.exists() and candidate.is_dir():
-                builtins.add(candidate)
+        builtins = {Path.home(), *get_xdg_user_dirs().values()}
         try:
             return path.resolve() in {candidate.resolve() for candidate in builtins}
         except OSError:

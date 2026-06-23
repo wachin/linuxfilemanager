@@ -2,6 +2,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from lfmapp.services.file_operations import FileOperations
 
@@ -41,34 +42,39 @@ class FileOperationsTests(unittest.TestCase):
     def test_desktop_directory_uses_xdg_user_dirs(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             home = Path(tmpdir)
+            desktop = home / "Escritorio"
+            desktop.mkdir()
             user_dirs = home / ".config" / "user-dirs.dirs"
             user_dirs.parent.mkdir()
             user_dirs.write_text('XDG_DESKTOP_DIR="$HOME/Escritorio"\n', encoding="utf-8")
 
-            self.assertEqual(
-                FileOperations.desktop_directory(home=home, user_dirs_file=user_dirs),
-                home / "Escritorio",
-            )
+            with patch("lfmapp.services.file_operations.get_xdg_directory", return_value=desktop):
+                self.assertEqual(
+                    FileOperations.desktop_directory(home=home, user_dirs_file=user_dirs),
+                    desktop,
+                )
 
     def test_desktop_directory_falls_back_to_home_desktop(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             home = Path(tmpdir)
 
-            self.assertEqual(
-                FileOperations.desktop_directory(home=home, user_dirs_file=home / "missing"),
-                home / "Desktop",
-            )
+            with patch("lfmapp.services.file_operations.get_xdg_directory", return_value=None):
+                self.assertEqual(
+                    FileOperations.desktop_directory(home=home, user_dirs_file=home / "missing"),
+                    home,
+                )
 
     def test_ensure_desktop_directory_creates_folder(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             home = Path(tmpdir)
-            desktop = FileOperations.ensure_desktop_directory(
-                home=home,
-                user_dirs_file=home / "missing",
-            )
+            with patch("lfmapp.services.file_operations.get_xdg_directory", return_value=None):
+                desktop = FileOperations.ensure_desktop_directory(
+                    home=home,
+                    user_dirs_file=home / "missing",
+                )
 
             self.assertTrue(desktop.is_dir())
-            self.assertEqual(desktop, home / "Desktop")
+            self.assertEqual(desktop, home)
 
     def test_create_multiple_files(self):
         with tempfile.TemporaryDirectory() as tmpdir:
