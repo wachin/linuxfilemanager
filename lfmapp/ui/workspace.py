@@ -20,6 +20,11 @@ from PyQt6.QtWidgets import (
     QTreeView,
     QHeaderView,
     QListView,
+    QListWidget,
+    QListWidgetItem,
+    QDialog,
+    QDialogButtonBox,
+    QLabel,
     QWidget,
     QVBoxLayout,
     QStackedWidget,
@@ -153,11 +158,13 @@ class Workspace(QWidget):
         self.details_view.setColumnWidth(2, self.TYPE_COLUMN_WIDTH)
         self.details_view.setColumnWidth(3, self.DATE_COLUMN_WIDTH)
         self.details_view.header().setStretchLastSection(False)
-        self.details_view.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.details_view.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
-        self.details_view.header().setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
-        self.details_view.header().setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
+        self.details_view.header().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.details_view.header().setMinimumSectionSize(24)
+        self.details_view.header().setSectionsMovable(True)
+        self.details_view.header().setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.details_view.header().customContextMenuRequested.connect(
+            self._show_list_columns_dialog
+        )
         self.sort_by(self._sort_key, self._sort_order)
 
         # Set initial path
@@ -192,9 +199,6 @@ class Workspace(QWidget):
 
     def _ensure_name_column_width(self):
         """Keep the name column readable in Details view."""
-        self.details_view.setColumnWidth(1, self.SIZE_COLUMN_WIDTH)
-        self.details_view.setColumnWidth(2, self.TYPE_COLUMN_WIDTH)
-        self.details_view.setColumnWidth(3, self.DATE_COLUMN_WIDTH)
         width = self.details_view.columnWidth(0)
         if width < self.MIN_NAME_COLUMN_WIDTH:
             self.details_view.setColumnWidth(0, self.MIN_NAME_COLUMN_WIDTH)
@@ -226,11 +230,9 @@ class Workspace(QWidget):
         visible = set(self.config.data.get("list_columns_visible", ["name", "size", "type", "modified"]))
         order = list(self.config.data.get("list_columns_order", ["name", "size", "type", "modified"]))
         column_map = {
-            "name": 0,
-            "size": 1,
-            "type": 2,
-            "modified": 3,
+            key: index for index, key in enumerate(self.model.COLUMN_KEYS)
         }
+        visible.add("name")
         for key, column in column_map.items():
             self.details_view.setColumnHidden(column, key not in visible)
         header = self.details_view.header()
@@ -239,7 +241,87 @@ class Workspace(QWidget):
             current = header.visualIndex(column)
             if current != visual_index:
                 header.moveSection(current, visual_index)
+        for key, width in (
+            ("name", 420),
+            ("size", self.SIZE_COLUMN_WIDTH),
+            ("type", self.TYPE_COLUMN_WIDTH),
+            ("modified", self.DATE_COLUMN_WIDTH),
+        ):
+            column = column_map[key]
+            if self.details_view.columnWidth(column) <= self.details_view.header().minimumSectionSize():
+                self.details_view.setColumnWidth(column, width)
         self._ensure_name_column_width()
+
+    def _show_list_columns_dialog(self, _pos):
+        if self.config is None:
+            return
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(self.tr("List Columns"))
+        dialog.resize(320, 420)
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(
+            QLabel(
+                self.tr("Choose the columns to show in the Details view."),
+                dialog,
+            )
+        )
+
+        list_widget = QListWidget(dialog)
+        visible = set(
+            self.config.data.get(
+                "list_columns_visible",
+                ["name", "size", "type", "modified"],
+            )
+        )
+        order = list(
+            self.config.data.get(
+                "list_columns_order",
+                ["name", "size", "type", "modified"],
+            )
+        )
+        ordered_keys = [key for key in order if key in self.model.COLUMN_KEYS]
+        ordered_keys.extend(
+            key for key in self.model.COLUMN_KEYS if key not in ordered_keys
+        )
+        for key in ordered_keys:
+            item = QListWidgetItem(self.model.COLUMN_LABELS[key], list_widget)
+            item.setData(Qt.ItemDataRole.UserRole, key)
+            item.setFlags(
+                item.flags()
+                | Qt.ItemFlag.ItemIsUserCheckable
+                | Qt.ItemFlag.ItemIsEnabled
+                | Qt.ItemFlag.ItemIsSelectable
+            )
+            checked = key == "name" or key in visible
+            item.setCheckState(
+                Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked
+            )
+            list_widget.addItem(item)
+        layout.addWidget(list_widget, 1)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok
+            | QDialogButtonBox.StandardButton.Cancel,
+            parent=dialog,
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        selected = []
+        for index in range(list_widget.count()):
+            item = list_widget.item(index)
+            key = str(item.data(Qt.ItemDataRole.UserRole))
+            if key == "name" or item.checkState() == Qt.CheckState.Checked:
+                selected.append(key)
+        self.config.data["list_columns_visible"] = selected
+        self.config.data["list_columns_order"] = ordered_keys
+        self.config.save()
+        self.apply_list_columns_preferences()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

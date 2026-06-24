@@ -163,9 +163,45 @@ class WorkspaceTests(unittest.TestCase):
             workspace.details_view.columnWidth(0),
             workspace.MIN_NAME_COLUMN_WIDTH,
         )
-        self.assertEqual(workspace.details_view.columnWidth(1), workspace.SIZE_COLUMN_WIDTH)
-        self.assertEqual(workspace.details_view.columnWidth(2), workspace.TYPE_COLUMN_WIDTH)
-        self.assertEqual(workspace.details_view.columnWidth(3), workspace.DATE_COLUMN_WIDTH)
+        self.assertEqual(workspace.details_view.columnWidth(1), 240)
+        self.assertEqual(workspace.details_view.columnWidth(2), 240)
+        self.assertEqual(workspace.details_view.columnWidth(3), 300)
+
+    def test_details_view_supports_extended_columns(self):
+        workspace = Workspace()
+
+        self.assertGreaterEqual(workspace.model.columnCount(), 16)
+        self.assertEqual(
+            workspace.model.headerData(4, Qt.Orientation.Horizontal),
+            "Created - Time",
+        )
+
+    def test_apply_list_columns_preferences_can_show_extra_columns(self):
+        class FakeConfig:
+            def __init__(self):
+                self.data = {
+                    "list_columns_visible": ["name", "size", "owner", "permissions"],
+                    "list_columns_order": ["name", "owner", "permissions", "size"],
+                    "default_view_mode": "details",
+                    "default_sort_descending": False,
+                    "default_sort_key": "name",
+                    "file_size_prefix_style": "decimal",
+                    "date_display_format": "yyyy-MM-dd HH:mm",
+                    "preview_tooltips_icon_compact": False,
+                    "preview_tooltips_list": False,
+                    "preview_tooltip_fields": [],
+                }
+
+            @property
+            def icon_grid_size(self):
+                return "medium"
+
+        workspace = Workspace(config=FakeConfig())
+
+        owner_column = workspace.model.COLUMN_KEYS.index("owner")
+        permissions_column = workspace.model.COLUMN_KEYS.index("permissions")
+        self.assertFalse(workspace.details_view.isColumnHidden(owner_column))
+        self.assertFalse(workspace.details_view.isColumnHidden(permissions_column))
 
 
 if __name__ == "__main__":

@@ -3,18 +3,69 @@
 Extends QFileSystemModel with additional functionality:
 - Human-readable file sizes
 - File type descriptions
-- Tag display support
+- Extended Details-view columns
 """
 
+import mimetypes
+import os
+import stat
+from datetime import datetime
 from pathlib import Path
 
 from PyQt6.QtCore import QDir, QFileInfo, Qt
 from PyQt6.QtGui import QFileSystemModel
 from PyQt6.QtWidgets import QFileIconProvider
 
+try:
+    import grp
+except ImportError:  # pragma: no cover - not expected on Linux
+    grp = None
+
+try:
+    import pwd
+except ImportError:  # pragma: no cover - not expected on Linux
+    pwd = None
+
 
 class FileSystemModel(QFileSystemModel):
     """Extended file system model with improved display."""
+
+    COLUMN_KEYS = [
+        "name",
+        "size",
+        "type",
+        "modified",
+        "created_time",
+        "accessed_time",
+        "created_date",
+        "detailed_type",
+        "group",
+        "location",
+        "mime_type",
+        "octal_permissions",
+        "owner",
+        "permissions",
+        "selinux_context",
+        "modified_time",
+    ]
+    COLUMN_LABELS = {
+        "name": "Name",
+        "size": "Size",
+        "type": "Type",
+        "modified": "Date Modified",
+        "created_time": "Created - Time",
+        "accessed_time": "Date Accessed",
+        "created_date": "Date Created",
+        "detailed_type": "Detailed Type",
+        "group": "Group",
+        "location": "Location",
+        "mime_type": "MIME Type",
+        "octal_permissions": "Octal Permissions",
+        "owner": "Owner",
+        "permissions": "Permissions",
+        "selinux_context": "SELinux Context",
+        "modified_time": "Modified - Time",
+    }
 
     def __init__(self, parent=None, root_path: Path | str | None = None, config=None):
         super().__init__(parent)
@@ -83,10 +134,22 @@ class FileSystemModel(QFileSystemModel):
         ]
         self.layoutChanged.emit()
 
+    def columnCount(self, parent=None):
+        return len(self.COLUMN_KEYS)
+
+    def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
+        if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
+            if 0 <= section < len(self.COLUMN_KEYS):
+                return self.COLUMN_LABELS[self.COLUMN_KEYS[section]]
+        return super().headerData(section, orientation, role)
+
     def data(self, index, role=Qt.ItemDataRole.DisplayRole):
         """Override data to provide human-readable sizes and type info."""
         if not index.isValid():
             return super().data(index, role)
+
+        source_index = index.siblingAtColumn(0)
+        file_info = self.fileInfo(source_index)
 
         if (
             role == Qt.ItemDataRole.CheckStateRole
@@ -100,38 +163,39 @@ class FileSystemModel(QFileSystemModel):
 
         if role == Qt.ItemDataRole.DisplayRole:
             column = index.column()
+            if column >= len(self.COLUMN_KEYS):
+                return None
+            key = self.COLUMN_KEYS[column]
 
             # Column 0: Name - optionally hide extensions
-            if column == 0 and not self._show_extensions:
-                file_info = self.fileInfo(index)
+            if key == "name" and not self._show_extensions:
                 if file_info.isFile():
                     name = file_info.fileName()
                     dot_pos = name.rfind(".")
                     if dot_pos > 0:
                         return name[:dot_pos]
+                return super().data(source_index, role)
 
-            # Column 1: Size - show human-readable format
-            if column == 1:
-                file_info = self.fileInfo(index)
+            if key == "name":
+                return super().data(source_index, role)
+
+            if key == "size":
                 if file_info.isDir():
                     return ""
                 size = file_info.size()
                 return self._human_readable_size(size)
 
-            # Column 2: Type - show file type description
-            if column == 2:
-                file_info = self.fileInfo(index)
+            if key == "type":
                 return self._file_type_description(file_info)
 
-            # Column 3: Date - show formatted date
-            if column == 3:
-                file_info = self.fileInfo(index)
+            if key == "modified":
                 return file_info.lastModified().toString(self._date_format)
+
+            return self._extended_column_value(file_info, key)
 
         elif role == Qt.ItemDataRole.ToolTipRole:
             if not self._tooltips_enabled:
                 return None
-            file_info = self.fileInfo(index)
             lines = [file_info.fileName()]
             if file_info.isFile():
                 lines.append(self._human_readable_size(file_info.size()))
@@ -150,10 +214,13 @@ class FileSystemModel(QFileSystemModel):
 
         elif role == Qt.ItemDataRole.TextAlignmentRole:
             column = index.column()
-            if column == 1:  # Size column right-aligned
+            if 0 <= column < len(self.COLUMN_KEYS) and self.COLUMN_KEYS[column] in {
+                "size",
+                "octal_permissions",
+            }:
                 return Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
 
-        return super().data(index, role)
+        return super().data(source_index, role)
 
     def setData(self, index, value, role=Qt.ItemDataRole.EditRole):
         if (
@@ -266,3 +333,112 @@ class FileSystemModel(QFileSystemModel):
         }
 
         return type_map.get(suffix, f"{suffix.upper()} file" if suffix else "File")
+
+    def _extended_column_value(self, file_info: QFileInfo, key: str) -> str:
+        path = Path(file_info.absoluteFilePath())
+        stat_result = self._safe_stat(path)
+
+        if key == "created_time":
+            return self._format_datetime(self._created_timestamp(file_info, stat_result))
+        if key == "accessed_time":
+            return self._format_datetime(stat_result.st_atime if stat_result else None)
+        if key == "created_date":
+            return self._format_date(self._created_timestamp(file_info, stat_result))
+        if key == "detailed_type":
+            return self._detailed_type_description(file_info)
+        if key == "group":
+            return self._group_name(stat_result)
+        if key == "location":
+            return str(path.parent)
+        if key == "mime_type":
+            return mimetypes.guess_type(str(path))[0] or ""
+        if key == "octal_permissions":
+            return self._octal_permissions(stat_result)
+        if key == "owner":
+            return self._owner_name(stat_result)
+        if key == "permissions":
+            return self._symbolic_permissions(stat_result)
+        if key == "selinux_context":
+            return self._selinux_context(path)
+        if key == "modified_time":
+            return self._format_time_only(stat_result.st_mtime if stat_result else None)
+        return ""
+
+    @staticmethod
+    def _safe_stat(path: Path):
+        try:
+            return path.stat()
+        except OSError:
+            return None
+
+    def _created_timestamp(self, file_info: QFileInfo, stat_result) -> float | None:
+        birth_time = file_info.birthTime()
+        if birth_time.isValid():
+            return birth_time.toSecsSinceEpoch()
+        if stat_result is not None:
+            return stat_result.st_ctime
+        return None
+
+    def _format_datetime(self, timestamp: float | None) -> str:
+        if timestamp is None:
+            return ""
+        return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M")
+
+    @staticmethod
+    def _format_date(timestamp: float | None) -> str:
+        if timestamp is None:
+            return ""
+
+        return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d")
+
+    @staticmethod
+    def _format_time_only(timestamp: float | None) -> str:
+        if timestamp is None:
+            return ""
+
+        return datetime.fromtimestamp(timestamp).strftime("%H:%M")
+
+    @staticmethod
+    def _detailed_type_description(file_info: QFileInfo) -> str:
+        path = Path(file_info.absoluteFilePath())
+        mime_type = mimetypes.guess_type(str(path))[0]
+        if mime_type:
+            return mime_type
+        return FileSystemModel._file_type_description(file_info)
+
+    @staticmethod
+    def _group_name(stat_result) -> str:
+        if stat_result is None or grp is None:
+            return ""
+        try:
+            return grp.getgrgid(stat_result.st_gid).gr_name
+        except KeyError:
+            return str(stat_result.st_gid)
+
+    @staticmethod
+    def _owner_name(stat_result) -> str:
+        if stat_result is None or pwd is None:
+            return ""
+        try:
+            return pwd.getpwuid(stat_result.st_uid).pw_name
+        except KeyError:
+            return str(stat_result.st_uid)
+
+    @staticmethod
+    def _octal_permissions(stat_result) -> str:
+        if stat_result is None:
+            return ""
+        return oct(stat.S_IMODE(stat_result.st_mode))[2:]
+
+    @staticmethod
+    def _symbolic_permissions(stat_result) -> str:
+        if stat_result is None:
+            return ""
+        return stat.filemode(stat_result.st_mode)
+
+    @staticmethod
+    def _selinux_context(path: Path) -> str:
+        try:
+            return os.getxattr(path, "security.selinux").decode("utf-8", errors="replace")
+        except OSError:
+            return ""
