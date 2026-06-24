@@ -79,7 +79,7 @@ from lfmapp.services import (
 from lfmapp.services.textindex_service import TextIndexService
 from lfmapp.ui.about_dialog import AboutDialog
 from lfmapp.ui.create_multiple_dialog import CreateMultipleDialog
-from lfmapp.ui.icons import app_icon
+from lfmapp.ui.icons import app_icon, application_icon
 from lfmapp.ui.property_dialog import AdvancedSecurityDialog, PropertyDialog
 from lfmapp.ui.preview_panel import PreviewPanel
 from lfmapp.ui.settings_controller import SettingsController
@@ -102,6 +102,7 @@ class MainWindow(QMainWindow):
     def __init__(self, config: Config | None = None):
         super().__init__()
         self.setWindowTitle("linux-file-manager")
+        self.setWindowIcon(application_icon())
         self.config = config or Config()
         self.terminal_service = TerminalService(self.config)
         self.settings_controller = SettingsController(self)

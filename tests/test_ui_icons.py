@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from PyQt6.QtGui import QIcon
 
-from lfmapp.ui.icons import app_icon
+from lfmapp.ui.icons import app_icon, application_icon
 
 
 class UiIconsTests(unittest.TestCase):
@@ -23,6 +23,12 @@ class UiIconsTests(unittest.TestCase):
 
         self.assertTrue(icon.isNull())
         self.assertEqual(from_theme.call_count, 2)
+
+    def test_application_icon_falls_back_to_svg_asset(self):
+        with patch("lfmapp.ui.icons.QIcon.fromTheme", return_value=QIcon()):
+            icon = application_icon()
+
+        self.assertFalse(icon.isNull())
 
 
 if __name__ == "__main__":

@@ -6,12 +6,15 @@ from PyQt6.QtWidgets import QApplication
 from lfmapp.core.app_data import ensure_app_data
 from lfmapp.core.config import Config
 from lfmapp.core.translator import load_translator
+from lfmapp.ui.icons import application_icon
 from lfmapp.ui.main_window import MainWindow
 
 
 def main(argv=None):
     app = QApplication(argv or sys.argv)
     app.setApplicationName("linux-file-manager")
+    app.setDesktopFileName("linux-file-manager")
+    app.setWindowIcon(application_icon())
 
     config = ensure_app_data(Config())
     base_font = app.font()
