@@ -497,6 +497,25 @@ class PreferencesDialog(QDialog):
 
     def _build_context_menus_page(self):
         layout = self._add_page("Visible Entries")
+        modern_group = QGroupBox(self.tr("Modern Context Menu"), self)
+        modern_layout = QVBoxLayout(modern_group)
+        self.modern_context_menu_checkbox = QCheckBox(
+            self.tr(
+                "Enable the modern compact context menu with top icons for Cut, Copy, Paste, Rename, Share, and Delete"
+            ),
+            self,
+        )
+        modern_note = QLabel(
+            self.tr(
+                "This modern file manager layout is enabled by default to save space. Disable it to use the traditional larger menu."
+            ),
+            self,
+        )
+        modern_note.setWordWrap(True)
+        modern_layout.addWidget(self.modern_context_menu_checkbox)
+        modern_layout.addWidget(modern_note)
+        layout.insertWidget(layout.count() - 1, modern_group)
+
         grid = QGridLayout()
         self.context_menu_checks = {}
         titles = {
@@ -618,6 +637,9 @@ class PreferencesDialog(QDialog):
         for key, checkbox in self.toolbar_button_checks.items():
             checkbox.setChecked(key in visible_toolbar_buttons)
 
+        self.modern_context_menu_checkbox.setChecked(
+            bool(self.config.data.get("modern_context_menu_enabled", True))
+        )
         for group_key, checks in self.context_menu_checks.items():
             visible_entries = set(self.config.data.get(f"context_menu_{group_key}_entries", []))
             for key, checkbox in checks.items():
@@ -791,6 +813,7 @@ class PreferencesDialog(QDialog):
                 key for key, checkbox in self.toolbar_button_checks.items()
                 if checkbox.isChecked()
             ],
+            "modern_context_menu_enabled": self.modern_context_menu_checkbox.isChecked(),
             "context_menu_selection_entries": [
                 key for key, checkbox in self.context_menu_checks["selection"].items()
                 if checkbox.isChecked()

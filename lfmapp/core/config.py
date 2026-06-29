@@ -76,6 +76,7 @@ def _default_config_data():
             "list_view",
             "show_thumbnails",
         ],
+        "modern_context_menu_enabled": True,
         "context_menu_selection_entries": [
             "open",
             "open_in_new_tab",

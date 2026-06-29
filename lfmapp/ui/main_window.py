@@ -1151,6 +1151,8 @@ class MainWindow(QMainWindow):
         menu.exec(self.workspace.viewport().mapToGlobal(pos))
 
     def _add_compact_context_actions(self, menu: QMenu, path: Path | None):
+        if not self.config.data.get("modern_context_menu_enabled", True):
+            return
         container = QWidget(menu)
         layout = QHBoxLayout(container)
         layout.setContentsMargins(8, 6, 8, 6)
@@ -1255,6 +1257,20 @@ class MainWindow(QMainWindow):
         entries = self.config.data.get(f"context_menu_{group}_entries", [])
         return key in entries
 
+    def _traditional_context_entry_enabled(self, group: str, key: str) -> bool:
+        if not self._context_entry_enabled(group, key):
+            return False
+        if not self.config.data.get("modern_context_menu_enabled", True):
+            return True
+        hidden_when_modern = {
+            ("selection", "cut"),
+            ("selection", "copy"),
+            ("selection", "paste"),
+            ("selection", "rename"),
+            ("background", "paste"),
+        }
+        return (group, key) not in hidden_when_modern
+
     def _build_file_context_menu(self, menu: QMenu, path: Path):
         if self._context_entry_enabled("selection", "open"):
             menu.addAction(app_icon("document-open", "folder-open"), self.tr("Open"), self.open_selected)
@@ -1264,9 +1280,9 @@ class MainWindow(QMainWindow):
         if self._context_entry_enabled("selection", "open_in_terminal"):
             menu.addAction(app_icon("utilities-terminal", "terminal"), self.tr("Open in Terminal"), lambda: self.open_terminal_in_directory(path.parent))
         menu.addSeparator()
-        if self._context_entry_enabled("selection", "cut"):
+        if self._traditional_context_entry_enabled("selection", "cut"):
             menu.addAction(app_icon("edit-cut"), self.tr("Cut"), self.cut_selected)
-        if self._context_entry_enabled("selection", "copy"):
+        if self._traditional_context_entry_enabled("selection", "copy"):
             menu.addAction(app_icon("edit-copy"), self.tr("Copy"), self.copy_selected)
         menu.addAction(self.tr("Copy path"), self.copy_path)
         if self._context_entry_enabled("selection", "copy_to") and self.config.data.get("move_copy_menu_show_bookmarks", True):
@@ -1294,7 +1310,7 @@ class MainWindow(QMainWindow):
         menu.addAction(app_icon("package-x-generic", "folder-compressed"), self.tr("Compress to ZIP"), lambda: self.compress_to_zip(path))
         menu.addAction(app_icon("document-properties", "security-medium"), self.tr("Advanced Security..."), self.show_advanced_security)
 
-        if self._context_entry_enabled("selection", "rename"):
+        if self._traditional_context_entry_enabled("selection", "rename"):
             menu.addAction(app_icon("document-save-as", "edit-rename"), self.tr("Rename"), self.rename_selected_dialog)
         if self._context_entry_enabled("selection", "move_to_trash"):
             menu.addAction(app_icon("user-trash", "trash-empty"), self.tr("Move to Trash"), self.trash_selected)
@@ -1323,9 +1339,9 @@ class MainWindow(QMainWindow):
         if self._context_entry_enabled("selection", "open_in_terminal"):
             menu.addAction(app_icon("utilities-terminal", "terminal"), self.tr("Open in Terminal"), lambda: self.open_terminal_in_directory(path))
         menu.addSeparator()
-        if self._context_entry_enabled("selection", "cut"):
+        if self._traditional_context_entry_enabled("selection", "cut"):
             menu.addAction(app_icon("edit-cut"), self.tr("Cut"), self.cut_selected)
-        if self._context_entry_enabled("selection", "copy"):
+        if self._traditional_context_entry_enabled("selection", "copy"):
             menu.addAction(app_icon("edit-copy"), self.tr("Copy"), self.copy_selected)
         menu.addAction(self.tr("Copy path"), self.copy_path)
         if self._context_entry_enabled("selection", "copy_to") and self.config.data.get("move_copy_menu_show_bookmarks", True):
@@ -1347,7 +1363,7 @@ class MainWindow(QMainWindow):
         menu.addAction(app_icon("package-x-generic", "folder-compressed"), self.tr("Compress to ZIP"), lambda: self.compress_to_zip(path))
         menu.addAction(app_icon("document-properties", "security-medium"), self.tr("Advanced Security..."), self.show_advanced_security)
 
-        if self._context_entry_enabled("selection", "rename"):
+        if self._traditional_context_entry_enabled("selection", "rename"):
             menu.addAction(app_icon("document-save-as", "edit-rename"), self.tr("Rename"), self.rename_selected_dialog)
         if self._context_entry_enabled("selection", "move_to_trash"):
             menu.addAction(app_icon("user-trash", "trash-empty"), self.tr("Move to Trash"), self.trash_selected)
@@ -1370,7 +1386,7 @@ class MainWindow(QMainWindow):
         if self._context_entry_enabled("background", "open_in_terminal"):
             menu.addAction(app_icon("utilities-terminal", "terminal"), self.tr("Open in Terminal"), self.open_current_directory_in_terminal)
         menu.addSeparator()
-        if self._context_entry_enabled("background", "paste"):
+        if self._traditional_context_entry_enabled("background", "paste"):
             menu.addAction(app_icon("edit-paste"), self.tr("Paste"), self.paste_from_clipboard)
         menu.addSeparator()
 

@@ -120,6 +120,14 @@ Run the test suite:
 python3 -m pytest -q
 ```
 
+During active UI and config development, it can also be useful to remove:
+
+```bash
+rm -rf ~/.local/share/linux-file-manager/
+```
+
+This forces Linux File Manager to recreate its saved state from current defaults. Without that reset, older saved configuration can hide newly added settings or make recent fixes appear not to take effect immediately after restarting the program.
+
 ## Repository Layout
 
 ```text
