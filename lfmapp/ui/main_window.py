@@ -1179,8 +1179,12 @@ class MainWindow(QMainWindow):
             app_icon("edit-paste"),
             self.tr("Paste"),
             self.paste_from_clipboard,
-            enabled=(path is None and self._context_entry_enabled("background", "paste"))
-            or (has_selection and self._context_entry_enabled("selection", "paste")),
+            enabled=self._clipboard_mode in {"copy", "cut"}
+            and bool(self._clipboard_paths)
+            and (
+                (path is None and self._context_entry_enabled("background", "paste"))
+                or (has_selection and self._context_entry_enabled("selection", "paste"))
+            ),
         )
         rename_button = self._context_strip_button(
             menu,
