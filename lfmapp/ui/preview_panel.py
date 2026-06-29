@@ -87,6 +87,7 @@ class PreviewPanel(QWidget):
         self._current_path = None
         self._show_thumbnails_mode = "local_only"
         self._max_preview_size_mb = 1
+        self._gallery_active = False
 
     def apply_preferences(self, config):
         self._show_thumbnails_mode = str(
@@ -148,6 +149,8 @@ class PreviewPanel(QWidget):
 
     def _on_image_ready(self, image: QImage):
         """Handle image loaded by the preview worker."""
+        if self._gallery_active:
+            return
         pixmap = QPixmap.fromImage(image)
         if pixmap.isNull():
             return
@@ -156,14 +159,15 @@ class PreviewPanel(QWidget):
         self.folder_gallery.setVisible(False)
         self.text_edit.setVisible(False)
 
-    def _on_folder_images_ready(self, images: list[tuple[str, QImage]]):
+    def _on_folder_images_ready(self, images: list[tuple[str, QImage, bool]]):
         """Handle folder preview thumbnails loaded by the preview worker."""
         self.folder_gallery.clear()
+        self._gallery_active = False
         if not images:
             self.folder_gallery.setVisible(False)
             return
 
-        for name, image in images:
+        for name, image, is_selected in images:
             pixmap = QPixmap.fromImage(image)
             if pixmap.isNull():
                 continue
@@ -171,8 +175,14 @@ class PreviewPanel(QWidget):
             item.setIcon(QIcon(pixmap))
             item.setToolTip(name)
             self.folder_gallery.addItem(item)
+            if is_selected:
+                item.setSelected(True)
 
-        self.folder_gallery.setVisible(self.folder_gallery.count() > 0)
+        self._gallery_active = self.folder_gallery.count() > 1
+        self.folder_gallery.setVisible(self._gallery_active)
+        if self._gallery_active:
+            self.image_label.clear()
+            self.image_label.setVisible(False)
 
     def _on_text_ready(self, content: str):
         """Handle text loaded by the preview worker."""
@@ -240,6 +250,7 @@ class PreviewPanel(QWidget):
             self._preview_worker.wait(500)
             self._preview_worker = None
         self._current_path = None
+        self._gallery_active = False
         self.image_label.clear()
         self.image_label.setVisible(False)
         self.folder_gallery.clear()

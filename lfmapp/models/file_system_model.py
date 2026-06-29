@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 
 from PyQt6.QtCore import QDir, QFileInfo, Qt
-from PyQt6.QtGui import QFileSystemModel
+from PyQt6.QtGui import QFileSystemModel, QIcon, QImageReader, QPixmap
 from PyQt6.QtWidgets import QFileIconProvider
 
 try:
@@ -80,6 +80,8 @@ class FileSystemModel(QFileSystemModel):
         self._date_format = "yyyy-MM-dd HH:mm"
         self._tooltips_enabled = False
         self._tooltip_fields: list[str] = []
+        self._workspace_thumbnails_enabled = True
+        self._thumbnail_cache: dict[tuple[str, int, int], QIcon] = {}
         self.apply_display_preferences()
 
     @staticmethod
@@ -127,11 +129,15 @@ class FileSystemModel(QFileSystemModel):
             self.config.data.get("preview_tooltips_icon_compact", False)
             or self.config.data.get("preview_tooltips_list", False)
         )
+        self._workspace_thumbnails_enabled = (
+            str(self.config.data.get("preview_show_thumbnails", "local_only")) != "never"
+        )
         self._tooltip_fields = [
             str(value)
             for value in self.config.data.get("preview_tooltip_fields", [])
             if value
         ]
+        self._thumbnail_cache.clear()
         self.layoutChanged.emit()
 
     def columnCount(self, parent=None):
@@ -161,8 +167,12 @@ class FileSystemModel(QFileSystemModel):
                 return Qt.CheckState.Checked
             return Qt.CheckState.Unchecked
 
-        if role == Qt.ItemDataRole.DecorationRole and index.column() != 0:
-            return None
+        if role == Qt.ItemDataRole.DecorationRole:
+            if index.column() != 0:
+                return None
+            thumbnail = self._thumbnail_icon(file_info)
+            if thumbnail is not None:
+                return thumbnail
 
         if role == Qt.ItemDataRole.DisplayRole:
             column = index.column()
@@ -250,6 +260,50 @@ class FileSystemModel(QFileSystemModel):
     def _human_readable_size(self, size: int) -> str:
         base = 1000 if self._size_prefix_style == "decimal" else 1024
         return self._human_readable_size_with_base(size, base)
+
+    def _thumbnail_icon(self, file_info: QFileInfo) -> QIcon | None:
+        """Return a cached thumbnail icon for image files in the main workspace."""
+        if not self._workspace_thumbnails_enabled or not file_info.isFile():
+            return None
+
+        suffix = file_info.suffix().lower()
+        if suffix not in {"png", "jpg", "jpeg", "gif", "bmp", "svg", "webp"}:
+            return None
+
+        path = file_info.absoluteFilePath()
+        stat_result = os.stat(path)
+        cache_key = (path, stat_result.st_mtime_ns, stat_result.st_size)
+        cached = self._thumbnail_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        reader = QImageReader(path)
+        reader.setAutoTransform(True)
+        image = reader.read()
+        if image.isNull():
+            return None
+
+        icon = QIcon()
+        for size in (22, 32, 48, 64, 96):
+            pixmap = QPixmap.fromImage(
+                image.scaled(
+                    size,
+                    size,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+            if not pixmap.isNull():
+                icon.addPixmap(pixmap)
+
+        if icon.isNull():
+            return None
+
+        self._thumbnail_cache[cache_key] = icon
+        if len(self._thumbnail_cache) > 512:
+            # Keep the cache bounded so long sessions do not retain every thumbnail forever.
+            self._thumbnail_cache.pop(next(iter(self._thumbnail_cache)))
+        return icon
 
     @staticmethod
     def _human_readable_size_with_base(size: int, base: int) -> str:

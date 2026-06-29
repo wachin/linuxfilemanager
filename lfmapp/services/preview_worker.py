@@ -53,6 +53,8 @@ class PreviewWorker(QThread):
             return
 
         if self._is_image(self.path):
+            if self._folder_thumbnails_enabled:
+                self._load_folder_images(self.path.parent, selected_name=self.path.name)
             self._load_image()
         elif self._is_video(self.path):
             self._load_video_frame()
@@ -78,10 +80,18 @@ class PreviewWorker(QThread):
         except Exception:
             pass
 
-    def _load_folder_images(self):
+    def _load_folder_images(self, folder: Path | None = None, selected_name: str | None = None):
         """Load a small gallery of image thumbnails for a folder preview."""
         images = []
-        for image_path in self.folder_image_candidates_for_path(self.path):
+        folder = folder or self.path
+        candidates = self.folder_image_candidates_for_path(folder)
+        if selected_name and len(candidates) <= 1:
+            return
+
+        if selected_name:
+            candidates.sort(key=lambda image_path: (image_path.name != selected_name, image_path.name.casefold()))
+
+        for image_path in candidates:
             if not self._running:
                 return
             try:
@@ -102,7 +112,7 @@ class PreviewWorker(QThread):
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation,
             )
-            images.append((image_path.name, scaled))
+            images.append((image_path.name, scaled, image_path.name == selected_name))
 
         if self._running:
             self.folder_images_ready.emit(images)

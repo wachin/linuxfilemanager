@@ -99,6 +99,7 @@ class Workspace(QWidget):
         self.details_view.setSortingEnabled(True)
         self.details_view.setRootIsDecorated(False)
         self.details_view.setItemsExpandable(False)
+        self.details_view.setIconSize(QSize(22, 22))
         self.details_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.details_view.setSelectionMode(QTreeView.SelectionMode.ExtendedSelection)
         self.details_view.setEditTriggers(QTreeView.EditTrigger.EditKeyPressed)
@@ -111,6 +112,7 @@ class Workspace(QWidget):
         self.list_view = QListView(self)
         self.list_view.setAlternatingRowColors(True)
         self.list_view.setUniformItemSizes(True)
+        self.list_view.setIconSize(QSize(48, 48))
         self.list_view.setMovement(QListView.Movement.Static)
         self.list_view.setResizeMode(QListView.ResizeMode.Adjust)
         self.list_view.setViewMode(QListView.ViewMode.ListMode)
@@ -125,7 +127,7 @@ class Workspace(QWidget):
         # Create icon view (QListView with IconMode)
         self.icon_view = QListView(self)
         self.icon_view.setAlternatingRowColors(True)
-        self.icon_view.setUniformItemSizes(True)
+        self.icon_view.setUniformItemSizes(False)
         self.icon_view.setMovement(QListView.Movement.Static)
         self.icon_view.setResizeMode(QListView.ResizeMode.Adjust)
         self.icon_view.setViewMode(QListView.ViewMode.IconMode)
@@ -208,6 +210,7 @@ class Workspace(QWidget):
             return
         self.model.apply_display_preferences()
         self.set_icon_grid_size(self.config.icon_grid_size)
+        self._apply_view_icon_sizes()
         default_view = ViewMode.from_string(
             self.config.data.get("default_view_mode", "details"),
             ViewMode.DETAILS,
@@ -414,8 +417,15 @@ class Workspace(QWidget):
         else:
             # Compact icon view (smaller icons, denser grid)
             self.icon_view.setViewMode(QListView.ViewMode.IconMode)
-            self.icon_view.setIconSize(QSize(32, 32))
-            self.icon_view.setGridSize(QSize(64, 64))
+            compact_zoom = 100
+            if self.config is not None:
+                compact_zoom = max(
+                    50,
+                    int(self.config.data.get("compact_view_zoom_percent", 100)),
+                )
+            compact_size = max(24, min(64, round(32 * (compact_zoom / 100))))
+            self.icon_view.setIconSize(QSize(compact_size, compact_size))
+            self.icon_view.setGridSize(QSize(compact_size + 32, compact_size + 32))
             self.stacked_widget.setCurrentWidget(self.icon_view)
 
     def view_mode(self) -> ViewMode:
@@ -445,6 +455,22 @@ class Workspace(QWidget):
         self.icon_view.setIconSize(icon_size)
         self.icon_view.setGridSize(grid_size)
         self.icon_view.setSpacing(spacing)
+
+    def _apply_view_icon_sizes(self):
+        """Apply thumbnail/icon sizes for each workspace view mode."""
+        if self.config is None:
+            return
+
+        list_zoom = max(25, int(self.config.data.get("list_view_zoom_percent", 50)))
+        compact_zoom = max(50, int(self.config.data.get("compact_view_zoom_percent", 100)))
+
+        list_size = max(24, min(96, round(48 * (list_zoom / 100))))
+        compact_size = max(24, min(64, round(32 * (compact_zoom / 100))))
+
+        self.details_view.setIconSize(QSize(22, 22))
+        self.list_view.setIconSize(QSize(list_size, list_size))
+        if self._view_mode == ViewMode.COMPACT:
+            self.icon_view.setIconSize(QSize(compact_size, compact_size))
 
     def set_root_path(self, path: Path):
         """Set the root path for all views."""
