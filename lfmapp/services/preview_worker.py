@@ -17,13 +17,13 @@ import zipfile
 import xml.etree.ElementTree as ET
 
 from PyQt6.QtCore import QThread, pyqtSignal, Qt
-from PyQt6.QtGui import QPixmap, QImage
+from PyQt6.QtGui import QImage, QImageReader
 
 
 class PreviewWorker(QThread):
     """Load preview content in a background thread."""
 
-    image_ready = pyqtSignal(QPixmap)
+    image_ready = pyqtSignal(QImage)
     text_ready = pyqtSignal(str)
     metadata_ready = pyqtSignal(str)
 
@@ -53,9 +53,16 @@ class PreviewWorker(QThread):
     def _load_image(self):
         """Load and scale an image in the background."""
         try:
-            pixmap = QPixmap(str(self.path))
-            if not pixmap.isNull() and self._running:
-                scaled = pixmap.scaled(320, 240, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            reader = QImageReader(str(self.path))
+            reader.setAutoTransform(True)
+            image = reader.read()
+            if not image.isNull() and self._running:
+                scaled = image.scaled(
+                    320,
+                    240,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
                 self.image_ready.emit(scaled)
         except Exception:
             pass
@@ -102,9 +109,10 @@ class PreviewWorker(QThread):
                 if result.returncode != 0 or not self._running:
                     return
 
-                pixmap = QPixmap(frame.name)
-                if not pixmap.isNull() and self._running:
-                    self.image_ready.emit(pixmap)
+                reader = QImageReader(frame.name)
+                image = reader.read()
+                if not image.isNull() and self._running:
+                    self.image_ready.emit(image)
         except (OSError, subprocess.SubprocessError):
             pass
 

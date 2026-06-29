@@ -13,7 +13,7 @@ Uses PreviewWorker for background loading to avoid UI freezing.
 from pathlib import Path
 
 from PyQt6.QtCore import Qt, QUrl
-from PyQt6.QtGui import QDesktopServices, QPixmap
+from PyQt6.QtGui import QDesktopServices, QPixmap, QImage
 from PyQt6.QtWidgets import QLabel, QListWidget, QListWidgetItem, QTextEdit, QVBoxLayout, QWidget
 
 from lfmapp.services.preview_worker import PreviewWorker
@@ -119,8 +119,11 @@ class PreviewPanel(QWidget):
         self._preview_worker.metadata_ready.connect(self._on_metadata_ready)
         self._preview_worker.start()
 
-    def _on_image_ready(self, pixmap: QPixmap):
+    def _on_image_ready(self, image: QImage):
         """Handle image loaded by the preview worker."""
+        pixmap = QPixmap.fromImage(image)
+        if pixmap.isNull():
+            return
         self.image_label.setPixmap(pixmap)
         self.image_label.setVisible(True)
         self.text_edit.setVisible(False)
