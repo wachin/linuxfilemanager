@@ -161,6 +161,9 @@ class FileSystemModel(QFileSystemModel):
                 return Qt.CheckState.Checked
             return Qt.CheckState.Unchecked
 
+        if role == Qt.ItemDataRole.DecorationRole and index.column() != 0:
+            return None
+
         if role == Qt.ItemDataRole.DisplayRole:
             column = index.column()
             if column >= len(self.COLUMN_KEYS):

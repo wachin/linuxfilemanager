@@ -55,6 +55,20 @@ class FileSystemModelTests(unittest.TestCase):
             & QFileIconProvider.Option.DontUseCustomDirectoryIcons
         )
 
+    def test_only_name_column_exposes_decoration_icon(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "sample.txt"
+            path.write_text("sample", encoding="utf-8")
+
+            model = FileSystemModel(root_path=tmpdir)
+            name_index = model.index(str(path))
+            size_index = name_index.siblingAtColumn(1)
+            type_index = name_index.siblingAtColumn(2)
+
+            self.assertIsNotNone(model.data(name_index, Qt.ItemDataRole.DecorationRole))
+            self.assertIsNone(model.data(size_index, Qt.ItemDataRole.DecorationRole))
+            self.assertIsNone(model.data(type_index, Qt.ItemDataRole.DecorationRole))
+
 
 if __name__ == "__main__":
     unittest.main()
