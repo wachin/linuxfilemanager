@@ -1239,8 +1239,17 @@ class MainWindow(QMainWindow):
         button.setToolTip(tooltip)
         button.setAutoRaise(True)
         button.setEnabled(enabled)
-        button.clicked.connect(slot)
+        button.clicked.connect(
+            lambda checked=False, menu=menu, slot=slot: self._run_compact_context_action(
+                menu,
+                slot,
+            )
+        )
         return button
+
+    def _run_compact_context_action(self, menu: QMenu, slot):
+        menu.close()
+        slot()
 
     def _context_entry_enabled(self, group: str, key: str) -> bool:
         entries = self.config.data.get(f"context_menu_{group}_entries", [])
