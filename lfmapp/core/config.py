@@ -150,7 +150,9 @@ class Config:
                 # Ensure we always return a dict. Older or corrupted files
                 # might contain `null` or a list of bookmarks.
                 if isinstance(data, dict):
-                    return data
+                    defaults = _default_config_data()
+                    defaults.update(data)
+                    return defaults
                 if isinstance(data, list):
                     # Migrate old-format bookmarks list to new dict shape
                     defaults = _default_config_data()

@@ -181,6 +181,18 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(cfg2.startup_location_mode, "custom")
         self.assertEqual(cfg2.startup_location_custom_path, "/tmp/start-here")
 
+    def test_missing_newer_config_keys_are_backfilled_from_defaults(self):
+        paths_module.CONFIG_FILE.write_text(
+            '{"show_hidden_files": false}',
+            encoding="utf-8",
+        )
+
+        cfg = config_module.Config()
+
+        self.assertFalse(cfg.show_hidden_files)
+        self.assertIn("cut", cfg.data["context_menu_selection_entries"])
+        self.assertIn("paste", cfg.data["context_menu_background_entries"])
+
 
 if __name__ == "__main__":
     unittest.main()
