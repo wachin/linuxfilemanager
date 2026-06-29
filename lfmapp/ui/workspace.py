@@ -491,6 +491,22 @@ class Workspace(QWidget):
         """Return the current index of the current view."""
         return self._get_current_view().currentIndex()
 
+    def setCurrentIndex(self, index):
+        """Make an index the active selection in the current view."""
+        if not index.isValid():
+            return
+        target = index.siblingAtColumn(0)
+        view = self._get_current_view()
+        selection_model = view.selectionModel()
+        if selection_model is not None:
+            selection_model.setCurrentIndex(
+                target,
+                selection_model.SelectionFlag.ClearAndSelect
+                | selection_model.SelectionFlag.Rows
+                | selection_model.SelectionFlag.Current,
+            )
+        view.setCurrentIndex(target)
+
     def setAlternatingRowColors(self, enable: bool):
         """Set alternating row colors for all views."""
         self.details_view.setAlternatingRowColors(enable)

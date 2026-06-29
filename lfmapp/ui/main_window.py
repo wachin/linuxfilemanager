@@ -1133,6 +1133,7 @@ class MainWindow(QMainWindow):
     def open_context_menu(self, pos):
         index = self.workspace.indexAt(pos)
         if index.isValid():
+            self.workspace.setCurrentIndex(index)
             path = Path(self.workspace.model.filePath(index))
         else:
             path = None

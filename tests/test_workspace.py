@@ -203,6 +203,18 @@ class WorkspaceTests(unittest.TestCase):
         self.assertFalse(workspace.details_view.isColumnHidden(owner_column))
         self.assertFalse(workspace.details_view.isColumnHidden(permissions_column))
 
+    def test_set_current_index_updates_selected_path(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            target = root / "example.txt"
+            target.write_text("hello", encoding="utf-8")
+
+            workspace = Workspace(initial_path=root)
+            index = workspace.model.index(str(target))
+            workspace.setCurrentIndex(index)
+
+            self.assertEqual(workspace.selected_path(), target)
+
 
 if __name__ == "__main__":
     unittest.main()
