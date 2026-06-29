@@ -13,8 +13,16 @@ Uses PreviewWorker for background loading to avoid UI freezing.
 from pathlib import Path
 
 from PyQt6.QtCore import Qt, QUrl
-from PyQt6.QtGui import QDesktopServices, QPixmap, QImage
-from PyQt6.QtWidgets import QLabel, QListWidget, QListWidgetItem, QTextEdit, QVBoxLayout, QWidget
+from PyQt6.QtGui import QDesktopServices, QIcon, QPixmap, QImage
+from PyQt6.QtCore import QSize
+from PyQt6.QtWidgets import (
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
 from lfmapp.services.preview_worker import PreviewWorker
 
@@ -33,6 +41,18 @@ class PreviewPanel(QWidget):
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.image_label.setVisible(False)
         self.image_label.setScaledContents(True)
+
+        self.folder_gallery = QListWidget()
+        self.folder_gallery.setViewMode(QListWidget.ViewMode.IconMode)
+        self.folder_gallery.setFlow(QListWidget.Flow.LeftToRight)
+        self.folder_gallery.setWrapping(True)
+        self.folder_gallery.setResizeMode(QListWidget.ResizeMode.Adjust)
+        self.folder_gallery.setMovement(QListWidget.Movement.Static)
+        self.folder_gallery.setSpacing(6)
+        self.folder_gallery.setIconSize(QSize(96, 96))
+        self.folder_gallery.setMaximumHeight(170)
+        self.folder_gallery.setUniformItemSizes(True)
+        self.folder_gallery.setVisible(False)
 
         self.text_edit = QTextEdit()
         self.text_edit.setReadOnly(True)
@@ -57,6 +77,7 @@ class PreviewPanel(QWidget):
         layout.setSpacing(6)
         layout.addWidget(self.title)
         layout.addWidget(self.image_label)
+        layout.addWidget(self.folder_gallery)
         layout.addWidget(self.text_edit, 1)
         layout.addWidget(self.details_title)
         layout.addWidget(self.metadata_edit)
@@ -83,6 +104,7 @@ class PreviewPanel(QWidget):
 
         self._current_path = path
         self.text_edit.setVisible(not path.is_dir())
+        self.folder_gallery.setVisible(False)
         self.search_results.setVisible(False)
         self.metadata_edit.setVisible(path.is_dir())
         self.details_title.setVisible(path.is_dir())
@@ -113,8 +135,13 @@ class PreviewPanel(QWidget):
             self._preview_worker.stop()
             self._preview_worker.wait(500)
 
-        self._preview_worker = PreviewWorker(path)
+        self._preview_worker = PreviewWorker(
+            path,
+            max_preview_size_bytes=self._max_preview_size_mb * 1024 * 1024,
+            folder_thumbnails_enabled=self._show_thumbnails_mode != "never",
+        )
         self._preview_worker.image_ready.connect(self._on_image_ready)
+        self._preview_worker.folder_images_ready.connect(self._on_folder_images_ready)
         self._preview_worker.text_ready.connect(self._on_text_ready)
         self._preview_worker.metadata_ready.connect(self._on_metadata_ready)
         self._preview_worker.start()
@@ -126,7 +153,26 @@ class PreviewPanel(QWidget):
             return
         self.image_label.setPixmap(pixmap)
         self.image_label.setVisible(True)
+        self.folder_gallery.setVisible(False)
         self.text_edit.setVisible(False)
+
+    def _on_folder_images_ready(self, images: list[tuple[str, QImage]]):
+        """Handle folder preview thumbnails loaded by the preview worker."""
+        self.folder_gallery.clear()
+        if not images:
+            self.folder_gallery.setVisible(False)
+            return
+
+        for name, image in images:
+            pixmap = QPixmap.fromImage(image)
+            if pixmap.isNull():
+                continue
+            item = QListWidgetItem(name)
+            item.setIcon(QIcon(pixmap))
+            item.setToolTip(name)
+            self.folder_gallery.addItem(item)
+
+        self.folder_gallery.setVisible(self.folder_gallery.count() > 0)
 
     def _on_text_ready(self, content: str):
         """Handle text loaded by the preview worker."""
@@ -147,6 +193,7 @@ class PreviewPanel(QWidget):
         self.clear()
         self.title.setText(self.tr("Search Results"))
         self.image_label.setVisible(False)
+        self.folder_gallery.setVisible(False)
         self.text_edit.setVisible(False)
         self.details_title.setVisible(False)
         self.metadata_edit.setVisible(False)
@@ -195,6 +242,8 @@ class PreviewPanel(QWidget):
         self._current_path = None
         self.image_label.clear()
         self.image_label.setVisible(False)
+        self.folder_gallery.clear()
+        self.folder_gallery.setVisible(False)
         self.text_edit.clear()
         self.text_edit.setVisible(True)
         self.metadata_edit.clear()

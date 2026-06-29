@@ -24,13 +24,22 @@ class PreviewWorker(QThread):
     """Load preview content in a background thread."""
 
     image_ready = pyqtSignal(QImage)
+    folder_images_ready = pyqtSignal(object)
     text_ready = pyqtSignal(str)
     metadata_ready = pyqtSignal(str)
 
-    def __init__(self, path: Path, parent=None):
+    def __init__(
+        self,
+        path: Path,
+        parent=None,
+        max_preview_size_bytes: int = 0,
+        folder_thumbnails_enabled: bool = True,
+    ):
         super().__init__(parent)
         self.path = path
         self._running = True
+        self._max_preview_size_bytes = max_preview_size_bytes
+        self._folder_thumbnails_enabled = folder_thumbnails_enabled
 
     def run(self):
         if not self.path or not self.path.exists():
@@ -39,6 +48,8 @@ class PreviewWorker(QThread):
         self._load_metadata()
 
         if self.path.is_dir():
+            if self._folder_thumbnails_enabled:
+                self._load_folder_images()
             return
 
         if self._is_image(self.path):
@@ -66,6 +77,35 @@ class PreviewWorker(QThread):
                 self.image_ready.emit(scaled)
         except Exception:
             pass
+
+    def _load_folder_images(self):
+        """Load a small gallery of image thumbnails for a folder preview."""
+        images = []
+        for image_path in self.folder_image_candidates_for_path(self.path):
+            if not self._running:
+                return
+            try:
+                if self._max_preview_size_bytes and image_path.stat().st_size > self._max_preview_size_bytes:
+                    continue
+            except OSError:
+                continue
+
+            reader = QImageReader(str(image_path))
+            reader.setAutoTransform(True)
+            image = reader.read()
+            if image.isNull():
+                continue
+
+            scaled = image.scaled(
+                96,
+                96,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            images.append((image_path.name, scaled))
+
+        if self._running:
+            self.folder_images_ready.emit(images)
 
     def _load_text(self):
         """Read text file content in the background."""
@@ -161,6 +201,23 @@ class PreviewWorker(QThread):
     @staticmethod
     def _is_document(path: Path) -> bool:
         return path.suffix.lower() in {".pdf", ".docx", ".odt", ".rtf"}
+
+    @staticmethod
+    def folder_image_candidates_for_path(path: Path, limit: int = 12) -> list[Path]:
+        """Return the first image files from a folder for preview thumbnails."""
+        if not path.is_dir():
+            return []
+
+        candidates = []
+        try:
+            for child in sorted(path.iterdir(), key=lambda item: item.name.casefold()):
+                if child.is_file() and PreviewWorker._is_image(child):
+                    candidates.append(child)
+                    if len(candidates) >= limit:
+                        break
+        except OSError:
+            return []
+        return candidates
 
     @staticmethod
     def _human_size(size: int) -> str:

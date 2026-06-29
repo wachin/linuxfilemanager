@@ -5,6 +5,8 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
+from PyQt6.QtGui import QImage
+
 from lfmapp.services.preview_worker import PreviewWorker
 
 
@@ -106,6 +108,36 @@ class PreviewWorkerMetadataTests(unittest.TestCase):
         self.assertEqual(PreviewWorker._format_duration(1), "0:01")
         self.assertEqual(PreviewWorker._format_duration(65), "1:05")
         self.assertEqual(PreviewWorker._format_duration(3661), "1:01:01")
+
+    def test_folder_image_candidates_return_sorted_images_only(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            folder = Path(tmpdir)
+            self._write_png(folder / "b.png")
+            self._write_png(folder / "a.png")
+            (folder / "notes.txt").write_text("ignore", encoding="utf-8")
+            (folder / "subdir").mkdir()
+
+            candidates = PreviewWorker.folder_image_candidates_for_path(folder)
+
+        self.assertEqual([path.name for path in candidates], ["a.png", "b.png"])
+
+    def test_folder_image_candidates_respect_limit(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            folder = Path(tmpdir)
+            for index in range(5):
+                self._write_png(folder / f"{index}.png")
+
+            candidates = PreviewWorker.folder_image_candidates_for_path(folder, limit=3)
+
+        self.assertEqual(len(candidates), 3)
+        self.assertEqual([path.name for path in candidates], ["0.png", "1.png", "2.png"])
+
+    @staticmethod
+    def _write_png(path: Path):
+        image = QImage(8, 8, QImage.Format.Format_ARGB32)
+        image.fill(0xFF336699)
+        if not image.save(str(path), "PNG"):
+            raise AssertionError(f"Could not create test image at {path}")
 
 
 if __name__ == "__main__":
