@@ -44,6 +44,8 @@ from PyQt6.QtWidgets import (
     QProgressBar,
     QFrame,
     QSizePolicy,
+    QWidgetAction,
+    QToolButton,
 )
 from PyQt6.QtPrintSupport import QPrintDialog, QPrinter
 
@@ -1136,6 +1138,7 @@ class MainWindow(QMainWindow):
             path = None
 
         menu = QMenu(self)
+        self._add_compact_context_actions(menu, path)
 
         if path and path.is_file():
             self._build_file_context_menu(menu, path)
@@ -1145,6 +1148,98 @@ class MainWindow(QMainWindow):
             self._build_empty_context_menu(menu)
 
         menu.exec(self.workspace.viewport().mapToGlobal(pos))
+
+    def _add_compact_context_actions(self, menu: QMenu, path: Path | None):
+        container = QWidget(menu)
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(6)
+
+        has_selection = path is not None
+
+        cut_button = self._context_strip_button(
+            menu,
+            app_icon("edit-cut"),
+            self.tr("Cut"),
+            self.cut_selected,
+            enabled=has_selection and self._context_entry_enabled("selection", "cut"),
+        )
+        copy_button = self._context_strip_button(
+            menu,
+            app_icon("edit-copy"),
+            self.tr("Copy"),
+            self.copy_selected,
+            enabled=has_selection and self._context_entry_enabled("selection", "copy"),
+        )
+        paste_button = self._context_strip_button(
+            menu,
+            app_icon("edit-paste"),
+            self.tr("Paste"),
+            self.paste_from_clipboard,
+            enabled=(path is None and self._context_entry_enabled("background", "paste"))
+            or (has_selection and self._context_entry_enabled("selection", "paste")),
+        )
+        rename_button = self._context_strip_button(
+            menu,
+            app_icon("document-save-as", "edit-rename"),
+            self.tr("Rename"),
+            self.rename_selected_dialog,
+            enabled=has_selection and self._context_entry_enabled("selection", "rename"),
+        )
+
+        share_menu = QMenu(menu)
+        if has_selection:
+            share_menu.addAction(self.tr("Desktop"), self.send_selected_to_desktop)
+            share_menu.addAction(self.tr("Email recipient"), self.send_selected_to_email)
+            self._add_share_with_menu(share_menu, path)
+        share_button = QToolButton(container)
+        share_button.setToolTip(self.tr("Share"))
+        share_button.setIcon(app_icon("document-share", "emblem-shared", "mail-send"))
+        share_button.setAutoRaise(True)
+        share_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        share_button.setMenu(share_menu)
+        share_button.setEnabled(has_selection)
+
+        delete_button = self._context_strip_button(
+            menu,
+            app_icon("user-trash", "edit-delete"),
+            self.tr("Delete"),
+            self.trash_selected if has_selection else self.delete_selected,
+            enabled=has_selection,
+        )
+
+        for button in (
+            cut_button,
+            copy_button,
+            paste_button,
+            rename_button,
+            share_button,
+            delete_button,
+        ):
+            layout.addWidget(button)
+        layout.addStretch(1)
+
+        action = QWidgetAction(menu)
+        action.setDefaultWidget(container)
+        menu.addAction(action)
+        menu.addSeparator()
+
+    def _context_strip_button(
+        self,
+        menu: QMenu,
+        icon,
+        tooltip: str,
+        slot,
+        *,
+        enabled: bool = True,
+    ) -> QToolButton:
+        button = QToolButton(menu)
+        button.setIcon(icon)
+        button.setToolTip(tooltip)
+        button.setAutoRaise(True)
+        button.setEnabled(enabled)
+        button.clicked.connect(slot)
+        return button
 
     def _context_entry_enabled(self, group: str, key: str) -> bool:
         entries = self.config.data.get(f"context_menu_{group}_entries", [])
