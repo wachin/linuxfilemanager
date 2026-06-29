@@ -2,6 +2,33 @@
 
 Purpose: keep only forward-looking tasks that are suitable for issues and incremental pull requests.
 
+## Completed achievements
+- [x] Project rename to `lfmapp` to avoid conflict with Debian's existing `lfm` package name.
+- [x] Runtime icon helper added so UI code can prefer system theme icons with safe fallbacks.
+- [x] Switched application icon loading to the system icon theme path (`/usr/share/icons/`) instead of vendored Tabler assets.
+- [x] Sidebar redesigned to use icon tabs for `Quick Access`, `This Computer`, `Network`, `Bookmarks`, and `Recents`, with a more compact layout.
+- [x] XDG user directories support implemented for localized/customized `Desktop`, `Documents`, `Downloads`, `Music`, `Pictures`, and `Videos`.
+- [x] Quick Access now uses actual XDG paths and those default folders are no longer duplicated into Bookmarks.
+- [x] Documentation updated to record the XDG user directories repair.
+- [x] "Open in Terminal" fixed so the configured terminal preference is honored and launch commands no longer force maximized/fullscreen behavior.
+- [x] Default terminal detection priority changed to prefer `qterminal` first, while keeping other supported terminals available in Preferences.
+- [x] Configuration/data directory behavior documented in `README.md`, including how to delete saved files to reset the application.
+- [x] Application startup now recreates required app-data files and folders such as `config.json`, `bookmarks.json`, `tags.db`, `extensions/`, and `vault/` when missing.
+- [x] Details view columns made resizable and movable, and right-clicking the header now opens a `List Columns` chooser dialog.
+- [x] Additional Details columns implemented: `Created - Time`, `Date Accessed`, `Date Created`, `Detailed Type`, `Group`, `Location`, `MIME Type`, `Octal Permissions`, `Owner`, `Permissions`, `SELinux Context`, and `Modified - Time`.
+- [x] File icons are now shown only in the `Name` column and suppressed in all other Details columns.
+- [x] Taskbar/window icon integration fixed so Linux File Manager shows its application icon correctly outside the About dialog too.
+- [x] Compact modern context menu added with top-row actions for `Cut`, `Copy`, `Paste`, `Rename`, `Share`, and `Delete`.
+- [x] Modern context menu made configurable in Preferences, enabled by default, and duplicate middle-menu entries suppressed when modern mode is active.
+- [x] First-run context-menu state corrected so `Paste` stays disabled until there is actually something in the clipboard.
+- [x] Config loading now backfills newly added settings keys into older saved config files.
+- [x] README updated to mention that deleting `~/.local/share/linux-file-manager/` can help expose new defaults during active development.
+- [x] Preview worker moved image decoding to `QImageReader` in a background thread and converts to `QPixmap` only in the UI thread for safer image previews.
+- [x] Single-image preview support fixed in the right preview panel.
+- [x] Folder preview gallery support added in the preview panel for directories containing multiple images.
+- [x] Main workspace image thumbnails implemented so image files preview directly in `Icons`, `List`, `Details`, and `Compact` views, independent of the preview panel.
+- [x] Workspace thumbnail caching added for common image formats including `png`, `jpg`, `jpeg`, `gif`, `bmp`, `svg`, and `webp`.
+
 ## How to use
 - Keep each item small enough for one PR or one issue.
 - Prefer tasks that improve maintainability, packaging, or user-visible workflows.
