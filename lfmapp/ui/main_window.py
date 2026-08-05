@@ -161,6 +161,7 @@ class MainWindow(QMainWindow):
         self._icon_grid_actions = {}
         self._action_groups = []
         self._command_actions = []
+        self._command_action_by_action = {}
         self._command_action_keys = set()
         self.recent_files_menu = None
         self._progress_dialog = None
@@ -626,17 +627,18 @@ class MainWindow(QMainWindow):
         if key in self._command_action_keys:
             return
         self._command_action_keys.add(key)
-        self._command_actions.append(
-            {
-                "title": title,
-                "callback": lambda action=action: action.trigger(),
-                "shortcut": shortcut,
-                "category": category,
-                "action": action,
-                "alias": alias,
-                "command_id": command_id,
-            }
-        )
+        record = {
+            "title": title,
+            "callback": lambda action=action: action.trigger(),
+            "shortcut": shortcut,
+            "category": category,
+            "action": action,
+            "alias": alias,
+            "command_id": command_id,
+        }
+        self._command_actions.append(record)
+        if action is not None:
+            self._command_action_by_action[action] = record
 
     def _palette_commands(self) -> list[dict]:
         commands = []
@@ -2132,6 +2134,12 @@ class MainWindow(QMainWindow):
             self.quick_access_action.setText(self.tr("Unpin from Quick Access"))
         else:
             self.quick_access_action.setText(self.tr("Pin to Quick Access"))
+        self._update_registered_action_title(self.quick_access_action)
+
+    def _update_registered_action_title(self, action: QAction):
+        record = self._command_action_by_action.get(action)
+        if record is not None:
+            record["title"] = action.text().replace("&", "")
 
     @staticmethod
     def is_builtin_quick_access_path(path: Path) -> bool:

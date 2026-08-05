@@ -442,6 +442,26 @@ class MainWindowMenuTests(unittest.TestCase):
                 config_module.CONFIG_DIR = old_config_dir
                 config_module.CONFIG_FILE = old_config_file
 
+    def test_quick_access_action_title_is_kept_in_sync_in_palette(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                window.quick_access_action.setText(window.tr("In Quick Access"))
+                window.update_quick_access_action()
+                self.assertTrue(any(
+                    command["title"] == "In Quick Access" for command in window._palette_commands()
+                ))
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
     def test_dynamic_action_title_aliases_update_in_palette(self):
         window = None
         with tempfile.TemporaryDirectory() as tmpdir:
