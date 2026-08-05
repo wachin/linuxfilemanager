@@ -104,8 +104,8 @@ class MainWindow(QMainWindow):
     def __init__(self, config: Config | None = None):
         super().__init__()
         self.setWindowTitle("linux-file-manager")
-        self.setWindowIcon(application_icon())
         self.config = config or Config()
+        self.setWindowIcon(application_icon(self.config))
         self.terminal_service = TerminalService(self.config)
         self.settings_controller = SettingsController(self)
         self._apply_window_size_from_config()

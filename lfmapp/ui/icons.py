@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from PyQt6.QtGui import QIcon
+
+from lfmapp.core.config import Config
 
 _ICON_CACHE: dict[str, QIcon] = {}
 _ICON_PATH_CACHE: dict[str, Path | None] = {}
@@ -25,6 +28,37 @@ _ICON_ALIASES: dict[str, list[str]] = {
     "folder-remote": ["network-server", "folder-remote"],
     "document-open-recent": ["view-history", "document-open-recent"],
     "emblem-favorite": ["bookmark-new", "emblem-favorite"],
+}
+
+_ADDITIONAL_ICON_NAMES: set[str] = {
+    "linux-file-manager",
+    "dialog-information",
+    "view-preview",
+    "view-sidebar",
+    "edit-cut",
+    "edit-copy",
+    "edit-paste",
+    "edit-rename",
+    "security-medium",
+    "folder-open",
+    "utilities-terminal",
+    "terminal",
+    "document-open",
+    "document-print",
+    "printer",
+    "bookmark-new",
+    "user-bookmarks",
+    "computer",
+    "drive-harddisk",
+    "computer-symbolic",
+    "network-workgroup",
+    "network-server",
+    "folder-remote",
+    "bookmarks",
+    "folder-bookmarks",
+    "folder-recent",
+    "view-history",
+    "folder",
 }
 
 
@@ -57,6 +91,61 @@ def _find_system_icon_file(theme_name: str) -> Path | None:
     return None
 
 
+def _collect_icon_candidate_names() -> list[str]:
+    names: set[str] = set(_ADDITIONAL_ICON_NAMES)
+    names.update(_ICON_ALIASES.keys())
+    for aliases in _ICON_ALIASES.values():
+        names.update(aliases)
+    return sorted(names)
+
+
+def _load_cached_icon_paths(config: Config) -> dict[str, Path]:
+    cached_paths: dict[str, Path] = {}
+    for icon_name, path_str in config.cached_icon_paths.items():
+        try:
+            path = Path(path_str)
+            if path.exists():
+                cached_paths[icon_name] = path
+        except Exception:
+            continue
+    return cached_paths
+
+
+def initialize_icon_cache(config: Config) -> None:
+    cached_paths = _load_cached_icon_paths(config)
+    _ICON_PATH_CACHE.update(cached_paths)
+
+
+def discover_system_icons(config: Config, progress_callback: Callable[[int, str], None] | None = None) -> None:
+    candidate_names = _collect_icon_candidate_names()
+    total = len(candidate_names)
+    if total == 0:
+        config.set_icon_search_complete(True)
+        return
+
+    for index, name in enumerate(candidate_names, start=1):
+        if progress_callback is not None:
+            progress_callback(int((index - 1) / total * 100), name)
+        _search_for_icon_path(name, config)
+    if progress_callback is not None:
+        progress_callback(100, "")
+    config.set_icon_search_complete(True)
+
+
+def _search_for_icon_path(theme_name: str, config: Config | None = None) -> Path | None:
+    if config is not None:
+        cached_paths = _load_cached_icon_paths(config)
+        if theme_name in cached_paths:
+            path = cached_paths[theme_name]
+            _ICON_PATH_CACHE[theme_name] = path
+            return path
+
+    path = _find_system_icon_file(theme_name)
+    if path is not None and config is not None:
+        config.set_cached_icon_path(theme_name, str(path))
+    return path
+
+
 def _try_with_fallback_themes(theme_name: str) -> QIcon:
     original_theme = QIcon.themeName()
     for theme in _FALLBACK_ICON_THEMES:
@@ -75,7 +164,7 @@ def _resolve_aliases(theme_name: str) -> list[str]:
     return _ICON_ALIASES.get(theme_name, [theme_name])
 
 
-def app_icon(*theme_names: str) -> QIcon:
+def app_icon(*theme_names: str, config: Config | None = None) -> QIcon:
     for theme_name in theme_names:
         if not theme_name:
             continue
@@ -90,7 +179,7 @@ def app_icon(*theme_names: str) -> QIcon:
                 _ICON_CACHE[resolved_name] = icon
                 return icon
 
-            path = _find_system_icon_file(resolved_name)
+            path = _search_for_icon_path(resolved_name, config)
             if path is not None:
                 icon = QIcon(str(path))
                 if not icon.isNull():
@@ -105,8 +194,8 @@ def app_icon(*theme_names: str) -> QIcon:
     return QIcon()
 
 
-def application_icon() -> QIcon:
-    icon = app_icon("linux-file-manager")
+def application_icon(config: Config | None = None) -> QIcon:
+    icon = app_icon("linux-file-manager", config=config)
     if not icon.isNull():
         return icon
     icon_path = (
