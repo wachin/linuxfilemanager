@@ -150,6 +150,7 @@ Estos son los siguientes trabajos con mejor relación impacto/esfuerzo.
 
 - [ ] Revisar dependencias reales para empaquetado.
 - [ ] Confirmar estrategia de `qt6ct` dentro de la documentación o dependencias recomendadas.
+- [ ] Auditar nombres de iconos del sistema y añadir fallback de tema/icon names en `lfmapp/ui/icons.py`.
 - [ ] Revisar licencias y metadatos para publicación limpia.
 - [ ] Añadir checklist de release pública.
 - [ ] Añadir CI para pruebas y validación de empaquetado.

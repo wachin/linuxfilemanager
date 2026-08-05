@@ -74,6 +74,12 @@ These packages enable:
 - recommended icon themes such as `Breeze` and `Papirus`
 - Qt translation support where available
 
+The application also includes extra fallback icon loading from `lfmapp/ui/icons.py`:
+- first it uses `QIcon.fromTheme()` for the active Qt icon theme,
+- if the theme does not provide a matching name, it searches installed
+  icon theme files under the system icon paths,
+- and it uses common alias names for compatibility between themes.
+
 **Nota:** El paquete davfs2 hara que se pregunte y hay que marcar y dar Next:
 
 ![](images/07-cuando-instalo-las-dependencias-aparece-una-pregunta-de-davfs2.png)
