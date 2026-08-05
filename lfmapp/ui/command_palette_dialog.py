@@ -31,20 +31,44 @@ class CommandPaletteDialog(QDialog):
         button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)
 
-        self._commands = commands
+        self._commands = list(commands)
         self._populate_items()
         self.filter_edit.setFocus()
 
     def _command_text(self, command: dict) -> str:
-        text = command.get("title", "")
-        shortcut = command.get("shortcut")
+        title = command.get("title", "")
+        category = command.get("category", "") or ""
+        shortcut = command.get("shortcut") or ""
+        parts = [title]
+        if category:
+            parts.append(f"— {category}")
         if shortcut:
-            text = f"{text}    ({shortcut})"
-        return text
+            parts.append(f"({shortcut})")
+        return " ".join(parts)
 
-    def _populate_items(self) -> None:
+    def _command_score(self, command: dict, query: str) -> int:
+        title = command.get("title", "").casefold()
+        shortcut = (command.get("shortcut") or "").casefold()
+        category = (command.get("category") or "").casefold()
+        score = 0
+        if query in title:
+            score += 30
+        if query in shortcut:
+            score += 20
+        if query in category:
+            score += 10
+        if title.startswith(query):
+            score += 20
+        if shortcut.startswith(query):
+            score += 10
+        if category.startswith(query):
+            score += 5
+        return score
+
+    def _populate_items(self, filtered_commands: list[dict] | None = None) -> None:
         self.command_list.clear()
-        for command in self._commands:
+        commands = filtered_commands if filtered_commands is not None else self._commands
+        for command in commands:
             item = QListWidgetItem(self._command_text(command))
             item.setData(Qt.ItemDataRole.UserRole, command)
             self.command_list.addItem(item)
@@ -53,21 +77,21 @@ class CommandPaletteDialog(QDialog):
 
     def _filter_commands(self, text: str) -> None:
         query = text.strip().casefold()
-        self.command_list.clear()
+        if not query:
+            self._populate_items()
+            return
+
+        tokens = query.split()
+        filtered = []
         for command in self._commands:
-            title = command.get("title", "")
-            shortcut = command.get("shortcut", "") or ""
-            category = command.get("category", "") or ""
-            if (
-                query in title.casefold()
-                or query in shortcut.casefold()
-                or query in category.casefold()
-            ):
-                item = QListWidgetItem(self._command_text(command))
-                item.setData(Qt.ItemDataRole.UserRole, command)
-                self.command_list.addItem(item)
-        if self.command_list.count() > 0:
-            self.command_list.setCurrentRow(0)
+            title = command.get("title", "").casefold()
+            shortcut = (command.get("shortcut") or "").casefold()
+            category = (command.get("category") or "").casefold()
+            if all(token in title or token in shortcut or token in category for token in tokens):
+                filtered.append((self._command_score(command, query), command))
+
+        filtered.sort(key=lambda entry: (-entry[0], entry[1].get("title", "")))
+        self._populate_items([command for _, command in filtered])
 
     def _activate_selected(self, item: QListWidgetItem) -> None:
         command = item.data(Qt.ItemDataRole.UserRole)
