@@ -2,7 +2,7 @@
 
 Última actualización: 2026-08-05
 
-Este archivo queda preparado para continuar el desarrollo después de formatear el ordenador. Resume el estado real del proyecto, lo ya conseguido, lo pendiente y dónde mirar primero.
+Resume el estado real del proyecto, lo ya conseguido, lo pendiente y dónde mirar primero.
 
 ## Identidad del proyecto
 
@@ -42,6 +42,7 @@ El proyecto ya tiene una base funcional amplia. No está en fase inicial. Ya exi
 - Ventana principal con barra de menú, barra de herramientas, barra de estado y paneles.
 - Sidebar por pestañas con `Quick Access`, `This Computer`, `Network`, `Bookmarks` y `Recents`.
 - Navegación por historial y barra de dirección editable.
+- Experiencia de teclado y paleta de comandos empezada, con foco en acceso rápido a acciones clave.
 - Operaciones de archivos: copiar, cortar, pegar, renombrar, eliminar, enviar a papelera.
 - Vistas `Icons`, `List`, `Details` y `Compact`.
 - Menú contextual moderno configurable.
