@@ -550,10 +550,12 @@ class MainWindow(QMainWindow):
     def _palette_commands(self) -> list[dict]:
         commands = []
         for info in self._command_actions:
-            enabled = info.get("action").isEnabled() if info.get("action") else info.get("enabled", True)
+            action = info.get("action")
+            title = action.text().replace("&", "") if action else info.get("title", "")
+            enabled = action.isEnabled() if action is not None else info.get("enabled", True)
             commands.append(
                 {
-                    "title": info["title"],
+                    "title": title,
                     "callback": info["callback"],
                     "shortcut": info.get("shortcut", ""),
                     "category": info.get("category", ""),

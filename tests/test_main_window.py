@@ -371,6 +371,35 @@ class MainWindowMenuTests(unittest.TestCase):
                 config_module.CONFIG_DIR = old_config_dir
                 config_module.CONFIG_FILE = old_config_file
 
+    def test_dynamic_action_title_updates_in_palette(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                window.update_quick_access_action()
+                if window.quick_access_action.text() == "In Quick Access":
+                    command = next(
+                        command for command in window._palette_commands() if command["title"] == "In Quick Access"
+                    )
+                elif window.quick_access_action.text() == "Unpin from Quick Access":
+                    command = next(
+                        command for command in window._palette_commands() if command["title"] == "Unpin from Quick Access"
+                    )
+                else:
+                    command = next(
+                        command for command in window._palette_commands() if command["title"] == "Pin to Quick Access"
+                    )
+                self.assertEqual(command["title"], window.quick_access_action.text())
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
     def test_apply_preferences_updates_runtime_state_and_config(self):
         window = None
         with tempfile.TemporaryDirectory() as tmpdir:
