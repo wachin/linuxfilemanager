@@ -549,9 +549,11 @@ class MainWindow(QMainWindow):
                     "shortcut": info.get("shortcut", ""),
                     "category": info.get("category", ""),
                     "enabled": enabled,
+                    "alias": info.get("alias", []),
                 }
             )
 
+        commands.extend(self._navigation_palette_commands())
         commands.extend(self._contextual_palette_commands())
         return self._unique_commands(commands)
 
@@ -615,6 +617,7 @@ class MainWindow(QMainWindow):
                     "shortcut": "",
                     "category": self.tr("Navigation"),
                     "enabled": True,
+                    "alias": ["terminal", "shell"],
                 }
             )
             commands.append(
@@ -624,10 +627,32 @@ class MainWindow(QMainWindow):
                     "shortcut": "F5",
                     "category": self.tr("View"),
                     "enabled": True,
+                    "alias": ["reload", "refresh view"],
                 }
             )
 
         return commands
+
+    def _navigation_palette_commands(self) -> list[dict]:
+        recent_files = [Path(path) for path in self.config.recent_files if Path(path).exists() and Path(path).is_file()]
+        return [
+            {
+                "title": self.tr("Go to Path..."),
+                "callback": self.show_go_to_path_dialog,
+                "shortcut": "Ctrl+L",
+                "category": self.tr("Navigation"),
+                "enabled": True,
+                "alias": ["cd", "goto", "path"],
+            },
+            {
+                "title": self.tr("Open Recent File..."),
+                "callback": self.show_recent_file_dialog,
+                "shortcut": "",
+                "category": self.tr("Navigation"),
+                "enabled": bool(recent_files),
+                "alias": ["recent", "recent file", "open recent"],
+            },
+        ]
 
     def _unique_commands(self, commands: list[dict]) -> list[dict]:
         seen = set()
@@ -648,6 +673,33 @@ class MainWindow(QMainWindow):
         commands = self._palette_commands()
         dialog = CommandPaletteDialog(commands, self)
         dialog.exec()
+
+    def show_go_to_path_dialog(self):
+        path_text, ok = QInputDialog.getText(
+            self,
+            self.tr("Go to Path"),
+            self.tr("Path:"),
+            text=str(self.workspace.current_path() or Path.home()),
+        )
+        if ok and path_text:
+            self.go_to(Path(path_text).expanduser())
+
+    def show_recent_file_dialog(self):
+        recent_files = [Path(path) for path in self.config.recent_files if Path(path).exists() and Path(path).is_file()]
+        if not recent_files:
+            return
+
+        choices = [str(path) for path in recent_files]
+        selection, ok = QInputDialog.getItem(
+            self,
+            self.tr("Open Recent File"),
+            self.tr("Choose a recent file:"),
+            choices,
+            0,
+            False,
+        )
+        if ok and selection:
+            self.open_recent_file(Path(selection))
 
     def _add_sort_menus(self, menu, persistent: bool = False):
         """Add sorting controls to a menu."""

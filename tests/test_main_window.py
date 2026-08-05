@@ -315,6 +315,28 @@ class MainWindowMenuTests(unittest.TestCase):
                 config_module.CONFIG_DIR = old_config_dir
                 config_module.CONFIG_FILE = old_config_file
 
+    def test_palette_includes_navigation_shortcuts(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                commands = window._palette_commands()
+                titles = {command["title"] for command in commands}
+
+                self.assertIn("Go to Path...", titles)
+                self.assertIn("Open Recent File...", titles)
+                self.assertIn("Open in Terminal", titles)
+                self.assertIn("Refresh", titles)
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
     def test_apply_preferences_updates_runtime_state_and_config(self):
         window = None
         with tempfile.TemporaryDirectory() as tmpdir:

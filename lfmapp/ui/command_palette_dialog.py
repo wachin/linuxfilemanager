@@ -52,6 +52,7 @@ class CommandPaletteDialog(QDialog):
         title = command.get("title", "").casefold()
         shortcut = (command.get("shortcut") or "").casefold()
         category = (command.get("category") or "").casefold()
+        alias = " ".join(command.get("alias", [])).casefold()
         score = 0
         if query in title:
             score += 30
@@ -59,12 +60,16 @@ class CommandPaletteDialog(QDialog):
             score += 20
         if query in category:
             score += 10
+        if query in alias:
+            score += 15
         if title.startswith(query):
             score += 20
         if shortcut.startswith(query):
             score += 10
         if category.startswith(query):
             score += 5
+        if alias.startswith(query):
+            score += 8
         return score
 
     def _populate_items(self, filtered_commands: list[dict] | None = None) -> None:
@@ -91,7 +96,11 @@ class CommandPaletteDialog(QDialog):
             title = command.get("title", "").casefold()
             shortcut = (command.get("shortcut") or "").casefold()
             category = (command.get("category") or "").casefold()
-            if all(token in title or token in shortcut or token in category for token in tokens):
+            alias = " ".join(command.get("alias", [])).casefold()
+            if all(
+                token in title or token in shortcut or token in category or token in alias
+                for token in tokens
+            ):
                 filtered.append((self._command_score(command, query), command))
 
         filtered.sort(key=lambda entry: (-entry[0], entry[1].get("title", "")))
