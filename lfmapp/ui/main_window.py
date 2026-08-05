@@ -80,6 +80,7 @@ from lfmapp.services import (
 )
 from lfmapp.services.textindex_service import TextIndexService
 from lfmapp.ui.about_dialog import AboutDialog
+from lfmapp.ui.command_palette_dialog import CommandPaletteDialog
 from lfmapp.ui.create_multiple_dialog import CreateMultipleDialog
 from lfmapp.ui.icons import app_icon, application_icon
 from lfmapp.ui.property_dialog import AdvancedSecurityDialog, PropertyDialog
@@ -794,6 +795,28 @@ class MainWindow(QMainWindow):
         central_layout.addWidget(self.splitter, 1)
         self.setCentralWidget(central)
 
+    def show_command_palette(self):
+        commands = [
+            (self.tr("Back"), self.go_back),
+            (self.tr("Forward"), self.go_forward),
+            (self.tr("Up"), self.go_up),
+            (self.tr("Home"), self.go_home),
+            (self.tr("Refresh"), self.refresh_view),
+            (self.tr("New Folder"), self.new_folder),
+            (self.tr("New File"), self.new_file),
+            (self.tr("Copy"), self.copy_selected),
+            (self.tr("Cut"), self.cut_selected),
+            (self.tr("Paste"), self.paste_from_clipboard),
+            (self.tr("Rename"), self.rename_selected),
+            (self.tr("Trash"), self.trash_selected),
+            (self.tr("Toggle Preview Panel"), self.toggle_preview),
+            (self.tr("Toggle Sidebar"), self.toggle_sidebar),
+            (self.tr("Search in Folder"), self.focus_search),
+            (self.tr("Preferences..."), self.show_preferences_dialog),
+        ]
+        dialog = CommandPaletteDialog(commands, self)
+        dialog.exec()
+
     # ─── Status Bar ────────────────────────────────────────────
 
     def build_statusbar(self):
@@ -882,6 +905,8 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+E"), self, self.focus_search)
         # Ctrl+Shift+I invert selection
         QShortcut(QKeySequence("Ctrl+Shift+I"), self, self.invert_selection)
+        # Ctrl+Shift+P open command palette
+        QShortcut(QKeySequence("Ctrl+Shift+P"), self, self.show_command_palette)
 
     # ─── Tabs ─────────────────────────────────────────────────
 
