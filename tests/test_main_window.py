@@ -369,6 +369,30 @@ class MainWindowMenuTests(unittest.TestCase):
                 self.assertIn("Copy path", titles)
                 self.assertIn("Rename", titles)
                 self.assertIn("Properties", titles)
+                self.assertIn("Set default application...", titles)
+                self.assertIn("Copy to...", titles)
+                self.assertIn("Move to...", titles)
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
+    def test_contextual_palette_commands_include_paste_when_clipboard_has_items(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                window._clipboard_mode = "copy"
+                window._clipboard_paths = [Path(tmpdir) / "file.txt"]
+                commands = window._palette_commands()
+                titles = {command["title"] for command in commands}
+
+                self.assertIn("Paste", titles)
             finally:
                 if window is not None:
                     window.close()

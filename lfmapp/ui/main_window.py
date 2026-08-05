@@ -668,6 +668,7 @@ class MainWindow(QMainWindow):
         commands: list[dict] = []
         selected_path = self.workspace.selected_path()
         current_path = self.workspace.current_path()
+        can_paste = self._clipboard_mode in {"copy", "cut"} and bool(self._clipboard_paths)
 
         if selected_path is not None and selected_path.exists():
             commands.append(
@@ -679,24 +680,25 @@ class MainWindow(QMainWindow):
                     "enabled": True,
                 }
             )
-            commands.append(
-                {
-                    "title": self.tr("Open with..."),
-                    "callback": self.open_with_dialog,
-                    "shortcut": "",
-                    "category": self.tr("Selection"),
-                    "enabled": selected_path.is_file(),
-                }
-            )
-            commands.append(
-                {
-                    "title": self.tr("Copy path"),
-                    "callback": self.copy_path,
-                    "shortcut": "Ctrl+Shift+C",
-                    "category": self.tr("Selection"),
-                    "enabled": True,
-                }
-            )
+            if selected_path.is_file():
+                commands.append(
+                    {
+                        "title": self.tr("Open with..."),
+                        "callback": self.open_with_dialog,
+                        "shortcut": "",
+                        "category": self.tr("Selection"),
+                        "enabled": True,
+                    }
+                )
+                commands.append(
+                    {
+                        "title": self.tr("Set default application..."),
+                        "callback": self.set_default_application_dialog,
+                        "shortcut": "",
+                        "category": self.tr("Selection"),
+                        "enabled": True,
+                    }
+                )
             commands.append(
                 {
                     "title": self.tr("Rename"),
@@ -706,14 +708,134 @@ class MainWindow(QMainWindow):
                     "enabled": True,
                 }
             )
-            commands.append(
-                {
-                    "title": self.tr("Properties"),
-                    "callback": self.show_properties,
-                    "shortcut": "",
-                    "category": self.tr("Selection"),
-                    "enabled": True,
-                }
+            commands.extend(
+                [
+                    {
+                        "title": self.tr("Copy path"),
+                        "callback": self.copy_path,
+                        "shortcut": "Ctrl+Shift+C",
+                        "category": self.tr("Selection"),
+                        "enabled": True,
+                    },
+                    {
+                        "title": self.tr("Cut"),
+                        "callback": self.cut_selected,
+                        "shortcut": "Ctrl+X",
+                        "category": self.tr("Selection"),
+                        "enabled": True,
+                    },
+                    {
+                        "title": self.tr("Copy"),
+                        "callback": self.copy_selected,
+                        "shortcut": "Ctrl+C",
+                        "category": self.tr("Selection"),
+                        "enabled": True,
+                    },
+                    {
+                        "title": self.tr("Copy to..."),
+                        "callback": self.copy_selected_to,
+                        "shortcut": "",
+                        "category": self.tr("Selection"),
+                        "enabled": self._context_entry_enabled("selection", "copy_to") and self.config.data.get("move_copy_menu_show_bookmarks", True),
+                    },
+                    {
+                        "title": self.tr("Move to..."),
+                        "callback": self.move_selected_to,
+                        "shortcut": "",
+                        "category": self.tr("Selection"),
+                        "enabled": self._context_entry_enabled("selection", "move_to") and self.config.data.get("move_copy_menu_show_bookmarks", True),
+                    },
+                ]
+            )
+
+            if self._context_entry_enabled("selection", "open_in_terminal"):
+                commands.append(
+                    {
+                        "title": self.tr("Open in Terminal"),
+                        "callback": lambda: self.open_terminal_in_directory(selected_path.parent if selected_path.is_file() else selected_path),
+                        "shortcut": "",
+                        "category": self.tr("Selection"),
+                        "enabled": True,
+                        "alias": ["terminal", "shell"],
+                    }
+                )
+
+            if selected_path.is_dir() and self._context_entry_enabled("selection", "pin"):
+                commands.append(
+                    {
+                        "title": self.tr("Add folder to Quick Access"),
+                        "callback": self.add_bookmark,
+                        "shortcut": "",
+                        "category": self.tr("Selection"),
+                        "enabled": True,
+                    }
+                )
+
+            if selected_path.is_file() and selected_path.suffix.lower() in {".zip", ".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tbz2"}:
+                commands.append(
+                    {
+                        "title": self.tr("Extract Here"),
+                        "callback": lambda: self.extract_archive(selected_path),
+                        "shortcut": "",
+                        "category": self.tr("Selection"),
+                        "enabled": True,
+                    }
+                )
+                commands.append(
+                    {
+                        "title": self.tr("Extract to..."),
+                        "callback": lambda: self.extract_archive_to(selected_path),
+                        "shortcut": "",
+                        "category": self.tr("Selection"),
+                        "enabled": True,
+                    }
+                )
+
+            commands.extend(
+                [
+                    {
+                        "title": self.tr("Compress to ZIP"),
+                        "callback": lambda: self.compress_to_zip(selected_path),
+                        "shortcut": "",
+                        "category": self.tr("Selection"),
+                        "enabled": True,
+                    },
+                    {
+                        "title": self.tr("Print"),
+                        "callback": self.print_selected,
+                        "shortcut": "",
+                        "category": self.tr("Selection"),
+                        "enabled": self._context_entry_enabled("selection", "print"),
+                    },
+                    {
+                        "title": self.tr("Move to Trash"),
+                        "callback": self.trash_selected,
+                        "shortcut": "",
+                        "category": self.tr("Selection"),
+                        "enabled": self._context_entry_enabled("selection", "move_to_trash"),
+                    },
+                    {
+                        "title": self.tr("Delete Permanently"),
+                        "callback": self.delete_selected,
+                        "shortcut": "",
+                        "category": self.tr("Selection"),
+                        "enabled": self.config.data.get("show_delete_bypassing_trash", True),
+                    },
+                    {
+                        "title": self.tr("Add tag..."),
+                        "callback": lambda: self.on_add_tag_to_file(selected_path),
+                        "shortcut": "",
+                        "category": self.tr("Selection"),
+                        "enabled": True,
+                    },
+                    {
+                        "title": self.tr("Properties"),
+                        "callback": self.show_properties,
+                        "shortcut": "",
+                        "category": self.tr("Selection"),
+                        "enabled": True,
+                    },
+                ]
             )
 
         if current_path is not None and current_path.exists():
@@ -737,6 +859,16 @@ class MainWindow(QMainWindow):
                     "alias": ["reload", "refresh view"],
                 }
             )
+            if can_paste:
+                commands.append(
+                    {
+                        "title": self.tr("Paste"),
+                        "callback": self.paste_from_clipboard,
+                        "shortcut": "Ctrl+V",
+                        "category": self.tr("Clipboard"),
+                        "enabled": True,
+                    }
+                )
 
         return commands
 
