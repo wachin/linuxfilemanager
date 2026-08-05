@@ -534,8 +534,120 @@ class MainWindow(QMainWindow):
                 "callback": lambda action=action: action.trigger(),
                 "shortcut": shortcut,
                 "category": category,
+                "action": action,
             }
         )
+
+    def _palette_commands(self) -> list[dict]:
+        commands = []
+        for info in self._command_actions:
+            enabled = info.get("action").isEnabled() if info.get("action") else info.get("enabled", True)
+            commands.append(
+                {
+                    "title": info["title"],
+                    "callback": info["callback"],
+                    "shortcut": info.get("shortcut", ""),
+                    "category": info.get("category", ""),
+                    "enabled": enabled,
+                }
+            )
+
+        commands.extend(self._contextual_palette_commands())
+        return self._unique_commands(commands)
+
+    def _contextual_palette_commands(self) -> list[dict]:
+        commands: list[dict] = []
+        selected_path = self.workspace.selected_path()
+        current_path = self.workspace.current_path()
+
+        if selected_path is not None and selected_path.exists():
+            commands.append(
+                {
+                    "title": self.tr("Open"),
+                    "callback": self.open_selected,
+                    "shortcut": "",
+                    "category": self.tr("Selection"),
+                    "enabled": True,
+                }
+            )
+            commands.append(
+                {
+                    "title": self.tr("Open with..."),
+                    "callback": self.open_with_dialog,
+                    "shortcut": "",
+                    "category": self.tr("Selection"),
+                    "enabled": selected_path.is_file(),
+                }
+            )
+            commands.append(
+                {
+                    "title": self.tr("Copy path"),
+                    "callback": self.copy_path,
+                    "shortcut": "Ctrl+Shift+C",
+                    "category": self.tr("Selection"),
+                    "enabled": True,
+                }
+            )
+            commands.append(
+                {
+                    "title": self.tr("Rename"),
+                    "callback": self.rename_selected_dialog,
+                    "shortcut": "F2",
+                    "category": self.tr("Selection"),
+                    "enabled": True,
+                }
+            )
+            commands.append(
+                {
+                    "title": self.tr("Properties"),
+                    "callback": self.show_properties,
+                    "shortcut": "",
+                    "category": self.tr("Selection"),
+                    "enabled": True,
+                }
+            )
+
+        if current_path is not None and current_path.exists():
+            commands.append(
+                {
+                    "title": self.tr("Open in Terminal"),
+                    "callback": lambda: self.open_current_directory_in_terminal() if current_path.is_dir() else None,
+                    "shortcut": "",
+                    "category": self.tr("Navigation"),
+                    "enabled": True,
+                }
+            )
+            commands.append(
+                {
+                    "title": self.tr("Refresh"),
+                    "callback": self.refresh_view,
+                    "shortcut": "F5",
+                    "category": self.tr("View"),
+                    "enabled": True,
+                }
+            )
+
+        return commands
+
+    def _unique_commands(self, commands: list[dict]) -> list[dict]:
+        seen = set()
+        unique_commands: list[dict] = []
+        for command in commands:
+            key = (
+                command.get("title", ""),
+                command.get("category", ""),
+                command.get("shortcut", ""),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            unique_commands.append(command)
+        return unique_commands
+
+    def show_command_palette(self):
+        commands = self._palette_commands()
+        dialog = CommandPaletteDialog(commands, self)
+        dialog.exec()
 
     def _add_sort_menus(self, menu, persistent: bool = False):
         """Add sorting controls to a menu."""
@@ -579,6 +691,7 @@ class MainWindow(QMainWindow):
             self._sort_column_actions = column_actions
             self._sort_order_actions = order_actions
 
+    # ─── Status Bar ────────────────────────────────────────────
     def _add_group_menus(self, menu, persistent: bool = False):
         """Add grouping controls to a menu."""
         group_menu = menu.addMenu(self.tr("Group by"))
