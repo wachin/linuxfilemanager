@@ -816,6 +816,7 @@ class MainWindow(QMainWindow):
             empty_action = QAction(self.tr("No recent files"), self)
             empty_action.setEnabled(False)
             self.recent_files_menu.addAction(empty_action)
+            self._register_command_action(empty_action, category=recent_category)
         else:
             for path in existing_files:
                 action = QAction(path.name, self)
@@ -1663,6 +1664,7 @@ class MainWindow(QMainWindow):
             empty_action = QAction(self.tr("No compatible applications"), self)
             empty_action.setEnabled(False)
             share_menu.addAction(empty_action)
+            self._register_command_action(empty_action, category=share_menu.title().replace("&", ""))
             return
 
         for desktop_file, app_name in apps:
@@ -1675,6 +1677,11 @@ class MainWindow(QMainWindow):
                 )
             )
             share_menu.addAction(action)
+            self._register_command_action(
+                action,
+                category=share_menu.title().replace("&", ""),
+                alias=[desktop_file, "share", "send"],
+            )
 
     def share_with_application(self, path: Path, desktop_file: str):
         """Launch a chosen application for the supplied path."""

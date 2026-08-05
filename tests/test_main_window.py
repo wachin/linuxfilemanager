@@ -322,6 +322,30 @@ class MainWindowMenuTests(unittest.TestCase):
                 config_module.CONFIG_DIR = old_config_dir
                 config_module.CONFIG_FILE = old_config_file
 
+    def test_share_with_menu_registers_actions_in_palette(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                fake_app = ("/usr/share/applications/fake.desktop", "Fake App")
+
+                with patch("lfmapp.ui.main_window.get_available_applications", return_value=[fake_app]):
+                    window._add_share_with_menu(window.share_menu, Path(tmpdir) / "file.txt")
+
+                commands = window._palette_commands()
+                titles = {command["title"] for command in commands}
+                self.assertIn("Fake App", titles)
+                self.assertIn("Share with", {command["category"] for command in commands})
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
     def test_contextual_palette_commands_include_selection_actions(self):
         window = None
         with tempfile.TemporaryDirectory() as tmpdir:
