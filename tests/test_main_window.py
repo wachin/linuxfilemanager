@@ -288,6 +288,33 @@ class MainWindowMenuTests(unittest.TestCase):
                 config_module.CONFIG_DIR = old_config_dir
                 config_module.CONFIG_FILE = old_config_file
 
+    def test_contextual_palette_commands_include_selection_actions(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                selected = Path(tmpdir) / "file.txt"
+                selected.write_text("hello", encoding="utf-8")
+
+                with patch.object(window.workspace, "selected_path", return_value=selected):
+                    commands = window._palette_commands()
+                    titles = {command["title"] for command in commands}
+
+                self.assertIn("Open", titles)
+                self.assertIn("Open with...", titles)
+                self.assertIn("Copy path", titles)
+                self.assertIn("Rename", titles)
+                self.assertIn("Properties", titles)
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
     def test_apply_preferences_updates_runtime_state_and_config(self):
         window = None
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -31,7 +31,7 @@ class CommandPaletteDialog(QDialog):
         button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)
 
-        self._commands = list(commands)
+        self._commands = [dict(command, enabled=command.get("enabled", True)) for command in commands]
         self._populate_items()
         self.filter_edit.setFocus()
 
@@ -44,6 +44,8 @@ class CommandPaletteDialog(QDialog):
             parts.append(f"— {category}")
         if shortcut:
             parts.append(f"({shortcut})")
+        if not command.get("enabled", True):
+            parts.append(self.tr("[disabled]"))
         return " ".join(parts)
 
     def _command_score(self, command: dict, query: str) -> int:
@@ -71,6 +73,8 @@ class CommandPaletteDialog(QDialog):
         for command in commands:
             item = QListWidgetItem(self._command_text(command))
             item.setData(Qt.ItemDataRole.UserRole, command)
+            if not command.get("enabled", True):
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEnabled)
             self.command_list.addItem(item)
         if self.command_list.count() > 0:
             self.command_list.setCurrentRow(0)
@@ -95,7 +99,7 @@ class CommandPaletteDialog(QDialog):
 
     def _activate_selected(self, item: QListWidgetItem) -> None:
         command = item.data(Qt.ItemDataRole.UserRole)
-        if not isinstance(command, dict):
+        if not isinstance(command, dict) or not command.get("enabled", True):
             return
         callback = command.get("callback")
         if callable(callback):
