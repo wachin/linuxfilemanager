@@ -160,6 +160,8 @@ class MainWindow(QMainWindow):
         self._group_actions = {}
         self._icon_grid_actions = {}
         self._action_groups = []
+        self._command_actions = []
+        self._command_action_keys = set()
         self.recent_files_menu = None
         self._progress_dialog = None
         # Track active background workers for aggregated progress
@@ -322,29 +324,35 @@ class MainWindow(QMainWindow):
         self.back_action.triggered.connect(self.go_back)
         self.back_action.setEnabled(False)
         toolbar.addAction(self.back_action)
+        self._register_command_action(self.back_action, category=self.tr("Toolbar"))
 
         self.forward_action = QAction(app_icon("go-next", "arrow-right"), self.tr("Forward"), self)
         self.forward_action.triggered.connect(self.go_forward)
         self.forward_action.setEnabled(False)
         toolbar.addAction(self.forward_action)
+        self._register_command_action(self.forward_action, category=self.tr("Toolbar"))
 
         self.up_action = QAction(app_icon("go-up", "arrow-up"), self.tr("Up"), self)
         self.up_action.triggered.connect(self.go_up)
         toolbar.addAction(self.up_action)
+        self._register_command_action(self.up_action, category=self.tr("Toolbar"))
 
         self.home_action = QAction(app_icon("go-home", "user-home"), self.tr("Home"), self)
         self.home_action.triggered.connect(self.go_home)
         toolbar.addAction(self.home_action)
+        self._register_command_action(self.home_action, category=self.tr("Toolbar"))
 
         toolbar.addSeparator()
 
         self.properties_action = QAction(app_icon("document-properties", "settings"), self.tr("Properties"), self)
         self.properties_action.triggered.connect(self.show_context_properties)
         toolbar.addAction(self.properties_action)
+        self._register_command_action(self.properties_action, category=self.tr("Toolbar"))
 
         self.quick_access_action = QAction(app_icon("emblem-favorite", "bookmark-new"), self.tr("Pin to Quick Access"), self)
         self.quick_access_action.triggered.connect(self.toggle_quick_access_pin)
         toolbar.addAction(self.quick_access_action)
+        self._register_command_action(self.quick_access_action, category=self.tr("Toolbar"))
 
         toolbar.addSeparator()
 
@@ -354,12 +362,14 @@ class MainWindow(QMainWindow):
         self.preview_action.setChecked(self.config.preview_visible)
         self.preview_action.triggered.connect(self.toggle_preview)
         toolbar.addAction(self.preview_action)
+        self._register_command_action(self.preview_action, category=self.tr("Toolbar"))
 
         self.sidebar_action = QAction(app_icon("view-sidebar"), self.tr("Sidebar"), self)
         self.sidebar_action.setCheckable(True)
         self.sidebar_action.setChecked(self.config.sidebar_visible)
         self.sidebar_action.triggered.connect(self.toggle_sidebar)
         toolbar.addAction(self.sidebar_action)
+        self._register_command_action(self.sidebar_action, category=self.tr("Toolbar"))
 
         self.build_context_toolbar()
         self.toolbar_buttons = {
@@ -410,6 +420,7 @@ class MainWindow(QMainWindow):
 
         for action in self.context_actions.values():
             self.context_toolbar.addAction(action)
+            self._register_command_action(action, category=self.tr("Context Toolbar"))
 
         self.update_contextual_toolbar()
 
@@ -496,10 +507,35 @@ class MainWindow(QMainWindow):
         """Helper to add an action with optional shortcut to a menu."""
         action = QAction(self.tr(text), self)
         action.triggered.connect(slot)
+        shortcut_text = ""
         if shortcut:
             action.setShortcut(shortcut)
+            shortcut_text = self._format_shortcut(shortcut)
         menu.addAction(action)
+        self._register_command_action(action, category=menu.title().replace("&", ""), shortcut=shortcut_text)
         return action
+
+    def _format_shortcut(self, shortcut):
+        if isinstance(shortcut, QKeySequence):
+            return shortcut.toString(QKeySequence.SequenceFormat.NativeText)
+        return str(shortcut) if shortcut is not None else ""
+
+    def _register_command_action(self, action: QAction, category: str = "", shortcut: str = ""):
+        title = action.text().replace("&", "")
+        if not shortcut and action.shortcut():
+            shortcut = action.shortcut().toString(QKeySequence.SequenceFormat.NativeText)
+        key = (title, category, shortcut)
+        if key in self._command_action_keys:
+            return
+        self._command_action_keys.add(key)
+        self._command_actions.append(
+            {
+                "title": title,
+                "callback": lambda action=action: action.trigger(),
+                "shortcut": shortcut,
+                "category": category,
+            }
+        )
 
     def _add_sort_menus(self, menu, persistent: bool = False):
         """Add sorting controls to a menu."""
@@ -520,6 +556,7 @@ class MainWindow(QMainWindow):
             column_group.addAction(action)
             sort_menu.addAction(action)
             column_actions[key] = action
+            self._register_command_action(action, category=sort_menu.title().replace("&", ""))
 
         order_menu = menu.addMenu(self.tr("Sort order"))
         order_group = QActionGroup(self)
@@ -536,6 +573,7 @@ class MainWindow(QMainWindow):
             order_group.addAction(action)
             order_menu.addAction(action)
             order_actions[order] = action
+            self._register_command_action(action, category=order_menu.title().replace("&", ""))
 
         if persistent:
             self._sort_column_actions = column_actions
@@ -561,6 +599,7 @@ class MainWindow(QMainWindow):
             group_group.addAction(action)
             group_menu.addAction(action)
             group_actions[key] = action
+            self._register_command_action(action, category=group_menu.title().replace("&", ""))
 
         if persistent:
             self._group_actions = group_actions
@@ -583,6 +622,7 @@ class MainWindow(QMainWindow):
             grid_group.addAction(action)
             grid_menu.addAction(action)
             grid_actions[size] = action
+            self._register_command_action(action, category=grid_menu.title().replace("&", ""))
 
         if persistent:
             self._icon_grid_actions = grid_actions
@@ -684,14 +724,17 @@ class MainWindow(QMainWindow):
         self.hidden_files_action.setChecked(self.config.show_hidden_files)
         self.hidden_files_action.triggered.connect(self.toggle_hidden_files)
         view_menu.addAction(self.hidden_files_action)
+        self._register_command_action(self.hidden_files_action, category=self.tr("View"), shortcut="Ctrl+H")
         self.file_extensions_action = QAction(self.tr("File Extensions"), self, checkable=True)
         self.file_extensions_action.setChecked(self.config.show_file_extensions)
         self.file_extensions_action.triggered.connect(self.toggle_file_extensions)
         view_menu.addAction(self.file_extensions_action)
+        self._register_command_action(self.file_extensions_action, category=self.tr("View"))
         self.selection_checkboxes_action = QAction(self.tr("Selection Checkboxes"), self, checkable=True)
         self.selection_checkboxes_action.setChecked(self.config.selection_checkboxes)
         self.selection_checkboxes_action.triggered.connect(self.toggle_selection_checkboxes)
         view_menu.addAction(self.selection_checkboxes_action)
+        self._register_command_action(self.selection_checkboxes_action, category=self.tr("View"))
         self._add_action(view_menu, "Toggle Preview Panel", self.toggle_preview)
         self._add_action(view_menu, "Toggle Sidebar", self.toggle_sidebar)
         view_menu.addSeparator()
@@ -709,12 +752,15 @@ class MainWindow(QMainWindow):
         self.remember_view_action.setChecked(self.config.remember_folder_view)
         self.remember_view_action.triggered.connect(self.toggle_folder_view_persistence)
         view_menu.addAction(self.remember_view_action)
+        self._register_command_action(self.remember_view_action, category=self.tr("View"))
         self._clear_folder_view_action = QAction(self.tr("Clear saved view for current folder"), self)
         self._clear_folder_view_action.triggered.connect(self.clear_current_folder_view)
         view_menu.addAction(self._clear_folder_view_action)
+        self._register_command_action(self._clear_folder_view_action, category=self.tr("View"))
         self._clear_all_folder_views_action = QAction(self.tr("Clear all saved folder views"), self)
         self._clear_all_folder_views_action.triggered.connect(self.clear_all_folder_views)
         view_menu.addAction(self._clear_all_folder_views_action)
+        self._register_command_action(self._clear_all_folder_views_action, category=self.tr("View"))
 
         # Share menu
         self.share_menu = menubar.addMenu(self.tr("&Share"))
@@ -731,6 +777,7 @@ class MainWindow(QMainWindow):
         # Tools menu
         tools_menu = menubar.addMenu(self.tr("&Tools"))
         self._add_action(tools_menu, "Preferences...", self.show_preferences_dialog, "Ctrl+,")
+        self._add_action(tools_menu, "Command Palette...", self.show_command_palette, "Ctrl+Shift+P")
         tools_menu.addSeparator()
         self._add_action(tools_menu, "Empty Trash", self.on_empty_trash)
         self._add_action(tools_menu, "Open Vault", self.on_open_vault)
@@ -797,22 +844,13 @@ class MainWindow(QMainWindow):
 
     def show_command_palette(self):
         commands = [
-            (self.tr("Back"), self.go_back),
-            (self.tr("Forward"), self.go_forward),
-            (self.tr("Up"), self.go_up),
-            (self.tr("Home"), self.go_home),
-            (self.tr("Refresh"), self.refresh_view),
-            (self.tr("New Folder"), self.new_folder),
-            (self.tr("New File"), self.new_file),
-            (self.tr("Copy"), self.copy_selected),
-            (self.tr("Cut"), self.cut_selected),
-            (self.tr("Paste"), self.paste_from_clipboard),
-            (self.tr("Rename"), self.rename_selected),
-            (self.tr("Trash"), self.trash_selected),
-            (self.tr("Toggle Preview Panel"), self.toggle_preview),
-            (self.tr("Toggle Sidebar"), self.toggle_sidebar),
-            (self.tr("Search in Folder"), self.focus_search),
-            (self.tr("Preferences..."), self.show_preferences_dialog),
+            {
+                "title": info["title"],
+                "callback": info["callback"],
+                "shortcut": info["shortcut"],
+                "category": info["category"],
+            }
+            for info in self._command_actions
         ]
         dialog = CommandPaletteDialog(commands, self)
         dialog.exec()

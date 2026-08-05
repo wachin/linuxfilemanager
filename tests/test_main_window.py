@@ -265,6 +265,29 @@ class MainWindowMenuTests(unittest.TestCase):
                 config_module.CONFIG_DIR = old_config_dir
                 config_module.CONFIG_FILE = old_config_file
 
+    def test_command_palette_registers_menu_actions(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                registered_titles = {info["title"] for info in window._command_actions}
+                self.assertIn("Command Palette...", registered_titles)
+                self.assertIn("Preferences...", registered_titles)
+                self.assertIn("Back", registered_titles)
+                self.assertIn("Toggle Preview Panel", registered_titles)
+                self.assertIn("Small", registered_titles)
+                self.assertIn("Medium", registered_titles)
+                self.assertIn("Large", registered_titles)
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
     def test_apply_preferences_updates_runtime_state_and_config(self):
         window = None
         with tempfile.TemporaryDirectory() as tmpdir:
