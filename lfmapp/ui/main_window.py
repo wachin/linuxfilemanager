@@ -526,13 +526,14 @@ class MainWindow(QMainWindow):
         category: str = "",
         shortcut: str = "",
         alias: list[str] | None = None,
+        command_id: str | None = None,
     ):
         title = action.text().replace("&", "")
         if not shortcut and action.shortcut():
             shortcut = action.shortcut().toString(QKeySequence.SequenceFormat.NativeText)
         if alias is None:
             alias = []
-        key = (title, category, shortcut)
+        key = (title, category, shortcut, command_id or "")
         if key in self._command_action_keys:
             return
         self._command_action_keys.add(key)
@@ -544,6 +545,7 @@ class MainWindow(QMainWindow):
                 "category": category,
                 "action": action,
                 "alias": alias,
+                "command_id": command_id,
             }
         )
 
@@ -816,7 +818,7 @@ class MainWindow(QMainWindow):
             empty_action = QAction(self.tr("No recent files"), self)
             empty_action.setEnabled(False)
             self.recent_files_menu.addAction(empty_action)
-            self._register_command_action(empty_action, category=recent_category)
+            self._register_command_action(empty_action, category=recent_category, command_id="recent_file::empty")
         else:
             for path in existing_files:
                 action = QAction(path.name, self)
@@ -827,6 +829,7 @@ class MainWindow(QMainWindow):
                     action,
                     category=recent_category,
                     alias=[str(path)],
+                    command_id=f"recent_file::{path}",
                 )
             self.recent_files_menu.addSeparator()
 
@@ -1681,6 +1684,7 @@ class MainWindow(QMainWindow):
                 action,
                 category=share_menu.title().replace("&", ""),
                 alias=[desktop_file, "share", "send"],
+                command_id=f"share_with::{desktop_file}",
             )
 
     def share_with_application(self, path: Path, desktop_file: str):
