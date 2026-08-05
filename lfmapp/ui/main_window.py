@@ -643,6 +643,8 @@ class MainWindow(QMainWindow):
         for info in self._command_actions:
             action = info.get("action")
             title = action.text().replace("&", "") if action else info.get("title", "")
+            if action is not None:
+                info["title"] = title
             enabled = action.isEnabled() if action is not None else info.get("enabled", True)
             commands.append(
                 {
