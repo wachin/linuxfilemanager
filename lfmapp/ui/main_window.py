@@ -646,14 +646,16 @@ class MainWindow(QMainWindow):
             if action is not None:
                 info["title"] = title
             enabled = action.isEnabled() if action is not None else info.get("enabled", True)
+            category = info.get("category", "")
+            alias = list(dict.fromkeys((info.get("alias", []) or []) + self._default_command_aliases(title, category)))
             commands.append(
                 {
                     "title": title,
                     "callback": info["callback"],
                     "shortcut": info.get("shortcut", ""),
-                    "category": info.get("category", ""),
+                    "category": category,
                     "enabled": enabled,
-                    "alias": info.get("alias", []),
+                    "alias": alias,
                     "command_id": info.get("command_id", ""),
                 }
             )

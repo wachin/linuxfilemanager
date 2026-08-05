@@ -407,19 +407,32 @@ class MainWindowMenuTests(unittest.TestCase):
             try:
                 window = MainWindow()
                 window.update_quick_access_action()
-                if window.quick_access_action.text() == "In Quick Access":
-                    command = next(
-                        command for command in window._palette_commands() if command["title"] == "In Quick Access"
-                    )
-                elif window.quick_access_action.text() == "Unpin from Quick Access":
-                    command = next(
-                        command for command in window._palette_commands() if command["title"] == "Unpin from Quick Access"
-                    )
-                else:
-                    command = next(
-                        command for command in window._palette_commands() if command["title"] == "Pin to Quick Access"
-                    )
-                self.assertEqual(command["title"], window.quick_access_action.text())
+                title = window.quick_access_action.text()
+                command = next(
+                    command for command in window._palette_commands() if command["title"] == title
+                )
+                self.assertEqual(command["title"], title)
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
+    def test_dynamic_action_title_aliases_update_in_palette(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                window.update_quick_access_action()
+                title = window.quick_access_action.text()
+                command = next(
+                    command for command in window._palette_commands() if command["title"] == title
+                )
+                self.assertIn("quick access", command.get("alias", []))
             finally:
                 if window is not None:
                     window.close()
