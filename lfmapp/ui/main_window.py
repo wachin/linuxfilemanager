@@ -654,6 +654,7 @@ class MainWindow(QMainWindow):
                     "category": info.get("category", ""),
                     "enabled": enabled,
                     "alias": info.get("alias", []),
+                    "command_id": info.get("command_id", ""),
                 }
             )
 
@@ -762,8 +763,9 @@ class MainWindow(QMainWindow):
         seen = set()
         unique_commands: list[dict] = []
         for command in commands:
+            command_id = command.get("command_id", "")
             key = (
-                command.get("title", ""),
+                command_id or command.get("title", ""),
                 command.get("category", ""),
                 command.get("shortcut", ""),
             )

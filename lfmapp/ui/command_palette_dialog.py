@@ -52,33 +52,43 @@ class CommandPaletteDialog(QDialog):
         title = command.get("title", "").casefold()
         shortcut = (command.get("shortcut") or "").casefold()
         category = (command.get("category") or "").casefold()
-        alias = " ".join(command.get("alias", [])).casefold()
+        alias_list = [alias.casefold() for alias in command.get("alias", []) if alias]
+        alias_text = " ".join(alias_list)
         enabled = command.get("enabled", True)
         score = 0
         title_tokens = title.split()
-        alias_tokens = alias.split()
-        if query == title or query == alias or query == category:
+        alias_tokens = [token for alias in alias_list for token in alias.split()]
+
+        if query == title:
+            score += 50
+        if query == category:
             score += 40
-        if query in title:
+        if query in alias_list:
+            score += 35
+        if query in title_tokens:
             score += 30
-        if query in alias:
+        if query in alias_tokens:
+            score += 25
+        if query in title:
             score += 20
+        if query in alias_text:
+            score += 15
         if query in shortcut:
             score += 20
         if query in category:
             score += 10
+
         if title.startswith(query):
             score += 20
+        if any(token.startswith(query) for token in title_tokens):
+            score += 15
+        if any(token.startswith(query) for token in alias_tokens):
+            score += 12
         if shortcut.startswith(query):
             score += 10
         if category.startswith(query):
-            score += 5
-        if alias.startswith(query):
             score += 8
-        if query in title_tokens or query in alias_tokens:
-            score += 25
-        if any(token.startswith(query) for token in alias_tokens):
-            score += 12
+
         if not enabled:
             score -= 50
         return score

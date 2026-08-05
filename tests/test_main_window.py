@@ -455,6 +455,30 @@ class MainWindowMenuTests(unittest.TestCase):
                 config_module.CONFIG_DIR = old_config_dir
                 config_module.CONFIG_FILE = old_config_file
 
+    def test_unique_palette_commands_keep_different_command_ids(self):
+        commands = [
+            {
+                "title": "Open Sample",
+                "callback": lambda: None,
+                "shortcut": "",
+                "category": "Recent Files",
+                "enabled": True,
+                "alias": ["sample"],
+                "command_id": "recent_file::1",
+            },
+            {
+                "title": "Open Sample",
+                "callback": lambda: None,
+                "shortcut": "",
+                "category": "Recent Files",
+                "enabled": True,
+                "alias": ["sample"],
+                "command_id": "recent_file::2",
+            },
+        ]
+        dialog = CommandPaletteDialog(commands)
+        self.assertEqual(dialog.command_list.count(), 2)
+
     def test_command_palette_prioritizes_enabled_commands(self):
         commands = [
             {
