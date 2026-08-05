@@ -288,6 +288,40 @@ class MainWindowMenuTests(unittest.TestCase):
                 config_module.CONFIG_DIR = old_config_dir
                 config_module.CONFIG_FILE = old_config_file
 
+    def test_recent_files_menu_registers_recent_file_actions(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                first = Path(tmpdir) / "first.txt"
+                second = Path(tmpdir) / "second.txt"
+                first.write_text("one", encoding="utf-8")
+                second.write_text("two", encoding="utf-8")
+
+                window = MainWindow()
+                window.config.add_recent_file(str(first))
+                window.config.add_recent_file(str(second))
+                window.rebuild_recent_files_menu()
+
+                commands = window._palette_commands()
+                titles = {command["title"] for command in commands}
+                self.assertIn("Clear Recent Files", titles)
+                self.assertIn(first.name, titles)
+                self.assertIn(second.name, titles)
+
+                recent_command = next(
+                    command for command in commands if command["title"] == first.name
+                )
+                self.assertIn(str(first), recent_command.get("alias", []))
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
     def test_contextual_palette_commands_include_selection_actions(self):
         window = None
         with tempfile.TemporaryDirectory() as tmpdir:

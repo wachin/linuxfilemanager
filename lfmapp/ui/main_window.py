@@ -520,10 +520,18 @@ class MainWindow(QMainWindow):
             return shortcut.toString(QKeySequence.SequenceFormat.NativeText)
         return str(shortcut) if shortcut is not None else ""
 
-    def _register_command_action(self, action: QAction, category: str = "", shortcut: str = ""):
+    def _register_command_action(
+        self,
+        action: QAction,
+        category: str = "",
+        shortcut: str = "",
+        alias: list[str] | None = None,
+    ):
         title = action.text().replace("&", "")
         if not shortcut and action.shortcut():
             shortcut = action.shortcut().toString(QKeySequence.SequenceFormat.NativeText)
+        if alias is None:
+            alias = []
         key = (title, category, shortcut)
         if key in self._command_action_keys:
             return
@@ -535,6 +543,7 @@ class MainWindow(QMainWindow):
                 "shortcut": shortcut,
                 "category": category,
                 "action": action,
+                "alias": alias,
             }
         )
 
@@ -799,6 +808,7 @@ class MainWindow(QMainWindow):
         self.recent_files_menu.clear()
         recent_files = [Path(path) for path in self.config.recent_files]
         existing_files = [path for path in recent_files if path.exists() and path.is_file()]
+        recent_category = self.recent_files_menu.title().replace("&", "")
 
         if not existing_files:
             empty_action = QAction(self.tr("No recent files"), self)
@@ -810,12 +820,18 @@ class MainWindow(QMainWindow):
                 action.setToolTip(str(path))
                 action.triggered.connect(lambda checked=False, path=path: self.open_recent_file(path))
                 self.recent_files_menu.addAction(action)
+                self._register_command_action(
+                    action,
+                    category=recent_category,
+                    alias=[str(path)],
+                )
             self.recent_files_menu.addSeparator()
 
         clear_action = QAction(self.tr("Clear Recent Files"), self)
         clear_action.setEnabled(bool(self.config.recent_files))
         clear_action.triggered.connect(self.clear_recent_files)
         self.recent_files_menu.addAction(clear_action)
+        self._register_command_action(clear_action, category=recent_category)
 
     def rebuild_share_menu(self):
         """Refresh the Share menu from the current selection."""
