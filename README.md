@@ -58,6 +58,7 @@ sudo apt install \
   python3 python3-pyqt6 python3-pyqt6.qtsvg \
   qt6ct \
   xdg-utils shared-mime-info desktop-file-utils \
+  breeze-icon-theme papirus-icon-theme hicolor-icon-theme \
   gvfs gvfs-common gvfs-daemons gvfs-fuse gvfs-libs gvfs-backends \
   cifs-utils nfs-common sshfs davfs2 \
   p7zip-full unrar-free zip unzip binutils \
@@ -70,6 +71,7 @@ These packages enable:
 - network locations such as SMB, SFTP, WebDAV, and mounted shares
 - practical ZIP, 7z, RAR, TAR, and `.deb` handling
 - Qt 6 icon-theme selection through `qt6ct`
+- recommended icon themes such as `Breeze` and `Papirus`
 - Qt translation support where available
 
 **Nota:** El paquete davfs2 hara que se pregunte y hay que marcar y dar Next:

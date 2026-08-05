@@ -29,9 +29,12 @@ Depends:
  python3-pyqt6,
  python3-pyqt6.qtsvg,
  qt6ct,
+ hicolor-icon-theme,
  shared-mime-info,
  xdg-utils
 Recommends:
+ breeze-icon-theme,
+ papirus-icon-theme,
  cifs-utils,
  davfs2,
  nfs-common,
