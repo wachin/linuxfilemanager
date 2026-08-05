@@ -72,6 +72,11 @@ These packages enable:
 - Qt 6 icon-theme selection through `qt6ct`
 - Qt translation support where available
 
+**Nota:** El paquete davfs2 hara que se pregunte y hay que marcar y dar Next:
+
+![](images/07-cuando-instalo-las-dependencias-aparece-una-pregunta-de-davfs2.png)
+
+
 ## How to change the icon theme for Linux File Manager
 
 To change the icon theme for Linux File Manager when using Qt 6 theme icons:
