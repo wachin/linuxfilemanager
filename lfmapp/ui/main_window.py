@@ -1007,19 +1007,6 @@ class MainWindow(QMainWindow):
         central_layout.addWidget(self.splitter, 1)
         self.setCentralWidget(central)
 
-    def show_command_palette(self):
-        commands = [
-            {
-                "title": info["title"],
-                "callback": info["callback"],
-                "shortcut": info["shortcut"],
-                "category": info["category"],
-            }
-            for info in self._command_actions
-        ]
-        dialog = CommandPaletteDialog(commands, self)
-        dialog.exec()
-
     # ─── Status Bar ────────────────────────────────────────────
 
     def build_statusbar(self):
