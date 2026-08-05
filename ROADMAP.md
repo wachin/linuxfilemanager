@@ -9,10 +9,20 @@ Este archivo queda preparado para continuar el desarrollo después de formatear 
 - Nombre del proyecto: `linux-file-manager`
 - Paquete Python principal: `lfmapp`
 - Objetivo: gestor de archivos ligero para Linux, escrito en Python + PyQt6
-- Enfoque: rendimiento, estabilidad, empaquetado Debian y experiencia de uso práctica
+- Enfoque: rendimiento, estabilidad, productividad del usuario, empaquetado Debian y experiencia de uso práctica
 
 Nota importante:
 - Se renombró internamente a `lfmapp` para evitar conflicto con el paquete `lfm` ya existente en Debian.
+
+## Principios de diseño
+
+El gestor debe ser rápido de usar, con acciones visibles y accesibles, sin sacrificar claridad:
+
+- Priorizar atajos y acciones con un solo gesto para operaciones frecuentes.
+- Mantener el contexto del usuario: navegación accesible, dirección editable y resultados claros.
+- Evitar interrupciones innecesarias: preferir feedback en línea sobre modales excesivos.
+- Usar iconos y texto consistentes para reducir la carga cognitiva.
+- Ofrecer un flujo de trabajo que combine exploración y acción sin pasos redundantes.
 
 ## Estado actual resumido
 
@@ -122,14 +132,28 @@ El proyecto ya tiene una base funcional amplia. No está en fase inicial. Ya exi
 
 Estos son los siguientes trabajos con mejor relación impacto/esfuerzo.
 
+### Visión de productividad
+
+El objetivo siguiente es convertir `linux-file-manager` en una herramienta que ayude al usuario a moverse, organizar y actuar sobre archivos sin interrumpir el flujo.
+Las decisiones deben buscar:
+
+- minimizar clics y pantalla completa innecesaria,
+- mantener el contexto visible y accesible,
+- ofrecer atajos que sustituyan tareas repetitivas,
+- dar retroalimentación inmediata en operaciones largas,
+- hacer que las acciones frecuentes estén a un paso.
+
 ### Prioridad alta
 
 - [ ] Auditoría completa de nombres de iconos de sistema usados con `QIcon.fromTheme()`.
 - [ ] Persistencia por carpeta de columnas visibles, orden y ancho en `Details`.
 - [ ] Mejor diálogo de conflictos para copiar/mover: reemplazar, omitir, renombrar, aplicar a todo.
 - [ ] Revisión de acciones por tipo de archivo para que archivos, carpetas, imágenes, documentos y comprimidos sean consistentes.
-- [ ] Sustituir bloques amplios `except Exception: pass` por manejo específico y logging útil.
+- [ ] Implementar atajos clave y comandos rápidos para mover/abrir/renombrar sin tocar el ratón.
+- [ ] Añadir un panel de progreso de operaciones con acciones rápidas para pausar, cancelar y repetir.
+- [ ] Flujo de búsqueda/filter mejorado con acceso rápido por palabra clave y filtros guardados.
 - [ ] Añadir más pruebas GUI de flujos comunes.
+- [ ] Añadir preferencia de vista rápida para alternar entre `Details` y `Compact` sin perder selección.
 
 ### Prioridad media
 
