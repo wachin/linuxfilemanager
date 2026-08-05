@@ -6,11 +6,13 @@ from unittest.mock import patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QApplication, QLabel
 
 import lfmapp.core.config as config_module
 from lfmapp.ui.about_dialog import AboutDialog
+from lfmapp.ui.command_palette_dialog import CommandPaletteDialog
 from lfmapp.ui.main_window import MainWindow
 from lfmapp.services.operation_history import RenameOperation
 
@@ -452,6 +454,30 @@ class MainWindowMenuTests(unittest.TestCase):
                     window.close()
                 config_module.CONFIG_DIR = old_config_dir
                 config_module.CONFIG_FILE = old_config_file
+
+    def test_command_palette_prioritizes_enabled_commands(self):
+        commands = [
+            {
+                "title": "Open",
+                "callback": lambda: None,
+                "shortcut": "",
+                "category": "Selection",
+                "enabled": False,
+                "alias": ["open"],
+            },
+            {
+                "title": "Open File",
+                "callback": lambda: None,
+                "shortcut": "",
+                "category": "Selection",
+                "enabled": True,
+                "alias": ["open"],
+            },
+        ]
+        dialog = CommandPaletteDialog(commands)
+        dialog._filter_commands("open")
+        titles = [dialog.command_list.item(i).data(Qt.ItemDataRole.UserRole)["title"] for i in range(dialog.command_list.count())]
+        self.assertEqual("Open File", titles[0])
 
     def test_apply_preferences_updates_runtime_state_and_config(self):
         window = None

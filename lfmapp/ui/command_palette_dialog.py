@@ -53,15 +53,20 @@ class CommandPaletteDialog(QDialog):
         shortcut = (command.get("shortcut") or "").casefold()
         category = (command.get("category") or "").casefold()
         alias = " ".join(command.get("alias", [])).casefold()
+        enabled = command.get("enabled", True)
         score = 0
+        title_tokens = title.split()
+        alias_tokens = alias.split()
+        if query == title or query == alias or query == category:
+            score += 40
         if query in title:
             score += 30
+        if query in alias:
+            score += 20
         if query in shortcut:
             score += 20
         if query in category:
             score += 10
-        if query in alias:
-            score += 15
         if title.startswith(query):
             score += 20
         if shortcut.startswith(query):
@@ -70,11 +75,27 @@ class CommandPaletteDialog(QDialog):
             score += 5
         if alias.startswith(query):
             score += 8
+        if query in title_tokens or query in alias_tokens:
+            score += 25
+        if any(token.startswith(query) for token in alias_tokens):
+            score += 12
+        if not enabled:
+            score -= 50
         return score
 
     def _populate_items(self, filtered_commands: list[dict] | None = None) -> None:
         self.command_list.clear()
-        commands = filtered_commands if filtered_commands is not None else self._commands
+        if filtered_commands is None:
+            commands = sorted(
+                self._commands,
+                key=lambda command: (
+                    not command.get("enabled", True),
+                    command.get("category", ""),
+                    command.get("title", ""),
+                ),
+            )
+        else:
+            commands = filtered_commands
         for command in commands:
             item = QListWidgetItem(self._command_text(command))
             item.setData(Qt.ItemDataRole.UserRole, command)
@@ -103,7 +124,14 @@ class CommandPaletteDialog(QDialog):
             ):
                 filtered.append((self._command_score(command, query), command))
 
-        filtered.sort(key=lambda entry: (-entry[0], entry[1].get("title", "")))
+        filtered.sort(
+            key=lambda entry: (
+                -entry[0],
+                not entry[1].get("enabled", True),
+                entry[1].get("category", ""),
+                entry[1].get("title", ""),
+            )
+        )
         self._populate_items([command for _, command in filtered])
 
     def _activate_selected(self, item: QListWidgetItem) -> None:
