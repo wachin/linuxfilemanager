@@ -520,6 +520,47 @@ class MainWindow(QMainWindow):
             return shortcut.toString(QKeySequence.SequenceFormat.NativeText)
         return str(shortcut) if shortcut is not None else ""
 
+    def _default_command_aliases(self, title: str, category: str) -> list[str]:
+        normalized = title.replace("...", "").replace("&", "")
+        words = [word.lower() for word in normalized.split() if word]
+        aliases = set(words)
+        aliases.update(
+            " ".join(words[i : i + 2]) for i in range(len(words) - 1)
+        )
+        aliases.add(category.lower())
+        synonym_map = {
+            "preferences": ["settings", "prefs"],
+            "command palette": ["palette", "commands", "cmd"],
+            "back": ["previous"],
+            "forward": ["next"],
+            "up": ["parent", "above"],
+            "home": ["start"],
+            "properties": ["info", "details"],
+            "refresh": ["reload"],
+            "new folder": ["mkdir", "folder"],
+            "new file": ["touch", "file"],
+            "copy": ["duplicate"],
+            "paste": ["insert"],
+            "cut": ["move", "delete"],
+            "undo": ["revert"],
+            "redo": ["repeat"],
+            "toggle preview panel": ["preview", "panel"],
+            "toggle sidebar": ["sidebar", "panel"],
+            "open in terminal": ["terminal", "shell", "bash"],
+            "go to path": ["goto", "cd", "path"],
+            "open recent file": ["recent", "history", "open recent"],
+            "clear recent files": ["clear recent", "history", "recent"],
+            "send to desktop": ["desktop", "send"],
+            "send by email": ["email", "send"],
+            "add current folder to bookmarks": ["bookmark", "favorite"],
+            "add tag to file": ["tag", "label"],
+            "manage tags": ["tags", "label"],
+            "search by tag": ["tags", "search"],
+            "open vault": ["vault", "secure"],
+        }
+        aliases.update(synonym_map.get(normalized.lower(), []))
+        return [alias for alias in sorted(aliases) if alias]
+
     def _register_command_action(
         self,
         action: QAction,
@@ -533,6 +574,7 @@ class MainWindow(QMainWindow):
             shortcut = action.shortcut().toString(QKeySequence.SequenceFormat.NativeText)
         if alias is None:
             alias = []
+        alias = list(dict.fromkeys(alias + self._default_command_aliases(title, category)))
         key = (title, category, shortcut, command_id or "")
         if key in self._command_action_keys:
             return
