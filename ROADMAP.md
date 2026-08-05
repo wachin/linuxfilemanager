@@ -24,6 +24,17 @@ El gestor debe ser rápido de usar, con acciones visibles y accesibles, sin sacr
 - Usar iconos y texto consistentes para reducir la carga cognitiva.
 - Ofrecer un flujo de trabajo que combine exploración y acción sin pasos redundantes.
 
+## Diseño de interacción
+
+Casos de uso clave a priorizar:
+
+- Navegar entre carpetas con teclado y ratón sin perder la selección o el contexto.
+- Copiar/mover archivos con un diálogo de conflicto claro, acciones predecibles y aplicar a todos.
+- Renombrar rápido desde la vista `Details` o con un comando directo.
+- Buscar y filtrar dentro de una carpeta con resultados instantáneos y filtros guardados.
+- Previsualizar archivos sin abrir aplicaciones externas, con opción de cerrar la vista rápidamente.
+- Mantener un panel lateral estable con accesos directos, estado de operación y resultados recientes.
+
 ## Estado actual resumido
 
 El proyecto ya tiene una base funcional amplia. No está en fase inicial. Ya existen:
