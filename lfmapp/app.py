@@ -39,6 +39,12 @@ def main(argv=None):
         )
         splash_widget.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         layout = QVBoxLayout(splash_widget)
+        logo_label = QLabel(splash_widget)
+        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon_pixmap = application_icon(config).pixmap(64, 64)
+        if not icon_pixmap.isNull():
+            logo_label.setPixmap(icon_pixmap)
+        layout.addWidget(logo_label)
         label = QLabel("Buscando iconos del sistema...", splash_widget)
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         progress = QProgressBar(splash_widget)
@@ -46,7 +52,14 @@ def main(argv=None):
         progress.setValue(0)
         layout.addWidget(label)
         layout.addWidget(progress)
-        splash_widget.resize(420, 120)
+        splash_widget.resize(420, 160)
+        screen = app.primaryScreen()
+        if screen is not None:
+            screen_geometry = screen.availableGeometry()
+            splash_widget.move(
+                screen_geometry.center().x() - splash_widget.width() // 2,
+                screen_geometry.center().y() - splash_widget.height() // 2,
+            )
         splash_widget.show()
         app.processEvents()
 
