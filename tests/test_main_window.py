@@ -348,6 +348,41 @@ class MainWindowMenuTests(unittest.TestCase):
                 config_module.CONFIG_DIR = old_config_dir
                 config_module.CONFIG_FILE = old_config_file
 
+    def test_tags_in_context_menu_register_in_palette(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                tagged = Path(tmpdir) / "file.txt"
+                tagged.write_text("hello", encoding="utf-8")
+
+                fake_tags = [{"name": "project"}, {"name": "todo"}]
+                from unittest.mock import MagicMock
+                mock_tags = MagicMock()
+                mock_tags.get_tags_for_file.return_value = fake_tags
+                window._tag_service = mock_tags
+                # Build a QMenu and invoke the file context menu builder to register tag actions
+                from PyQt6.QtWidgets import QMenu
+                menu = QMenu(window)
+                window._build_file_context_menu(menu, tagged)
+                commands = window._palette_commands()
+                titles = {command["title"] for command in commands}
+
+                # Actions are titled with a checkmark prefix in the menu
+                self.assertIn("✓ project", titles)
+                self.assertIn("✓ todo", titles)
+                aliases = {command["title"]: command.get("alias", []) for command in commands}
+                self.assertIn("project", aliases.get("✓ project", []))
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
     def test_contextual_palette_commands_include_selection_actions(self):
         window = None
         with tempfile.TemporaryDirectory() as tmpdir:

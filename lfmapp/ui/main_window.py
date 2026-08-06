@@ -1799,6 +1799,18 @@ class MainWindow(QMainWindow):
                     lambda checked, t=tag['name'], p=path: self.on_remove_tag_from_file(p, t)
                 )
 
+                # Register tag actions in the command palette so tags are discoverable
+                try:
+                    self._register_command_action(
+                        tag_action,
+                        category=tags_menu.title().replace("&", ""),
+                        alias=[tag['name'], "tag"],
+                        command_id=f"tag::{tag['name']}::{path}",
+                    )
+                except Exception:
+                    # Non-critical: continue if registration fails
+                    pass
+
         menu.addSeparator()
         if self._context_entry_enabled("selection", "properties"):
             menu.addAction(app_icon("document-properties", "settings"), self.tr("Properties"), self.show_properties)
