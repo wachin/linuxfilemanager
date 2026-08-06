@@ -35,6 +35,25 @@ Casos de uso clave a priorizar:
 - Previsualizar archivos sin abrir aplicaciones externas, con opción de cerrar la vista rápidamente.
 - Mantener un panel lateral estable con accesos directos, estado de operación y resultados recientes.
 
+## Inspiración clave
+
+- Diferenciar entre filtrado y búsqueda estructurada: el filtrado actúa sobre la vista actual y oculta elementos no relevantes, mientras que la búsqueda construye listas de resultados a partir de una ubicación y criterios más amplios.
+- Ofrecer un filtro rápido accesible por teclado que se active inmediatamente, muestre el número de elementos ocultos y permita limpiar con `Esc`.
+- Implementar un modo "Mostrar todo" que desactive temporalmente los filtros visuales del panel actual sin perder la configuración subyacente.
+- El campo de filtro debe poder ser persistente en la barra o emergente, pero siempre controlar el mismo estado de filtro rápido y respetar filtros globales y formatos de carpeta.
+- Las opciones de filtrado avanzado deben incluir coincidencia parcial, ignorar diacríticos, modo "any word", expresiones regulares y cláusulas complejas basadas en atributos.
+- La selección debe ser una fuente de verdad: contar archivos/carpetas seleccionados, mostrar totales de tamaño, y ofrecer selección automática por patrón, extensión, duplicados y otros criterios útiles.
+- El ordenamiento y la agrupación deben ser controlables desde los encabezados de columna, con soporte para campos no visibles y modificadores de teclado para invertir o añadir niveles.
+- El flujo de copia/movido debe tratar explícitamente origen y destino: en paneles duales, un panel es fuente y el otro destino; en modo único, el usuario debe poder activar el origen/destino mediante foco, atajo o alternancia sin perder selección.
+- La cola de operaciones debe ejecutar trabajos secuencialmente cuando convenga, con reglas de priorización basadas en dispositivo, destino y tipo de fuente, y permitir gestión manual de trabajos en espera.
+- Los favoritos y accesos rápidos deben estar disponibles en barras, menús y listas, con soporte para arrastrar y soltar, alias de ruta y rutas recientes.
+- El historial de navegación debe existir tanto global como por panel, y ser accesible desde el control de ruta, los botones Atrás/Adelante y menús desplegables.
+- La barra de estado debe mostrar información relevante como selección, tamaño total, ítems ocultos, formato actual y espacio libre en el dispositivo.
+- Los resultados de búsqueda y duplicados deben poder mostrarse en espacios virtuales o colecciones que se comporten como carpetas sin perder la consulta original.
+- Los favoritos, accesos rápidos y aliases deben ser accesibles desde la barra lateral, la barra de herramientas y la paleta, con soporte para arrastrar y soltar, renombrar y abrir en contexto.
+- El historial de navegación debe ser accesible tanto globalmente como por panel, con listas recientes en la barra de ruta y atajos de atrás/adelante claramente visibles.
+- El panel utilitario debe poder contener herramientas como búsqueda avanzada, sincronización y búsqueda de duplicados sin interrumpir el flujo principal.
+
 ## Estado actual resumido
 
 El proyecto ya tiene una base funcional amplia. No está en fase inicial. Ya existen:
@@ -270,6 +289,17 @@ Situación actual comprobada: `lfmapp/ui/main_window.py` supera las 3.200 línea
 - “Rename”, “Delete”, “Paste” y demás acciones muestran el mismo estado en todas las superficies.
 - Cambiar un atajo se refleja sin reiniciar cuando sea técnicamente seguro.
 - Las colisiones de atajos se detectan y explican claramente.
+
+### 1.2.1 Filtrado, búsqueda y selección
+- [ ] Definir un estado unificado de filtrado rápido y búsqueda estructurada que sea compartido por barra de filtro, campo de filtro permanente y el menú de búsqueda.
+- [ ] El filtro rápido debe poder activarse con una tecla, actualizar la vista inmediatamente, mostrar el número de elementos ocultos y poder borrarse con `Esc`.
+- [ ] Implementar un modo "Mostrar todo" que desactive temporalmente los filtros del panel actual sin perder la configuración de filtrado subyacente.
+- [ ] Soportar un campo de filtro persistente opcional en la barra con historial y menú de filtros, que controle el mismo estado que la barra de filtro emergente.
+- [ ] Soportar opciones de filtrado avanzadas: coincidencia parcial, ignorar diacríticos, modo "any word", expresiones regulares y condiciones complejas tipo evaluador.
+- [ ] El estado de selección debe ser central, con recuentos claros y comandos de selección automáticos por patrón, extensión, duplicados, carpetas vacías y similares.
+- [ ] Definir estado de origen/destino para operaciones de copia/movido en paneles duales y en modo único, de modo que el flujo no dependa de una vista principal única.
+- [ ] El modelo de acciones debe exponer la primera clase el origen/destino activo, de modo que Copy/Move/Paste puedan decidir su objetivo sin lógica dispersa.
+- [ ] El controlador de vistas debe permitir ordenación y agrupación por múltiples campos, con soporte para campos no visibles y cambio de dirección por teclas modificadoras.
 
 ## 1.3 Modelo explícito de estado de interfaz
 
@@ -566,6 +596,8 @@ Estas tareas deben abordarse primero porque desbloquean el resto del roadmap.
 - [ ] Crear la auditoría de acciones y flujos (`docs/ux-flow-audit.md`).
 - [ ] Implementar `ActionRegistry` y migrar al menos navegación, clipboard, rename y delete.
 - [ ] Extraer `NavigationController`, `SelectionController` y `FileActionController` de `MainWindow`.
+- [ ] Auditar Quick Access, bookmarks/favorites, aliases y recientes para integrarlos con la paleta de comandos y la barra de ruta.
+- [ ] Auditar la arquitectura del panel utilitario y la visualización de resultados de búsqueda como colecciones virtuales.
 - [ ] Definir contrato y estados del motor de operaciones.
 - [ ] Añadir pruebas GUI para copiar/mover y conservación de selección.
 
