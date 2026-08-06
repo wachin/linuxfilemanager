@@ -383,6 +383,37 @@ class MainWindowMenuTests(unittest.TestCase):
                 config_module.CONFIG_DIR = old_config_dir
                 config_module.CONFIG_FILE = old_config_file
 
+    def test_share_with_context_menu_registers_apps_in_palette(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                target = Path(tmpdir) / "file.txt"
+                target.write_text("hello", encoding="utf-8")
+
+                fake_app = ("/usr/share/applications/fake.desktop", "Fake Share App")
+                from unittest.mock import patch
+                with patch("lfmapp.ui.main_window.get_available_applications", return_value=[fake_app]):
+                    # build the file context menu which will call _add_share_with_menu
+                    from PyQt6.QtWidgets import QMenu
+                    menu = QMenu(window)
+                    window._build_file_context_menu(menu, target)
+
+                commands = window._palette_commands()
+                titles = {command["title"] for command in commands}
+                self.assertIn("Fake Share App", titles)
+                aliases = {command["title"]: command.get("alias", []) for command in commands}
+                self.assertIn("share", aliases.get("Fake Share App", []))
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
     def test_contextual_palette_commands_include_selection_actions(self):
         window = None
         with tempfile.TemporaryDirectory() as tmpdir:
