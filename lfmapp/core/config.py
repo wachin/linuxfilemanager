@@ -125,6 +125,8 @@ def _default_config_data():
         "ui_font_size": 10,
         "ui_font_weight": 400,
         "ui_font_italic": False,
+        "icon_search_complete": False,
+        "cached_icon_paths": {},
         "last_visited": None,
         "startup_location_mode": "last_visited",
         "startup_location_custom_path": "",
@@ -210,6 +212,43 @@ class Config:
 
     def set_preview_visible(self, visible: bool):
         self.data["preview_visible"] = bool(visible)
+        self.save()
+
+    @property
+    def icon_search_complete(self) -> bool:
+        return bool(self.data.setdefault("icon_search_complete", False))
+
+    def set_icon_search_complete(self, ready: bool):
+        self.data["icon_search_complete"] = bool(ready)
+        self.save()
+
+    @property
+    def cached_icon_paths(self) -> dict[str, str]:
+        cached_paths = self.data.setdefault("cached_icon_paths", {})
+        if not isinstance(cached_paths, dict):
+            cached_paths = {}
+            self.data["cached_icon_paths"] = cached_paths
+        return {str(key): str(value) for key, value in cached_paths.items()}
+
+    def set_cached_icon_path(self, icon_name: str, icon_path: str):
+        if not icon_name:
+            return
+        cache = self.data.setdefault("cached_icon_paths", {})
+        if not isinstance(cache, dict):
+            cache = {}
+            self.data["cached_icon_paths"] = cache
+        cache[str(icon_name)] = str(icon_path)
+        self.save()
+
+    def set_cached_icon_paths(self, paths: dict[str, str]):
+        if not isinstance(paths, dict):
+            return
+        cache = {str(key): str(value) for key, value in paths.items()}
+        self.data["cached_icon_paths"] = cache
+        self.save()
+
+    def clear_cached_icon_paths(self):
+        self.data["cached_icon_paths"] = {}
         self.save()
 
     @property

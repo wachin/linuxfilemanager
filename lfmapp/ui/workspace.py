@@ -167,6 +167,16 @@ class Workspace(QWidget):
         self.details_view.header().customContextMenuRequested.connect(
             self._show_list_columns_dialog
         )
+        # Persist list/details column changes per-folder
+        header = self.details_view.header()
+        try:
+            header.sectionResized.connect(self._on_column_resized)
+        except Exception:
+            pass
+        try:
+            header.sectionMoved.connect(self._on_column_moved)
+        except Exception:
+            pass
         self.sort_by(self._sort_key, self._sort_order)
 
         # Set initial path
@@ -230,8 +240,19 @@ class Workspace(QWidget):
     def apply_list_columns_preferences(self):
         if self.config is None:
             return
-        visible = set(self.config.data.get("list_columns_visible", ["name", "size", "type", "modified"]))
-        order = list(self.config.data.get("list_columns_order", ["name", "size", "type", "modified"]))
+        # Prefer per-folder settings when available
+        folder_key = str(self.current_path())
+        folder_map = self.config.data.get("list_columns_by_folder", {})
+        folder_state = folder_map.get(folder_key)
+
+        if folder_state:
+            visible = set(folder_state.get("visible", ["name", "size", "type", "modified"]))
+            order = list(folder_state.get("order", ["name", "size", "type", "modified"]))
+            widths = dict(folder_state.get("widths", {}))
+        else:
+            visible = set(self.config.data.get("list_columns_visible", ["name", "size", "type", "modified"]))
+            order = list(self.config.data.get("list_columns_order", ["name", "size", "type", "modified"]))
+            widths = {}
         column_map = {
             key: index for index, key in enumerate(self.model.COLUMN_KEYS)
         }
@@ -244,16 +265,65 @@ class Workspace(QWidget):
             current = header.visualIndex(column)
             if current != visual_index:
                 header.moveSection(current, visual_index)
-        for key, width in (
+        # Apply saved widths if present, otherwise fallback to defaults when needed
+        for key, default_width in (
             ("name", 420),
             ("size", self.SIZE_COLUMN_WIDTH),
             ("type", self.TYPE_COLUMN_WIDTH),
             ("modified", self.DATE_COLUMN_WIDTH),
         ):
             column = column_map[key]
-            if self.details_view.columnWidth(column) <= self.details_view.header().minimumSectionSize():
-                self.details_view.setColumnWidth(column, width)
+            target_width = widths.get(key, None)
+            if target_width is not None:
+                self.details_view.setColumnWidth(column, int(target_width))
+            else:
+                if self.details_view.columnWidth(column) <= self.details_view.header().minimumSectionSize():
+                    self.details_view.setColumnWidth(column, default_width)
         self._ensure_name_column_width()
+
+    def _get_list_columns_state(self) -> dict:
+        """Return a dict with visible keys, order and widths for current Details view."""
+        column_map = {key: index for index, key in enumerate(self.model.COLUMN_KEYS)}
+        header = self.details_view.header()
+        # Determine visual order by iterating visual indices
+        visual_order = []
+        for v in range(header.count()):
+            logical = header.logicalIndex(v)
+            for key, idx in column_map.items():
+                if idx == logical:
+                    visual_order.append(key)
+                    break
+
+        visible = []
+        widths = {}
+        for key, idx in column_map.items():
+            if not self.details_view.isColumnHidden(idx):
+                visible.append(key)
+            widths[key] = self.details_view.columnWidth(idx)
+
+        return {"visible": visible, "order": visual_order, "widths": widths}
+
+    def _save_list_columns_preferences(self):
+        """Save current list/Details columns state into config per current folder."""
+        if self.config is None:
+            return
+        state = self._get_list_columns_state()
+        folder_key = str(self.current_path())
+        folder_map = dict(self.config.data.get("list_columns_by_folder", {}))
+        folder_map[folder_key] = state
+        self.config.data["list_columns_by_folder"] = folder_map
+        try:
+            self.config.save()
+        except Exception:
+            pass
+
+    def _on_column_resized(self, logicalIndex, oldSize, newSize):
+        # Save new widths after a resize event
+        self._save_list_columns_preferences()
+
+    def _on_column_moved(self, logicalIndex, oldVisualIndex, newVisualIndex):
+        # Save new order after a move event
+        self._save_list_columns_preferences()
 
     def _show_list_columns_dialog(self, _pos):
         if self.config is None:
@@ -321,8 +391,17 @@ class Workspace(QWidget):
             key = str(item.data(Qt.ItemDataRole.UserRole))
             if key == "name" or item.checkState() == Qt.CheckState.Checked:
                 selected.append(key)
+        # Save global defaults
         self.config.data["list_columns_visible"] = selected
         self.config.data["list_columns_order"] = ordered_keys
+        # Also save for the current folder specifically
+        try:
+            folder_key = str(self.current_path())
+            folder_map = dict(self.config.data.get("list_columns_by_folder", {}))
+            folder_map[folder_key] = {"visible": selected, "order": ordered_keys, "widths": {}}
+            self.config.data["list_columns_by_folder"] = folder_map
+        except Exception:
+            pass
         self.config.save()
         self.apply_list_columns_preferences()
 

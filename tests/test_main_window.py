@@ -6,11 +6,13 @@ from unittest.mock import patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QApplication, QLabel
 
 import lfmapp.core.config as config_module
 from lfmapp.ui.about_dialog import AboutDialog
+from lfmapp.ui.command_palette_dialog import CommandPaletteDialog
 from lfmapp.ui.main_window import MainWindow
 from lfmapp.services.operation_history import RenameOperation
 
@@ -264,6 +266,419 @@ class MainWindowMenuTests(unittest.TestCase):
                     window.close()
                 config_module.CONFIG_DIR = old_config_dir
                 config_module.CONFIG_FILE = old_config_file
+
+    def test_command_palette_registers_menu_actions(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                registered_titles = {info["title"] for info in window._command_actions}
+                self.assertIn("Command Palette...", registered_titles)
+                self.assertIn("Preferences...", registered_titles)
+                self.assertIn("Back", registered_titles)
+                self.assertIn("Toggle Preview Panel", registered_titles)
+                self.assertIn("Small", registered_titles)
+                self.assertIn("Medium", registered_titles)
+                self.assertIn("Large", registered_titles)
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
+    def test_recent_files_menu_registers_recent_file_actions(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                first = Path(tmpdir) / "first.txt"
+                second = Path(tmpdir) / "second.txt"
+                first.write_text("one", encoding="utf-8")
+                second.write_text("two", encoding="utf-8")
+
+                window = MainWindow()
+                window.config.add_recent_file(str(first))
+                window.config.add_recent_file(str(second))
+                window.rebuild_recent_files_menu()
+
+                commands = window._palette_commands()
+                titles = {command["title"] for command in commands}
+                self.assertIn("Clear Recent Files", titles)
+                self.assertIn(first.name, titles)
+                self.assertIn(second.name, titles)
+
+                recent_command = next(
+                    command for command in commands if command["title"] == first.name
+                )
+                self.assertIn(str(first), recent_command.get("alias", []))
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
+    def test_share_with_menu_registers_actions_in_palette(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                fake_app = ("/usr/share/applications/fake.desktop", "Fake App")
+
+                with patch("lfmapp.ui.main_window.get_available_applications", return_value=[fake_app]):
+                    window._add_share_with_menu(window.share_menu, Path(tmpdir) / "file.txt")
+
+                commands = window._palette_commands()
+                titles = {command["title"] for command in commands}
+                self.assertIn("Fake App", titles)
+                self.assertIn("Share with", {command["category"] for command in commands})
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
+    def test_tags_in_context_menu_register_in_palette(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                tagged = Path(tmpdir) / "file.txt"
+                tagged.write_text("hello", encoding="utf-8")
+
+                fake_tags = [{"name": "project"}, {"name": "todo"}]
+                from unittest.mock import MagicMock
+                mock_tags = MagicMock()
+                mock_tags.get_tags_for_file.return_value = fake_tags
+                window._tag_service = mock_tags
+                # Build a QMenu and invoke the file context menu builder to register tag actions
+                from PyQt6.QtWidgets import QMenu
+                menu = QMenu(window)
+                window._build_file_context_menu(menu, tagged)
+                commands = window._palette_commands()
+                titles = {command["title"] for command in commands}
+
+                # Actions are titled with a checkmark prefix in the menu
+                self.assertIn("✓ project", titles)
+                self.assertIn("✓ todo", titles)
+                aliases = {command["title"]: command.get("alias", []) for command in commands}
+                self.assertIn("project", aliases.get("✓ project", []))
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
+    def test_share_with_context_menu_registers_apps_in_palette(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                target = Path(tmpdir) / "file.txt"
+                target.write_text("hello", encoding="utf-8")
+
+                fake_app = ("/usr/share/applications/fake.desktop", "Fake Share App")
+                from unittest.mock import patch
+                with patch("lfmapp.ui.main_window.get_available_applications", return_value=[fake_app]):
+                    # build the file context menu which will call _add_share_with_menu
+                    from PyQt6.QtWidgets import QMenu
+                    menu = QMenu(window)
+                    window._build_file_context_menu(menu, target)
+
+                commands = window._palette_commands()
+                titles = {command["title"] for command in commands}
+                self.assertIn("Fake Share App", titles)
+                aliases = {command["title"]: command.get("alias", []) for command in commands}
+                self.assertIn("share", aliases.get("Fake Share App", []))
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
+    def test_contextual_palette_commands_include_selection_actions(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                selected = Path(tmpdir) / "file.txt"
+                selected.write_text("hello", encoding="utf-8")
+
+                with patch.object(window.workspace, "selected_path", return_value=selected):
+                    commands = window._palette_commands()
+                    titles = {command["title"] for command in commands}
+
+                self.assertIn("Open", titles)
+                self.assertIn("Open with...", titles)
+                self.assertIn("Copy path", titles)
+                self.assertIn("Rename", titles)
+                self.assertIn("Properties", titles)
+                self.assertIn("Set default application...", titles)
+                self.assertIn("Copy to...", titles)
+                self.assertIn("Move to...", titles)
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
+    def test_contextual_palette_commands_include_paste_when_clipboard_has_items(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                window._clipboard_mode = "copy"
+                window._clipboard_paths = [Path(tmpdir) / "file.txt"]
+                commands = window._palette_commands()
+                titles = {command["title"] for command in commands}
+
+                self.assertIn("Paste", titles)
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
+    def test_palette_includes_navigation_shortcuts(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                commands = window._palette_commands()
+                titles = {command["title"] for command in commands}
+
+                self.assertIn("Go to Path...", titles)
+                self.assertIn("Open Recent File...", titles)
+                self.assertIn("Open in Terminal", titles)
+                self.assertIn("Refresh", titles)
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
+    def test_quick_access_commands_include_home_destination(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                commands = window._palette_commands()
+                quick_access_commands = [
+                    command for command in commands if command["category"] == "Quick Access"
+                ]
+                titles = {command["title"] for command in quick_access_commands}
+
+                self.assertIn("Open Home", titles)
+                home_command = next(
+                    command for command in quick_access_commands if command["title"] == "Open Home"
+                )
+                self.assertIn("home", home_command.get("alias", []))
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
+    def test_quick_access_commands_include_pinned_bookmarks(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                bookmark_path = Path(tmpdir) / "pinned"
+                bookmark_path.mkdir()
+                window.bookmark_service.add(str(bookmark_path), label="Pinned Folder", pinned=True)
+
+                commands = window._palette_commands()
+                titles = {command["title"] for command in commands}
+                self.assertIn("Open Pinned Folder", titles)
+
+                command = next(
+                    command for command in commands if command["title"] == "Open Pinned Folder"
+                )
+                self.assertEqual(command["category"], "Quick Access")
+                self.assertIn(str(bookmark_path), command.get("alias", []))
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
+    def test_dynamic_action_title_updates_in_palette(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                window.update_quick_access_action()
+                title = window.quick_access_action.text()
+                command = next(
+                    command for command in window._palette_commands() if command["title"] == title
+                )
+                self.assertEqual(command["title"], title)
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
+    def test_quick_access_action_title_is_kept_in_sync_in_palette(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                window.quick_access_action.setText(window.tr("In Quick Access"))
+                window.update_quick_access_action()
+                self.assertTrue(any(
+                    command["title"] == "In Quick Access" for command in window._palette_commands()
+                ))
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
+    def test_dynamic_action_title_aliases_update_in_palette(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                window.update_quick_access_action()
+                title = window.quick_access_action.text()
+                command = next(
+                    command for command in window._palette_commands() if command["title"] == title
+                )
+                self.assertIn("quick access", command.get("alias", []))
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
+    def test_command_palette_search_matches_aliases(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                commands = window._palette_commands()
+                aliases = {command["title"]: command.get("alias", []) for command in commands}
+                self.assertIn("refresh", aliases["Refresh"])
+                self.assertIn("terminal", aliases["Open in Terminal"])
+                self.assertIn("cd", aliases["Go to Path..."])
+
+                fake_file = Path(tmpdir) / "file.txt"
+                fake_file.write_text("hello", encoding="utf-8")
+                with patch("lfmapp.ui.main_window.get_available_applications", return_value=[("/usr/share/applications/fake.desktop", "Fake App")]):
+                    window._add_share_with_menu(window.share_menu, fake_file)
+
+                commands = window._palette_commands()
+                aliases = {command["title"]: command.get("alias", []) for command in commands}
+                self.assertIn("share", aliases.get("Fake App", []))
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
+    def test_unique_palette_commands_keep_different_command_ids(self):
+        commands = [
+            {
+                "title": "Open Sample",
+                "callback": lambda: None,
+                "shortcut": "",
+                "category": "Recent Files",
+                "enabled": True,
+                "alias": ["sample"],
+                "command_id": "recent_file::1",
+            },
+            {
+                "title": "Open Sample",
+                "callback": lambda: None,
+                "shortcut": "",
+                "category": "Recent Files",
+                "enabled": True,
+                "alias": ["sample"],
+                "command_id": "recent_file::2",
+            },
+        ]
+        dialog = CommandPaletteDialog(commands)
+        self.assertEqual(dialog.command_list.count(), 2)
+
+    def test_command_palette_prioritizes_enabled_commands(self):
+        commands = [
+            {
+                "title": "Open",
+                "callback": lambda: None,
+                "shortcut": "",
+                "category": "Selection",
+                "enabled": False,
+                "alias": ["open"],
+            },
+            {
+                "title": "Open File",
+                "callback": lambda: None,
+                "shortcut": "",
+                "category": "Selection",
+                "enabled": True,
+                "alias": ["open"],
+            },
+        ]
+        dialog = CommandPaletteDialog(commands)
+        dialog._filter_commands("open")
+        titles = [dialog.command_list.item(i).data(Qt.ItemDataRole.UserRole)["title"] for i in range(dialog.command_list.count())]
+        self.assertEqual("Open File", titles[0])
 
     def test_apply_preferences_updates_runtime_state_and_config(self):
         window = None
