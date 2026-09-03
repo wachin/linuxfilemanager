@@ -25,6 +25,12 @@ from lfmapp.utils.open_with import send_email_with_attachments
 
 
 class TransferActionsMixin:
+    def _new_conflict_resolver(self):
+        """Fresh resolver per operation batch; 'apply to all' lives this long."""
+        from lfmapp.ui.conflict_dialog import GuiConflictResolver
+
+        return GuiConflictResolver(self)
+
     def trash_selected(self):
         paths = self.workspace.selected_paths()
         if not paths:
@@ -95,11 +101,12 @@ class TransferActionsMixin:
             self.tr("{action} {count} dropped item(s)").format(action=action_label, count=len(sources)),
             len(sources),
         )
+        conflict_resolver = self._new_conflict_resolver()
         for src in sources:
             try:
                 activity = self.tr("Copying") if action == "copy" else self.tr("Moving")
                 if action == "copy":
-                    worker = CopyWorker(src, destination)
+                    worker = CopyWorker(src, destination, conflict_resolver=conflict_resolver)
                     copied_path = destination / src.name
                     callback = lambda s, m, w=worker, source=src, copied=copied_path, batch=batch_id: self._on_drop_worker_finished(
                         w,
@@ -110,7 +117,7 @@ class TransferActionsMixin:
                         batch_id=batch,
                     )
                 else:
-                    worker = MoveWorker(src, destination)
+                    worker = MoveWorker(src, destination, conflict_resolver=conflict_resolver)
                     moved_path = destination / src.name
                     callback = lambda s, m, w=worker, source=src, moved=moved_path, batch=batch_id: self._on_drop_worker_finished(
                         w,
@@ -269,9 +276,10 @@ class TransferActionsMixin:
         if not destination:
             return
         batch_id = self.create_operation_batch(self.tr("Copy {count} item(s)").format(count=len(paths)), len(paths))
+        conflict_resolver = self._new_conflict_resolver()
         for path in paths:
             try:
-                worker = CopyWorker(path, destination)
+                worker = CopyWorker(path, destination, conflict_resolver=conflict_resolver)
                 copied_path = destination / path.name
                 self._register_worker(
                     worker,
@@ -305,9 +313,10 @@ class TransferActionsMixin:
         if not destination:
             return
         batch_id = self.create_operation_batch(self.tr("Move {count} item(s)").format(count=len(paths)), len(paths))
+        conflict_resolver = self._new_conflict_resolver()
         for path in paths:
             try:
-                worker = MoveWorker(path, destination)
+                worker = MoveWorker(path, destination, conflict_resolver=conflict_resolver)
                 moved_path = destination / path.name
                 self._register_worker(
                     worker,
@@ -413,10 +422,11 @@ class TransferActionsMixin:
             len(paths),
         )
 
+        conflict_resolver = self._new_conflict_resolver()
         for path in paths:
             if not path.exists():
                 continue
-            worker = CopyWorker(path, destination)
+            worker = CopyWorker(path, destination, conflict_resolver=conflict_resolver)
             copied_path = destination / path.name
             self._register_worker(
                 worker,

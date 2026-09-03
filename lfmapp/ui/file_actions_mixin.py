@@ -320,11 +320,12 @@ class FileActionsMixin:
             len(sources),
         )
 
+        conflict_resolver = self._new_conflict_resolver()
         # Process each clipboard item with worker threads
         for src in sources:
             if self._clipboard_mode == "copy":
                 self.statusBar().showMessage(self.tr("Copying {name}...").format(name=src.name), 0)
-                worker = CopyWorker(src, destination)
+                worker = CopyWorker(src, destination, conflict_resolver=conflict_resolver)
                 copied_path = destination / src.name
                 self._register_worker(
                     worker,
@@ -340,7 +341,7 @@ class FileActionsMixin:
                 )
             elif self._clipboard_mode == "cut":
                 self.statusBar().showMessage(self.tr("Moving {name}...").format(name=src.name), 0)
-                worker = MoveWorker(src, destination)
+                worker = MoveWorker(src, destination, conflict_resolver=conflict_resolver)
                 moved_path = destination / src.name
                 self._register_worker(
                     worker,

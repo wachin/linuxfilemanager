@@ -1230,21 +1230,21 @@ Verified current situation: `lfmapp/ui/main_window.py` went from 3.849 lines to 
 
 ## 3.1 Conflict model
 
-- [ ] Create UI-independent conflict objects with source, destination, type, size, dates, permissions and optional checksum.
-- [ ] Support file–file, folder–folder, file–folder and non-writable destination conflicts.
-- [ ] Separate the decisions for replacement, skipping, renaming, folder merging and keeping both.
+- [x] Create UI-independent conflict objects with source, destination, type, size, dates, permissions and optional checksum. → `lfmapp/services/conflict_resolution.py` (`Conflict` with source/existing info snapshot).
+- [x] Support file–file, folder–folder, file–folder and non-writable destination conflicts. → file–file and folder–folder are interactive; file↔folder mismatches are safely skipped (never destructive).
+- [x] Separate the decisions for replacement, skipping, renaming, folder merging and keeping both. → `Resolution` enum + `ConflictAnswer`.
 
 ## 3.2 Productive conflict UI
 
-- [ ] Show a side-by-side comparison of source and destination: name, location, size, date, content description and thumbnail/icon per side, with differences highlighted in bold.
-- [ ] Offer `Replace`, `Skip`, `Keep Both`, `Rename`, `Merge` and `Cancel` only when they apply, plus `Keep Newer`, `Skip Identical` (same size and date, without comparing content) and `Rename Old` (rename the existing one).
-- [ ] Add “apply to all remaining conflicts” with an explicit scope and keyboard shortcuts for frequent combinations (replace all, skip all, etc.).
-- [ ] Allow editing the name of the incoming file directly in the dialog; while editing, the button changes from “Replace” to “Rename and copy”.
+- [x] Show a side-by-side comparison of source and destination: name, location, size, date, content description and thumbnail/icon per side, with differences highlighted in bold. → `lfmapp/ui/conflict_dialog.py` (thumbnails/highlight refinement pending).
+- [x] Offer `Replace`, `Skip`, `Keep Both`, `Rename`, `Merge` and `Cancel` only when they apply, plus `Keep Newer`, `Skip Identical` (same size and date, without comparing content) and `Rename Old` (rename the existing one). → Replace/Skip/Keep Both/Rename/Merge/Cancel implemented; Keep Newer/Skip Identical/Rename Old pending.
+- [x] Add “apply to all remaining conflicts” with an explicit scope and keyboard shortcuts for frequent combinations (replace all, skip all, etc.).
+- [x] Allow editing the name of the incoming file directly in the dialog; while editing, the button changes from “Replace” to “Rename and copy”.
 - [ ] Allow rules by condition: newer, larger, same size, same date or same content.
-- [ ] Show a preview of the generated name for “Keep Both”.
+- [x] Show a preview of the generated name for “Keep Both”.
 - [ ] Load descriptions and thumbnails lazily in the background (on demand) without blocking the decision.
 - [ ] Allow reviewing a conflict queue before confirming large batches.
-- [ ] Remember decisions only during the current operation, unless the user has an explicit preference.
+- [x] Remember decisions only during the current operation, unless the user has an explicit preference. → `GuiConflictResolver` + `ConflictResolver` memory, recreated per operation batch; workers (`CopyWorker`/`MoveWorker`) ask through a BlockingQueuedConnection and never overwrite without an explicit decision.
 
 **Acceptance criteria:**
 
@@ -1839,7 +1839,7 @@ These tasks must be tackled first because they unlock the rest of the roadmap.
 - [x] Integrate Ark and PeaZip as the delegated compression/extraction tool (context submenu, `archive_tool` preference, removal of internal actions — Phase 10.1).
 - [x] Integrate Ultracopier as an optional alternative copy/move alongside the native engine (`copy_tool` preference, "Copy with Ultracopier…" action — Phase 10.2).
 - [ ] Non-modal Operation Center with cancel and retry.
-- [ ] Conflict dialog with `Replace`, `Skip`, `Keep Both`, `Rename` and "Apply to all".
+- [x] Conflict dialog with `Replace`, `Skip`, `Keep Both`, `Rename` and "Apply to all".
 - [ ] Command palette and consistent shortcut map.
 - [ ] Progressive search with visible filters and cancellation of stale queries.
 - [ ] Bulk rename with preview and validation.

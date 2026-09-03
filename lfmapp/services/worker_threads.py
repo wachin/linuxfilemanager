@@ -10,23 +10,90 @@ from pathlib import Path
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
+from lfmapp.services.conflict_resolution import (
+    Conflict,
+    ConflictAnswer,
+    Resolution,
+    suggest_free_name,
+)
 
-class CopyWorker(QThread):
+
+class ConflictCapableWorker(QThread):
+    """Mixin for workers that can ask how to resolve name conflicts.
+
+    ``conflict_resolver`` is a callable ``Conflict -> ConflictAnswer``; it is
+    invoked in the worker thread. In the GUI it is backed by a dialog through
+    a BlockingQueuedConnection, so the worker pauses while the user decides.
+    """
+
+    def __init__(self, parent=None, conflict_resolver=None):
+        super().__init__(parent)
+        self._running = True
+        self.conflict_resolver = conflict_resolver
+        self.resolutions: list[tuple[str, str]] = []  # (resolution, path)
+
+    def stop(self):
+        self._running = False
+
+    def _resolve_conflict(self, source: Path, dest: Path) -> Path | None:
+        """Return the target to use, or None to skip; None also on cancel."""
+        if not dest.exists() or self.conflict_resolver is None:
+            return dest
+        answer = self.conflict_resolver(Conflict(source, dest))
+        if answer is None:
+            answer = ConflictAnswer(Resolution.CANCEL)
+        resolution = answer.resolution
+        self.resolutions.append((resolution.value, str(dest)))
+        if resolution is Resolution.SKIP:
+            return None
+        if resolution is Resolution.CANCEL:
+            self._running = False
+            return None
+        if resolution in (Resolution.REPLACE, Resolution.MERGE):
+            if source.is_dir() != dest.is_dir():
+                # file-vs-folder conflicts cannot be replaced in place safely
+                return None
+            return dest
+        if resolution in (Resolution.KEEP_BOTH, Resolution.RENAME):
+            new_name = answer.new_name or suggest_free_name(source, dest.parent)
+            candidate = dest.parent / new_name
+            if candidate == dest:
+                return suggest_free_target(source, dest.parent)
+            if candidate.exists():
+                candidate = Path(suggest_free_name(source, dest.parent))
+            return candidate
+        return None
+
+    def _copy_recorded_source(self, source: Path):
+        self.resolutions.append(("copied", str(source)))
+
+
+def suggest_free_target(source: Path, parent: Path) -> Path:
+    return parent / suggest_free_name(source, parent)
+
+
+class CopyWorker(ConflictCapableWorker):
     """Copy files/directories in a background thread."""
 
     progress = pyqtSignal(int)       # percentage (0-100)
     finished = pyqtSignal(bool, str) # success, message
     file_copied = pyqtSignal(str)    # path of copied file
 
-    def __init__(self, source: Path, destination: Path, parent=None):
-        super().__init__(parent)
+    def __init__(self, source: Path, destination: Path, parent=None, conflict_resolver=None):
+        super().__init__(parent, conflict_resolver=conflict_resolver)
         self.source = source
         self.destination = destination
-        self._running = True
 
     def run(self):
         try:
             dest = self.destination / self.source.name
+            dest = self._resolve_conflict(self.source, dest)
+            if dest is None:
+                if self._running:
+                    self.finished.emit(True, f"Skipped: {self.source.name}")
+                else:
+                    self.finished.emit(False, "Operation canceled")
+                return
             if self.source.is_dir():
                 self._copy_tree(self.source, dest)
             else:
@@ -44,7 +111,9 @@ class CopyWorker(QThread):
         for i, item in enumerate(items):
             if not self._running:
                 break
-            dest_item = dst / item.name
+            dest_item = self._resolve_conflict(item, dst / item.name)
+            if dest_item is None:
+                continue
             if item.is_dir():
                 self._copy_tree(item, dest_item)
             else:
@@ -53,33 +122,40 @@ class CopyWorker(QThread):
             if total > 0:
                 self.progress.emit(int((i + 1) / total * 100))
 
-    def stop(self):
-        self._running = False
 
-
-class MoveWorker(QThread):
+class MoveWorker(ConflictCapableWorker):
     """Move files/directories in a background thread using copy+delete.
 
     This approach allows cooperative cancellation while copying large files.
+    When conflicts are skipped, only the copied items are deleted so the
+    skipped sources are never lost.
     """
 
     progress = pyqtSignal(int)
     finished = pyqtSignal(bool, str)
     file_copied = pyqtSignal(str)
 
-    def __init__(self, source: Path, destination: Path, parent=None):
-        super().__init__(parent)
+    def __init__(self, source: Path, destination: Path, parent=None, conflict_resolver=None):
+        super().__init__(parent, conflict_resolver=conflict_resolver)
         self.source = source
         self.destination = destination
-        self._running = True
+        self._skipped_any = False
+        self._copied_sources: set[Path] = set()
 
     def run(self):
         try:
             dest = self.destination / self.source.name
+            dest = self._resolve_conflict(self.source, dest)
+            if dest is None:
+                if self._running:
+                    self.finished.emit(True, f"Skipped: {self.source.name}")
+                else:
+                    self.finished.emit(False, "Operation canceled")
+                return
             if self.source.is_dir():
                 self._copy_tree(self.source, dest)
                 if self._running:
-                    shutil.rmtree(str(self.source))
+                    self._delete_sources()
             else:
                 self._copy_file(self.source, dest)
                 if self._running:
@@ -92,6 +168,27 @@ class MoveWorker(QThread):
                 self.finished.emit(False, "Operation canceled")
         except Exception as exc:
             self.finished.emit(False, str(exc))
+
+    def _delete_sources(self):
+        """Remove sources; keep skipped items and partial trees intact."""
+        if not self._skipped_any:
+            shutil.rmtree(str(self.source))
+            return
+        for path in self._copied_sources:
+            try:
+                path.unlink()
+            except OSError:
+                pass
+        for directory in sorted(self.source.rglob("*"), reverse=True):
+            if directory.is_dir():
+                try:
+                    directory.rmdir()  # only removes empty folders
+                except OSError:
+                    pass
+        try:
+            self.source.rmdir()
+        except OSError:
+            pass
 
     def _copy_file(self, src: Path, dst: Path, bufsize: int = 1024 * 1024):
         dst.parent.mkdir(parents=True, exist_ok=True)
@@ -110,6 +207,7 @@ class MoveWorker(QThread):
                 copied += len(buf)
                 # emit file event and progress
                 self.file_copied.emit(str(src))
+                self._copied_sources.add(src)
                 if total > 0:
                     self.progress.emit(int(copied / total * 100))
         if not self._running and dst.exists():
@@ -125,16 +223,17 @@ class MoveWorker(QThread):
         for i, item in enumerate(items):
             if not self._running:
                 break
-            dest_item = dst / item.name
+            dest_item = self._resolve_conflict(item, dst / item.name)
+            if dest_item is None:
+                if self._running:
+                    self._skipped_any = True
+                continue
             if item.is_dir():
                 self._copy_tree(item, dest_item)
             else:
                 self._copy_file(item, dest_item)
             if total > 0:
                 self.progress.emit(int((i + 1) / total * 100))
-
-    def stop(self):
-        self._running = False
 
 
 class DeleteWorker(QThread):
