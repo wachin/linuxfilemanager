@@ -16,6 +16,62 @@ from PyQt6.QtCore import QDir, QFileInfo, Qt
 from PyQt6.QtGui import QFileSystemModel, QIcon, QImageReader, QPixmap
 from PyQt6.QtWidgets import QFileIconProvider
 
+from lfmapp.services.extractor_service import is_archive
+
+
+class FallbackIconProvider(QFileIconProvider):
+    """Icon provider with a themed fallback when the base provider is null.
+
+    On desktops where the resolved icon theme is bare (e.g. ``hicolor`` when
+    qt6ct/desktop settings are unset), the stock provider returns empty icons
+    and files lose their visual type. In that case we fall back to generic
+    freedesktop names through ``app_icon`` (active theme first, then the
+    persisted fallback paths), mirroring what the main UI does.
+    """
+
+    # mime prefix -> candidate icon names, most specific first
+    _FAMILY_ICONS = {
+        "image": ("image-x-generic",),
+        "audio": ("audio-x-generic",),
+        "video": ("video-x-generic",),
+        "text": ("text-x-generic",),
+        "font": ("font-x-generic",),
+    }
+
+    def icon(self, info):
+        if isinstance(info, QFileInfo):
+            base = QFileIconProvider.icon(self, info)
+            if not base.isNull():
+                return base
+            return self._fallback_for(info)
+        return QFileIconProvider.icon(self, info)
+
+    def _fallback_for(self, info: QFileInfo) -> QIcon:
+        from lfmapp.ui.icons import app_icon
+
+        if info.isDir():
+            return app_icon("folder", "inode-directory")
+        if info.isSymLink():
+            icon = app_icon("emblem-symbolic-link", "folder")
+            if not icon.isNull():
+                return icon
+
+        if is_archive(Path(info.absoluteFilePath())):
+            icon = app_icon("package-x-generic")
+            if not icon.isNull():
+                return icon
+
+        mime_type, _ = mimetypes.guess_type(info.absoluteFilePath())
+        candidates: list[str] = []
+        if mime_type:
+            candidates.append(mime_type.replace("/", "-"))
+            family = mime_type.split("/", 1)[0]
+            candidates.extend(self._FAMILY_ICONS.get(family, ()))
+            if mime_type == "application/pdf":
+                candidates.append("application-pdf")
+        candidates.extend(("application-octet-stream", "text-x-generic", "folder"))
+        return app_icon(*candidates)
+
 try:
     import grp
 except ImportError:  # pragma: no cover - not expected on Linux
@@ -86,8 +142,8 @@ class FileSystemModel(QFileSystemModel):
 
     @staticmethod
     def _optimized_icon_provider() -> QFileIconProvider:
-        """Return an icon provider that avoids expensive per-directory icon lookups."""
-        provider = QFileIconProvider()
+        """Return an icon provider with fallback icons for bare themes."""
+        provider = FallbackIconProvider()
         provider.setOptions(QFileIconProvider.Option.DontUseCustomDirectoryIcons)
         return provider
 

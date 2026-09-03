@@ -74,6 +74,14 @@ _ADDITIONAL_ICON_NAMES: set[str] = {
     "media-playback-pause",
     "media-playback-start",
     "document-import",
+    "text-x-generic",
+    "audio-x-generic",
+    "video-x-generic",
+    "image-x-generic",
+    "font-x-generic",
+    "application-pdf",
+    "application-octet-stream",
+    "inode-directory",
 }
 
 

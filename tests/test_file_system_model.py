@@ -56,6 +56,51 @@ class FileSystemModelTests(unittest.TestCase):
             & QFileIconProvider.Option.DontUseCustomDirectoryIcons
         )
 
+    def test_icon_provider_falls_back_when_theme_has_no_icons(self):
+        """On bare themes (e.g. hicolor) the base provider returns null
+        icons; the fallback must still return meaningful file-type icons."""
+        import lfmapp.ui.icons as icons_module
+        from unittest.mock import patch
+
+        from lfmapp.models.file_system_model import FallbackIconProvider
+
+        svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>'
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "doc.txt").write_text("x")
+            (root / "song.mp3").write_bytes(b"\0")
+            (root / "subdir").mkdir()
+            svg_path = root / "generic.svg"
+            svg_path.write_text(svg)
+
+            old_paths = dict(icons_module._ICON_PATH_CACHE)
+            old_icons = dict(icons_module._ICON_CACHE)
+            try:
+                icons_module._ICON_PATH_CACHE.clear()
+                icons_module._ICON_CACHE.clear()
+                for name in (
+                    "folder",
+                    "text-x-generic",
+                    "audio-x-generic",
+                    "application-octet-stream",
+                ):
+                    icons_module._ICON_PATH_CACHE[name] = svg_path
+                provider = FallbackIconProvider()
+                with patch.object(
+                    QFileIconProvider, "icon", return_value=QIcon()
+                ), patch("lfmapp.ui.icons.QIcon.fromTheme", return_value=QIcon()):
+                    for name in ("doc.txt", "song.mp3", "subdir"):
+                        with self.subTest(name=name):
+                            from PyQt6.QtCore import QFileInfo
+
+                            icon = provider.icon(QFileInfo(str(root / name)))
+                            self.assertFalse(icon.isNull())
+            finally:
+                icons_module._ICON_PATH_CACHE.clear()
+                icons_module._ICON_PATH_CACHE.update(old_paths)
+                icons_module._ICON_CACHE.clear()
+                icons_module._ICON_CACHE.update(old_icons)
+
     def test_only_name_column_exposes_decoration_icon(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "sample.txt"
