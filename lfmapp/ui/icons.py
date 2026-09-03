@@ -28,6 +28,10 @@ _ICON_ALIASES: dict[str, list[str]] = {
     "folder-remote": ["network-server", "folder-remote"],
     "document-open-recent": ["view-history", "document-open-recent"],
     "emblem-favorite": ["bookmark-new", "emblem-favorite"],
+    "archive-extract": ["archive-extract", "package-x-generic"],
+    "archive-insert": ["archive-insert", "archive-extract", "package-x-generic"],
+    "ark": ["ark", "package-x-generic"],
+    "peazip": ["peazip", "package-x-generic"],
 }
 
 _ADDITIONAL_ICON_NAMES: set[str] = {
@@ -59,6 +63,11 @@ _ADDITIONAL_ICON_NAMES: set[str] = {
     "folder-recent",
     "view-history",
     "folder",
+    "package-x-generic",
+    "archive-extract",
+    "archive-insert",
+    "ark",
+    "peazip",
 }
 
 

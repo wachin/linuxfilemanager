@@ -11,7 +11,6 @@ from pathlib import Path
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QHBoxLayout, QToolButton, QWidget, QWidgetAction
 
-from lfmapp.services import is_archive
 from lfmapp.ui.icons import app_icon
 from lfmapp.utils.open_with import (
     get_available_applications,
@@ -196,14 +195,8 @@ class ContextMenuMixin:
         menu.addAction(app_icon("document-print", "printer"), self.tr("Print"), self.print_selected)
         menu.addSeparator()
 
-        # Archive extraction
-        if is_archive(path):
-            menu.addAction(app_icon("package-x-generic", "archive-extract"), self.tr("Extract Here"), lambda: self.extract_archive(path))
-            menu.addAction(self.tr("Extract to..."), lambda: self.extract_archive_to(path))
-            menu.addSeparator()
-
-        # Compress to ZIP
-        menu.addAction(app_icon("package-x-generic", "folder-compressed"), self.tr("Compress to ZIP"), lambda: self.compress_to_zip(path))
+        # Archive operations delegated to the configured external tool
+        menu.addMenu(self._archive_tool_menu(menu, [path]))
         menu.addAction(app_icon("document-properties", "security-medium"), self.tr("Advanced Security..."), self.show_advanced_security)
 
         if self._traditional_context_entry_enabled("selection", "rename"):
@@ -267,8 +260,8 @@ class ContextMenuMixin:
         menu.addAction(app_icon("document-print", "printer"), self.tr("Print"), self.print_selected)
         menu.addSeparator()
 
-        # Compress to ZIP
-        menu.addAction(app_icon("package-x-generic", "folder-compressed"), self.tr("Compress to ZIP"), lambda: self.compress_to_zip(path))
+        # Archive operations delegated to the configured external tool
+        menu.addMenu(self._archive_tool_menu(menu, [path]))
         menu.addAction(app_icon("document-properties", "security-medium"), self.tr("Advanced Security..."), self.show_advanced_security)
 
         if self._traditional_context_entry_enabled("selection", "rename"):

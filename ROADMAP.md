@@ -1631,20 +1631,20 @@ Documented examples: `ark --batch archivo.tar.bz2` extracts into the current dir
 
 ### 10.1.2 Service model and preference
 
-- [ ] Create an `ArchiveToolService` service (or extend `lfmapp/services/`) that abstracts the active tool and exposes at least: `extract_here(archivo)`, `extract_into_new_folder(archivo)`, `extract_to(archivo, destino)`, `open_archive(archivo)`, `create_archive(archivos)`, `quick_add(archivos, formato)`, `test_archive(archivo)`.
-- [ ] Implement two backends with the same interface: `ArkBackend` and `PeaZipBackend`, which build the real commands of the table above and launch them in the background without blocking the UI; `ArkBackend` must be the one selected by default.
-- [ ] Add the `archive_tool` key to `core/config.py` with values `"ark"` | `"peazip"` (default `"ark"`), with automatic backfill in old configurations (same mechanism as the rest of the keys).
-- [ ] In `preferences_dialog.py`, add an "Archives" section (or next to the behavior section) with a `QComboBox` selector ("Tool for compressing and extracting: Ark (recommended) | PeaZip") that saves `archive_tool`, plus an indication of whether the tool is installed (with `shutil.which`).
-- [ ] Keep in `ui/icons.py` the needed icon names (`package-x-generic`, `archive-extract`, `archive-insert`…) with fallback, and try the theme's `ark`/`peazip` icon through `QIcon.fromTheme` with a safe fallback to the generic icons.
+- [x] Create an `ArchiveToolService` service (or extend `lfmapp/services/`) that abstracts the active tool and exposes at least: `extract_here(archivo)`, `extract_into_new_folder(archivo)`, `extract_to(archivo, destino)`, `open_archive(archivo)`, `create_archive(archivos)`, `quick_add(archivos, formato)`, `test_archive(archivo)`. → `lfmapp/services/archive_tool_service.py`.
+- [x] Implement two backends with the same interface: `ArkBackend` and `PeaZipBackend`, which build the real commands of the table above and launch them in the background without blocking the UI; `ArkBackend` must be the one selected by default.
+- [x] Add the `archive_tool` key to `core/config.py` with values `"ark"` | `"peazip"` (default `"ark"`), with automatic backfill in old configurations (same mechanism as the rest of the keys).
+- [x] In `preferences_dialog.py`, add an "Archives" section (or next to the behavior section) with a `QComboBox` selector ("Tool for compressing and extracting: Ark (recommended) | PeaZip") that saves `archive_tool`, plus an indication of whether the tool is installed (with `shutil.which`).
+- [x] Keep in `ui/icons.py` the needed icon names (`package-x-generic`, `archive-extract`, `archive-insert`…) with fallback, and try the theme's `ark`/`peazip` icon through `QIcon.fromTheme` with a safe fallback to the generic icons.
 
 ### 10.1.3 Context submenu and removal of internal actions
 
-- [ ] Replace in the context menu (traditional and modern, `main_window.py`/`menus.py`) the current actions `Extract Here`, `Extract to...`, `Compress to ZIP`, `Send to → Compress to ZIP` and the "Archive Tools" group with a single submenu with the name of the active tool (e.g. "Ark" or "PeaZip") that offers its equivalent actions.
-- [ ] On a compressed file (according to `is_archive`/MIME): the submenu shows "Extract here", "Extract into a new folder" and "Extract to…" (Ark: `-b -a` / `-b` with `-o`; PeaZip: `-ext2here` / `-ext2folder` / `-ext2full`). "Extract to…" in PeaZip uses its own dialog; in Ark the file manager can ask for the folder with the existing `FileOperations` dialog and pass `-o`.
-- [ ] On any selection (files or folders): the submenu offers "Add to archive…" (Ark: `-c` or `-t`; PeaZip: `-add2archive`) and, when it makes sense, format shortcuts ("Add to ZIP" in PeaZip; `-f zip` in Ark) using the name of the selection as the base.
-- [ ] Add "Open with the tool" (Ark: `ark <archivo>`; PeaZip: `peazip -ext2browse <archivo>`) and, in PeaZip, "Check integrity" (`-ext2test`).
-- [ ] Remove the menu exposure of the internal compressor (`extract_here`, `extract_to`, `create_zip` and their threads) or keep it only as an internal fallback outside the UI; the visible surface must always delegate to the chosen tool. Document the change in `tests` (adapt `test_extractor_service.py`, `test_main_window.py`, `test_menus.py`).
-- [ ] If the active tool is not installed, show an inline notice with the installation suggestion (`sudo apt install ark` or the PeaZip package) and a direct link to the preference; do not show an empty submenu.
+- [x] Replace in the context menu (traditional and modern, `main_window.py`/`menus.py`) the current actions `Extract Here`, `Extract to...`, `Compress to ZIP`, `Send to → Compress to ZIP` and the "Archive Tools" group with a single submenu with the name of the active tool (e.g. "Ark" or "PeaZip") that offers its equivalent actions.
+- [x] On a compressed file (according to `is_archive`/MIME): the submenu shows "Extract here", "Extract into a new folder" and "Extract to…" (Ark: `-b -a` / `-b` with `-o`; PeaZip: `-ext2here` / `-ext2folder` / `-ext2full`). "Extract to…" in PeaZip uses its own dialog; in Ark the file manager can ask for the folder with the existing `FileOperations` dialog and pass `-o`.
+- [x] On any selection (files or folders): the submenu offers "Add to archive…" (Ark: `-c` or `-t`; PeaZip: `-add2archive`) and, when it makes sense, format shortcuts ("Add to ZIP" in PeaZip; `-f zip` in Ark) using the name of the selection as the base.
+- [x] Add "Open with the tool" (Ark: `ark <archivo>`; PeaZip: `peazip -ext2browse <archivo>`) and, in PeaZip, "Check integrity" (`-ext2test`).
+- [x] Remove the menu exposure of the internal compressor (`extract_here`, `extract_to`, `create_zip` and their threads) or keep it only as an internal fallback outside the UI; the visible surface must always delegate to the chosen tool. Document the change in `tests` (adapt `test_extractor_service.py`, `test_main_window.py`, `test_menus.py`).
+- [x] If the active tool is not installed, show an inline notice with the installation suggestion (`sudo apt install ark` or the PeaZip package) and a direct link to the preference; do not show an empty submenu.
 
 **Acceptance criteria:**
 
@@ -1836,7 +1836,7 @@ These tasks must be tackled first because they unlock the rest of the roadmap.
 
 ## Priority P1 — Highest user impact
 
-- [ ] Integrate Ark and PeaZip as the delegated compression/extraction tool (context submenu, `archive_tool` preference, removal of internal actions — Phase 10.1).
+- [x] Integrate Ark and PeaZip as the delegated compression/extraction tool (context submenu, `archive_tool` preference, removal of internal actions — Phase 10.1).
 - [ ] Integrate Ultracopier as an optional alternative copy/move alongside the native engine (`copy_tool` preference, "Copy with Ultracopier…" action — Phase 10.2).
 - [ ] Non-modal Operation Center with cancel and retry.
 - [ ] Conflict dialog with `Replace`, `Skip`, `Keep Both`, `Rename` and "Apply to all".

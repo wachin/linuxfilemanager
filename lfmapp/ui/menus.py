@@ -75,7 +75,6 @@ class ContextMenu(QMenu):
         # Send to section
         send_to_menu = QMenu(self.tr("Send to"), self)
         send_to_menu.addAction(self.tr("Desktop"), self._on_send_to_desktop)
-        send_to_menu.addAction(self.tr("Compress to ZIP"), self._on_compress)
         self.addMenu(send_to_menu)
 
         self.addSeparator()

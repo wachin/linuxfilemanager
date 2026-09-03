@@ -12,6 +12,7 @@ from PyQt6.QtGui import QAction, QKeySequence
 from PyQt6.QtWidgets import QInputDialog
 
 from lfmapp.core.xdg import get_xdg_user_dirs
+from lfmapp.services import is_archive
 from lfmapp.ui.command_palette_dialog import CommandPaletteDialog
 from lfmapp.ui.sidebar import Sidebar
 
@@ -274,11 +275,20 @@ class PaletteActionsMixin:
                     }
                 )
 
-            if selected_path.is_file() and selected_path.suffix.lower() in {".zip", ".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tbz2"}:
+            if selected_path.is_file() and is_archive(selected_path):
                 commands.append(
                     {
                         "title": self.tr("Extract Here"),
                         "callback": lambda: self.extract_archive(selected_path),
+                        "shortcut": "",
+                        "category": self.tr("Selection"),
+                        "enabled": True,
+                    }
+                )
+                commands.append(
+                    {
+                        "title": self.tr("Extract Into New Folder"),
+                        "callback": lambda: self.extract_archive_into_new_folder(selected_path),
                         "shortcut": "",
                         "category": self.tr("Selection"),
                         "enabled": True,
@@ -297,8 +307,8 @@ class PaletteActionsMixin:
             commands.extend(
                 [
                     {
-                        "title": self.tr("Compress to ZIP"),
-                        "callback": lambda: self.compress_to_zip(selected_path),
+                        "title": self.tr("Add to Archive..."),
+                        "callback": lambda: self.add_to_archive([selected_path]),
                         "shortcut": "",
                         "category": self.tr("Selection"),
                         "enabled": True,

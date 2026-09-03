@@ -70,6 +70,10 @@ class PreferencesDialog(QDialog):
         ("Decimal", "decimal"),
         ("Binary", "binary"),
     ]
+    ARCHIVE_TOOL_OPTIONS = [
+        ("Ark (recommended)", "ark"),
+        ("PeaZip", "peazip"),
+    ]
     ICON_CAPTION_FIELDS = [
         ("None", "none"),
         ("Size", "size"),
@@ -367,6 +371,40 @@ class PreferencesDialog(QDialog):
         bulk_form.addRow(self.tr("Command to invoke when renaming multiple items:"), self.bulk_rename_command_edit)
         layout.insertWidget(layout.count() - 1, bulk_group)
 
+        archives_group = QGroupBox(self.tr("Archives"), self)
+        archives_form = QFormLayout(archives_group)
+        self.archive_tool_combo = QComboBox(self)
+        for label, value in self.ARCHIVE_TOOL_OPTIONS:
+            self.archive_tool_combo.addItem(self.tr(label), value)
+        self.archive_tool_status_label = QLabel(self)
+        archives_form.addRow(
+            self.tr("Tool for compressing and extracting:"),
+            self.archive_tool_combo,
+        )
+        archives_form.addRow("", self.archive_tool_status_label)
+        self.archive_tool_combo.currentIndexChanged.connect(
+            lambda _index: self._update_archive_tool_status()
+        )
+        layout.insertWidget(layout.count() - 1, archives_group)
+
+    def _update_archive_tool_status(self):
+        from lfmapp.services.archive_tool_service import BACKENDS
+
+        tool = self.archive_tool_combo.currentData()
+        backend_class = BACKENDS.get(tool)
+        if backend_class is None:
+            self.archive_tool_status_label.setText("")
+            return
+        backend = backend_class()
+        if backend.is_installed():
+            self.archive_tool_status_label.setText(self.tr("{tool} is installed.").format(tool=backend.label))
+        else:
+            self.archive_tool_status_label.setText(
+                self.tr("{tool} is not installed. Install it with: {hint}").format(
+                    tool=backend.label, hint=backend.install_hint
+                )
+            )
+
     def _build_display_page(self):
         layout = self._add_page("Display")
 
@@ -608,6 +646,10 @@ class PreferencesDialog(QDialog):
         self.media_close_on_unmount_checkbox.setChecked(bool(self.config.data.get("media_close_on_unmount", False)))
         self.media_detect_suggest_checkbox.setChecked(bool(self.config.data.get("media_detect_and_suggest", True)))
         self.bulk_rename_command_edit.setText(str(self.config.data.get("bulk_rename_command", "")))
+        self.archive_tool_combo.setCurrentIndex(
+            self.archive_tool_combo.findData(self.config.data.get("archive_tool", "ark"))
+        )
+        self._update_archive_tool_status()
 
         icon_fields = list(self.config.data.get("icon_caption_fields", ["none", "size", "date_modified"]))
         for combo, value in zip(self.icon_caption_combos, icon_fields):
@@ -788,6 +830,7 @@ class PreferencesDialog(QDialog):
             "media_close_on_unmount": self.media_close_on_unmount_checkbox.isChecked(),
             "media_detect_and_suggest": self.media_detect_suggest_checkbox.isChecked(),
             "bulk_rename_command": self.bulk_rename_command_edit.text().strip(),
+            "archive_tool": self.archive_tool_combo.currentData(),
             "icon_caption_fields": [combo.currentData() for combo in self.icon_caption_combos],
             "date_display_format": self.date_format_edit.text().strip() or "yyyy-MM-dd HH:mm",
             "date_use_monospace": self.date_monospace_checkbox.isChecked(),

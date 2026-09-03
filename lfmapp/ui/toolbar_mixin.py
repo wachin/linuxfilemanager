@@ -103,7 +103,7 @@ class ToolbarMixin:
             "preview": QAction(app_icon("dialog-information", "view-preview"), self.tr("Preview"), self),
             "extract_here": QAction(app_icon("package-x-generic", "archive-extract"), self.tr("Extract Here"), self),
             "extract_to": QAction(self.tr("Extract to..."), self),
-            "compress": QAction(app_icon("package-x-generic", "folder-compressed"), self.tr("Compress to ZIP"), self),
+            "compress": QAction(app_icon("package-x-generic", "folder-compressed"), self.tr("Add to Archive..."), self),
             "advanced_security": QAction(
                 app_icon("document-properties", "security-medium"),
                 self.tr("Advanced Security..."),
@@ -119,7 +119,7 @@ class ToolbarMixin:
         self.context_actions["preview"].triggered.connect(self.preview_selected)
         self.context_actions["extract_here"].triggered.connect(self.extract_selected_archive)
         self.context_actions["extract_to"].triggered.connect(self.extract_selected_archive_to)
-        self.context_actions["compress"].triggered.connect(self.compress_selection_to_zip)
+        self.context_actions["compress"].triggered.connect(self.add_selection_to_archive)
         self.context_actions["advanced_security"].triggered.connect(self.show_advanced_security)
         self.context_actions["pin"].triggered.connect(self.toggle_quick_access_pin)
         self.context_actions["properties"].triggered.connect(self.show_context_properties)

@@ -41,6 +41,7 @@ def _default_config_data():
         "media_close_on_unmount": False,
         "media_detect_and_suggest": True,
         "bulk_rename_command": "",
+        "archive_tool": "ark",
         "icon_caption_fields": ["none", "size", "date_modified"],
         "date_display_format": "yyyy-MM-dd HH:mm",
         "date_use_monospace": True,
@@ -451,6 +452,20 @@ class Config:
             enabled_extensions.append(extension_id)
         elif not enabled and extension_id in enabled_extensions:
             enabled_extensions.remove(extension_id)
+        self.save()
+
+    @property
+    def archive_tool(self) -> str:
+        tool = str(self.data.setdefault("archive_tool", "ark") or "").strip().lower()
+        if tool not in {"ark", "peazip"}:
+            return "ark"
+        return tool
+
+    def set_archive_tool(self, tool: str):
+        tool = str(tool or "").strip().lower()
+        if tool not in {"ark", "peazip"}:
+            return
+        self.data["archive_tool"] = tool
         self.save()
 
     @property

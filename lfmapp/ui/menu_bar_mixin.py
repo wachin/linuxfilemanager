@@ -167,7 +167,7 @@ class MenuBarMixin:
         self._add_share_with_menu(self.share_menu, target)
         self.share_menu.addSeparator()
         self._add_action(self.share_menu, "Print", self.print_selected)
-        self._add_action(self.share_menu, "Compress to ZIP", self.compress_selection_to_zip)
+        self._add_action(self.share_menu, "Add to Archive...", self.add_selection_to_archive)
         self.share_menu.addSeparator()
         self._add_action(self.share_menu, "Advanced Security...", self.show_advanced_security)
 
@@ -182,7 +182,7 @@ class MenuBarMixin:
         file_menu.addSeparator()
         self._add_action(file_menu, "Print", self.print_selected)
         file_menu.addSeparator()
-        self._add_action(file_menu, "Compress Selection to ZIP", self.compress_selection_to_zip)
+        self._add_action(file_menu, "Add Selection to Archive...", self.add_selection_to_archive)
         file_menu.addSeparator()
         self.recent_files_menu = file_menu.addMenu(self.tr("Recent Files"))
         self.rebuild_recent_files_menu()

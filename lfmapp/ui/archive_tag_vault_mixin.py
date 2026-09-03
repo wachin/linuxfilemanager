@@ -10,14 +10,9 @@ from pathlib import Path
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QKeySequence
-from PyQt6.QtWidgets import QDialog, QInputDialog, QLineEdit, QMessageBox
+from PyQt6.QtWidgets import QDialog, QInputDialog, QLineEdit, QMenu, QMessageBox
 
-from lfmapp.services import (
-    CompressThread,
-    ExtractThread,
-    FileOperations,
-    is_archive,
-)
+from lfmapp.services import FileOperations, is_archive
 from lfmapp.ui.about_dialog import AboutDialog
 from lfmapp.ui.icons import app_icon
 from lfmapp.ui.tag_management_dialog import TagManagementDialog
@@ -26,50 +21,92 @@ from lfmapp.utils.open_with import send_email_with_attachments
 
 
 class ArchiveTagVaultMixin:
-    # ─── Archive Extraction ────────────────────────────────────
+    # ─── Archive tool delegation (ROADMAP 10.1) ────────────────
+    #
+    # Compression and extraction are delegated to the external archiver
+    # selected in Preferences (`archive_tool`: "ark" | "peazip"). The
+    # internal extractor stays available only as code, never on a menu.
+
+    def _archive_tool_available(self) -> bool:
+        """Check the active tool; warn with an install hint when missing."""
+        service = self.archive_service
+        if service.is_available():
+            return True
+        QMessageBox.information(
+            self,
+            self.tr("Archive tool not available"),
+            self.tr(
+                "The selected archive tool ({tool}) is not installed.\n"
+                "Install it with:\n{hint}\n\n"
+                "You can choose another tool in Tools > Preferences..."
+            ).format(tool=service.tool_id, hint=service.install_hint),
+        )
+        return False
 
     def extract_archive(self, path: Path):
-        """Extract archive in its current directory."""
-        self._extract_thread = ExtractThread(path, path.parent)
-        self._register_worker(
-            self._extract_thread,
-            self.tr("Extracting {name}...").format(name=path.name),
-            finished_callback=self._on_extract_finished,
-        )
+        """Extract archive in its current directory via the active tool."""
+        if self._archive_tool_available():
+            if self.archive_service.extract_here(path):
+                self.statusBar().showMessage(
+                    self.tr("Extracting {name}...").format(name=path.name), 3000
+                )
+
+    def extract_archive_into_new_folder(self, path: Path):
+        """Extract archive into a new folder named after the archive."""
+        if self._archive_tool_available():
+            self.archive_service.extract_into_new_folder(path)
 
     def extract_archive_to(self, path: Path):
-        """Extract archive to a chosen directory."""
-        destination = FileOperations.choose_folder(self, self.tr("Extract to"), str(path.parent))
-        if not destination:
+        """Extract archive to a chosen directory via the active tool."""
+        if not self._archive_tool_available():
             return
-        self._extract_thread = ExtractThread(path, destination)
-        self._register_worker(
-            self._extract_thread,
-            self.tr("Extracting {name}...").format(name=path.name),
-            finished_callback=self._on_extract_finished,
-        )
+        destination = None
+        if self.archive_service.backend.needs_destination_arg():
+            destination = FileOperations.choose_folder(
+                self, self.tr("Extract to"), str(path.parent)
+            )
+            if not destination:
+                return
+        self.archive_service.extract_to(path, destination)
 
-    def _on_extract_finished(self, success, message):
-        if success:
-            self.statusBar().showMessage(message, 5000)
-            self.refresh_view()
-        else:
-            QMessageBox.critical(
+    def open_archive_with_tool(self, path: Path):
+        """Open the archive in the active external tool."""
+        if self._archive_tool_available():
+            self.archive_service.open_archive(path)
+
+    def test_archive_integrity(self, path: Path):
+        """Ask the active tool to verify the archive (when supported)."""
+        if not self._archive_tool_available():
+            return
+        if not self.archive_service.test_archive(path):
+            QMessageBox.information(
                 self,
-                self.tr("Extraction Error"),
-                self.tr("Extraction failed:\n{message}").format(message=message),
+                self.tr("Archive integrity"),
+                self.tr("The selected archive tool does not support integrity tests."),
             )
 
-    # ─── Archive Compression ───────────────────────────────────
+    def add_to_archive(self, paths: list[Path]):
+        """Interactive 'add to archive…' handled by the active tool."""
+        paths = [Path(p) for p in paths if Path(p).exists()]
+        if not paths:
+            QMessageBox.information(
+                self,
+                self.tr("Add to archive"),
+                self.tr("Select one or more items to compress."),
+            )
+            return
+        if self._archive_tool_available():
+            self.archive_service.create_archive(paths)
 
     def compress_to_zip(self, path: Path):
-        """Compress a file or directory to a ZIP archive."""
+        """Quick-add a file or folder into a new ZIP via the active tool."""
         if not path or not path.exists():
             return
-        self._compress_paths_to_zip([path], path.parent, f"{path.name}.zip", path.name)
+        if self._archive_tool_available():
+            self.archive_service.quick_add([path], fmt="zip")
 
     def compress_selection_to_zip(self):
-        """Compress selected files/folders to a single ZIP archive."""
+        """Quick-add the current selection into a new ZIP via the active tool."""
         paths = [path for path in self.workspace.selected_paths() if path.exists()]
         if not paths:
             QMessageBox.information(
@@ -78,45 +115,74 @@ class ArchiveTagVaultMixin:
                 self.tr("Select one or more items to compress."),
             )
             return
-        current = self.workspace.current_path() or paths[0].parent
-        if len(paths) == 1:
-            default_name = f"{paths[0].name}.zip"
-            label = paths[0].name
-        else:
-            default_name = f"{current.name or 'archive'}.zip"
-            label = self.tr("{count} item(s)").format(count=len(paths))
-        self._compress_paths_to_zip(paths, current, default_name, label)
+        if self._archive_tool_available():
+            self.archive_service.quick_add(paths, fmt="zip")
 
-    def _compress_paths_to_zip(self, paths: list[Path], destination_dir: Path, default_name: str, label: str):
-        # Ask user for confirmation/destination
-        dest, ok = QInputDialog.getText(
-            self,
-            self.tr("Compress to ZIP"),
-            self.tr("Archive filename:"),
-            text=default_name,
-        )
-        if not ok or not dest.strip():
-            return
+    def add_selection_to_archive(self):
+        """Interactive 'Add to archive…' for the current selection."""
+        paths = [path for path in self.workspace.selected_paths() if path.exists()]
+        self.add_to_archive(paths)
 
-        destination = destination_dir / dest.strip()
-        self.statusBar().showMessage(self.tr("Compressing {label}...").format(label=label), 0)
-        self._compress_thread = CompressThread(paths, destination)
-        self._register_worker(
-            self._compress_thread,
-            self.tr("Compressing {label}...").format(label=label),
-            finished_callback=self._on_compress_finished,
-        )
+    # ─── Archive submenu for context menus ─────────────────────
 
-    def _on_compress_finished(self, success, message):
-        if success:
-            self.statusBar().showMessage(message, 5000)
-            self.refresh_view()
-        else:
-            QMessageBox.critical(
-                self,
-                self.tr("Compression Error"),
-                self.tr("Could not create archive:\n{message}").format(message=message),
+    def _archive_tool_menu(self, parent, paths: list[Path]) -> QMenu:
+        """Build the submenu of the active archive tool for ``paths``."""
+        service = self.archive_service
+        backend = service.backend
+        title = backend.label or self.tr("Archives")
+        menu = QMenu(title, parent)
+        menu.setIcon(app_icon("package-x-generic", "ark", "peazip"))
+
+        archives = [p for p in paths if p.is_file() and is_archive(p)]
+        if not service.is_available():
+            notice = menu.addAction(
+                self.tr("{tool} is not installed ({hint})").format(
+                    tool=backend.label, hint=service.install_hint
+                )
             )
+            notice.setEnabled(False)
+            return menu
+
+        if len(archives) == 1:
+            archive = archives[0]
+            menu.addAction(
+                app_icon("package-x-generic", "archive-extract"),
+                self.tr("Extract Here"),
+                lambda: self.extract_archive(archive),
+            )
+            menu.addAction(
+                self.tr("Extract Into New Folder"),
+                lambda: self.extract_archive_into_new_folder(archive),
+            )
+            menu.addAction(
+                self.tr("Extract to..."),
+                lambda: self.extract_archive_to(archive),
+            )
+            menu.addAction(
+                self.tr("Open with {tool}").format(tool=backend.label),
+                lambda: self.open_archive_with_tool(archive),
+            )
+            test_command = backend.test_command(archive)
+            if test_command is not None:
+                menu.addAction(
+                    self.tr("Check Integrity"),
+                    lambda: self.test_archive_integrity(archive),
+                )
+            menu.addSeparator()
+
+        menu.addAction(
+            self.tr("Add to Archive..."),
+            lambda: self.add_to_archive(paths),
+        )
+        menu.addAction(
+            self.tr("Add to ZIP"),
+            lambda: (
+                self.archive_service.quick_add(paths, fmt="zip")
+                if self._archive_tool_available()
+                else None
+            ),
+        )
+        return menu
 
     # ─── Tag Operations ────────────────────────────────────────
 

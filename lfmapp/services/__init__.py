@@ -20,6 +20,11 @@ from .extractor_service import (
     ExtractThread,
     CompressThread,
 )
+from .archive_tool_service import (
+    ArchiveToolService,
+    ArkBackend,
+    PeaZipBackend,
+)
 from .tag_service import TagService
 from .network_service import discover_network_locations
 from .textindex_service import TextIndexService
@@ -55,6 +60,9 @@ __all__ = [
     "ExtractThread",
     "create_zip",
     "CompressThread",
+    "ArchiveToolService",
+    "ArkBackend",
+    "PeaZipBackend",
     "TagService",
     "discover_network_locations",
     "TextIndexService",

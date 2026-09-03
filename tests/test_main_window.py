@@ -50,7 +50,7 @@ class MainWindowMenuTests(unittest.TestCase):
                 self.assertIn("Send to Desktop", actions)
                 self.assertIn("Send by Email", actions)
                 self.assertIn("Print", actions)
-                self.assertIn("Compress to ZIP", actions)
+                self.assertIn("Add to Archive...", actions)
                 self.assertIn("Advanced Security...", actions)
                 self.assertIn("Share with", actions)
             finally:
