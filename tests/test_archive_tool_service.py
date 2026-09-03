@@ -147,14 +147,21 @@ class ArchiveToolServiceTests(unittest.TestCase):
 
     def test_archive_tool_config_property_and_persistence(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            config = self._config_with_tool(tmpdir)
-            self.assertEqual(config.archive_tool, "ark")
-            config.set_archive_tool("peazip")
-            self.assertEqual(config.archive_tool, "peazip")
-            reloaded = Config()
-            self.assertEqual(reloaded.archive_tool, "peazip")
-            config.set_archive_tool("not-a-tool")
-            self.assertEqual(config.archive_tool, "peazip")
+            old_dir = config_module.CONFIG_DIR
+            old_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir)
+            config_module.CONFIG_FILE = Path(tmpdir) / "config.json"
+            try:
+                config = Config()
+                self.assertEqual(config.archive_tool, "ark")
+                config.set_archive_tool("peazip")
+                self.assertEqual(config.archive_tool, "peazip")
+                self.assertEqual(Config().archive_tool, "peazip")
+                config.set_archive_tool("not-a-tool")
+                self.assertEqual(config.archive_tool, "peazip")
+            finally:
+                config_module.CONFIG_DIR = old_dir
+                config_module.CONFIG_FILE = old_file
 
     def test_launcher_receives_command_and_cwd(self):
         with tempfile.TemporaryDirectory() as tmpdir:

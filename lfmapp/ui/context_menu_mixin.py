@@ -184,6 +184,7 @@ class ContextMenuMixin:
             menu.addAction(self.tr("Copy to..."), self.copy_selected_to)
         if self._context_entry_enabled("selection", "move_to") and self.config.data.get("move_copy_menu_show_bookmarks", True):
             menu.addAction(self.tr("Move to..."), self.move_selected_to)
+        self._add_ultracopier_context_actions(menu)
         menu.addSeparator()
 
         send_to_menu = menu.addMenu(self.tr("Send to"))
@@ -249,6 +250,7 @@ class ContextMenuMixin:
             menu.addAction(self.tr("Copy to..."), self.copy_selected_to)
         if self._context_entry_enabled("selection", "move_to") and self.config.data.get("move_copy_menu_show_bookmarks", True):
             menu.addAction(self.tr("Move to..."), self.move_selected_to)
+        self._add_ultracopier_context_actions(menu)
         menu.addSeparator()
 
         send_to_menu = menu.addMenu(self.tr("Send to"))
@@ -318,6 +320,20 @@ class ContextMenuMixin:
         menu.addAction(self.tr("Refresh"), self.refresh_view)
         if self._context_entry_enabled("background", "properties"):
             menu.addAction(app_icon("document-properties", "settings"), self.tr("Properties"), self.show_folder_properties)
+
+    def _add_ultracopier_context_actions(self, menu: QMenu):
+        """Explicit Ultracopier actions, available regardless of the preference."""
+        if not self.copy_tool_service.ultracopier_available():
+            return
+        menu.addAction(
+            app_icon("edit-copy"),
+            self.tr("Copy with Ultracopier..."),
+            self.copy_selection_with_ultracopier,
+        )
+        menu.addAction(
+            self.tr("Move with Ultracopier..."),
+            self.move_selection_with_ultracopier,
+        )
 
     def _add_share_with_menu(self, menu: QMenu, path: Path):
         """Add a dynamic Share with submenu for a file or folder."""

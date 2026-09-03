@@ -42,6 +42,7 @@ def _default_config_data():
         "media_detect_and_suggest": True,
         "bulk_rename_command": "",
         "archive_tool": "ark",
+        "copy_tool": "native",
         "icon_caption_fields": ["none", "size", "date_modified"],
         "date_display_format": "yyyy-MM-dd HH:mm",
         "date_use_monospace": True,
@@ -466,6 +467,20 @@ class Config:
         if tool not in {"ark", "peazip"}:
             return
         self.data["archive_tool"] = tool
+        self.save()
+
+    @property
+    def copy_tool(self) -> str:
+        tool = str(self.data.setdefault("copy_tool", "native") or "").strip().lower()
+        if tool not in {"native", "ultracopier"}:
+            return "native"
+        return tool
+
+    def set_copy_tool(self, tool: str):
+        tool = str(tool or "").strip().lower()
+        if tool not in {"native", "ultracopier"}:
+            return
+        self.data["copy_tool"] = tool
         self.save()
 
     @property

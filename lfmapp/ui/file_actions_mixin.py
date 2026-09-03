@@ -304,6 +304,16 @@ class FileActionsMixin:
         sources = [src for src in self._clipboard_paths if src.exists()]
         if not sources:
             return
+
+        # Optional Ultracopier delegation (ROADMAP 10.2): Ultracopier manages
+        # its own queue/collisions, so no workers/undo are recorded here.
+        if self.copy_tool_service.delegate:
+            mode = "copy" if self._clipboard_mode == "copy" else "move"
+            if self._ultracopier_transfer(mode, sources, destination) and mode == "move":
+                self._clipboard_paths = []
+                self._clipboard_mode = None
+            return
+
         action_label = self.tr("Copy") if self._clipboard_mode == "copy" else self.tr("Move")
         batch_id = self.create_operation_batch(
             self.tr("{action} {count} item(s)").format(action=action_label, count=len(sources)),

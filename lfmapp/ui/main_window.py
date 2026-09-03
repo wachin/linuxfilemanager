@@ -27,7 +27,7 @@ from lfmapp.services import (
     OperationHistory,
     TerminalService,
 )
-from lfmapp.services import ArchiveToolService
+from lfmapp.services import ArchiveToolService, CopyToolService
 from lfmapp.services.textindex_service import TextIndexService
 from lfmapp.ui.icons import application_icon
 from lfmapp.ui.preview_panel import PreviewPanel
@@ -57,6 +57,7 @@ class MainWindow(PaletteActionsMixin, ContextMenuMixin, FileActionsMixin, Transf
         self.setWindowIcon(application_icon(self.config))
         self.terminal_service = TerminalService(self.config)
         self.archive_service = ArchiveToolService(self.config)
+        self.copy_tool_service = CopyToolService(self.config)
         self.settings_controller = SettingsController(self)
         self._apply_window_size_from_config()
         self.bookmark_service = BookmarkService(

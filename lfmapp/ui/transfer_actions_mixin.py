@@ -205,9 +205,65 @@ class TransferActionsMixin:
             )
         self.refresh_view()
 
+    # ─── Ultracopier delegation (ROADMAP 10.2) ─────────────────
+    #
+    # The native engine is the default; when `copy_tool="ultracopier"` the
+    # transfer is handed to Ultracopier, which manages its own queue,
+    # pause/resume, speed limit and collisions.
+
+    def _ultracopier_transfer(self, mode: str, paths: list[Path], destination=None) -> bool:
+        """Hand a copy/move to Ultracopier. Returns True when launched."""
+        paths = [path for path in paths if Path(path).exists()]
+        if not paths:
+            return False
+        if not self.copy_tool_service.ultracopier_available():
+            QMessageBox.information(
+                self,
+                self.tr("Ultracopier not available"),
+                self.tr(
+                    "Ultracopier is not installed.\nInstall it with:\n{hint}\n\n"
+                    "You can change the copy tool in Tools > Preferences..."
+                ).format(hint=self.copy_tool_service.backend.install_hint),
+            )
+            return False
+        verb = self.tr("Copying") if mode == "copy" else self.tr("Moving")
+        if mode == "copy":
+            launched = self.copy_tool_service.copy(paths, destination)
+        else:
+            launched = self.copy_tool_service.move(paths, destination)
+        if launched:
+            self.statusBar().showMessage(
+                self.tr("{verb} {count} item(s) with Ultracopier...").format(
+                    verb=verb, count=len(paths)
+                ),
+                5000,
+            )
+        else:
+            QMessageBox.critical(
+                self,
+                self.tr("Ultracopier Error"),
+                self.tr("Could not start Ultracopier for the requested transfer."),
+            )
+        return launched
+
+    def copy_selection_with_ultracopier(self):
+        """Explicit always-available action: Ultracopier asks the destination."""
+        paths = [path for path in self.workspace.selected_paths() if path.exists()]
+        self._ultracopier_transfer("copy", paths, destination=None)
+
+    def move_selection_with_ultracopier(self):
+        paths = [path for path in self.workspace.selected_paths() if path.exists()]
+        if self._ultracopier_transfer("move", paths, destination=None):
+            if self._clipboard_mode == "cut":
+                self._clipboard_paths = []
+                self._clipboard_mode = None
+
     def copy_selected_to(self):
         paths = [path for path in self.workspace.selected_paths() if path.exists()]
         if not paths:
+            return
+        if self.copy_tool_service.delegate:
+            self._ultracopier_transfer("copy", paths, destination=None)
             return
         destination = FileOperations.choose_folder(self, self.tr("Copy to"), str(paths[0].parent))
         if not destination:
@@ -241,6 +297,9 @@ class TransferActionsMixin:
     def move_selected_to(self):
         paths = [path for path in self.workspace.selected_paths() if path.exists()]
         if not paths:
+            return
+        if self.copy_tool_service.delegate:
+            self._ultracopier_transfer("move", paths, destination=None)
             return
         destination = FileOperations.choose_folder(self, self.tr("Move to"), str(paths[0].parent))
         if not destination:

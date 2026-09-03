@@ -25,6 +25,7 @@ from .archive_tool_service import (
     ArkBackend,
     PeaZipBackend,
 )
+from .copy_tool_service import CopyToolService, UltracopierBackend
 from .tag_service import TagService
 from .network_service import discover_network_locations
 from .textindex_service import TextIndexService
@@ -63,6 +64,8 @@ __all__ = [
     "ArchiveToolService",
     "ArkBackend",
     "PeaZipBackend",
+    "CopyToolService",
+    "UltracopierBackend",
     "TagService",
     "discover_network_locations",
     "TextIndexService",

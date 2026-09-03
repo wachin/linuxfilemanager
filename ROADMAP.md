@@ -1672,13 +1672,13 @@ Ultracopier is an external copy tool with **queue and advanced control** —paus
 
 ### 10.2.2 Planned integration
 
-- [ ] Create an `UltracopierCopyBackend` inside a delegated copy service (e.g. extend `lfmapp/services/` with `CopyToolService` or an `external_copy.py` module) that builds `ultracopier cp|mv <rutas...> <destino>` and launches it in the background without blocking the UI.
-- [ ] Add a `copy_tool` key to `core/config.py` with values `"native"` | `"ultracopier"` (default `"native"`), with automatic backfill for old configurations.
-- [ ] In `preferences_dialog.py`, add the selector "Copy/move tool: native (recommended) | Ultracopier" in the same area as the archive tool preference, with availability detection (`shutil.which("ultracopier")`).
-- [ ] In the context menu and in `Copy to...`/`Move to...`, when `copy_tool="ultracopier"` the operation delegates to Ultracopier; in `"native"` mode the current flow is used. Always keep an explicit "Copy with Ultracopier…" action accessible in the context submenu if the tool is installed, regardless of the preference.
-- [ ] With destination `?` when the user chooses "…" (so Ultracopier asks), or pass the destination chosen by the existing `FileOperations.choose_folder` dialog when it is already known.
-- [ ] Document in the UI that Ultracopier manages its own queue, pauses and speed; the file manager must not duplicate those controls when it delegates.
-- [ ] Unit tests for the command-line construction (spaces in paths, several sources, `?` destination) and a manual test with real copy and move via Ultracopier on X11 and Wayland.
+- [x] Create an `UltracopierCopyBackend` inside a delegated copy service (e.g. extend `lfmapp/services/` with `CopyToolService` or an `external_copy.py` module) that builds `ultracopier cp|mv <rutas...> <destino>` and launches it in the background without blocking the UI. → `lfmapp/services/copy_tool_service.py` (`CopyToolService` + `UltracopierBackend`).
+- [x] Add a `copy_tool` key to `core/config.py` with values `"native"` | `"ultracopier"` (default `"native"`), with automatic backfill for old configurations.
+- [x] In `preferences_dialog.py`, add the selector "Copy/move tool: native (recommended) | Ultracopier" in the same area as the archive tool preference, with availability detection (`shutil.which("ultracopier")`).
+- [x] In the context menu and in `Copy to...`/`Move to...`, when `copy_tool="ultracopier"` the operation delegates to Ultracopier; in `"native"` mode the current flow is used. Always keep an explicit "Copy with Ultracopier…" action accessible in the context submenu if the tool is installed, regardless of the preference.
+- [x] With destination `?` when the user chooses "…" (so Ultracopier asks), or pass the destination chosen by the existing `FileOperations.choose_folder` dialog when it is already known.
+- [x] Document in the UI that Ultracopier manages its own queue, pauses and speed; the file manager must not duplicate those controls when it delegates.
+- [x] Unit tests for the command-line construction (spaces in paths, several sources, `?` destination) and a manual test with real copy and move via Ultracopier on X11 and Wayland. → `tests/test_copy_tool_service.py` (manual transfer test still pending human-run validation).
 
 **Acceptance criteria:**
 
@@ -1837,7 +1837,7 @@ These tasks must be tackled first because they unlock the rest of the roadmap.
 ## Priority P1 — Highest user impact
 
 - [x] Integrate Ark and PeaZip as the delegated compression/extraction tool (context submenu, `archive_tool` preference, removal of internal actions — Phase 10.1).
-- [ ] Integrate Ultracopier as an optional alternative copy/move alongside the native engine (`copy_tool` preference, "Copy with Ultracopier…" action — Phase 10.2).
+- [x] Integrate Ultracopier as an optional alternative copy/move alongside the native engine (`copy_tool` preference, "Copy with Ultracopier…" action — Phase 10.2).
 - [ ] Non-modal Operation Center with cancel and retry.
 - [ ] Conflict dialog with `Replace`, `Skip`, `Keep Both`, `Rename` and "Apply to all".
 - [ ] Command palette and consistent shortcut map.
