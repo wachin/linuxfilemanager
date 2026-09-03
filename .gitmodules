@@ -1,0 +1,3 @@
+[submodule "third-party/thunar"]
+	path = third-party/thunar
+	url = https://github.com/xfce-mirror/thunar
