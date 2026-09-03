@@ -29,11 +29,27 @@ class ConflictCapableWorker(QThread):
     def __init__(self, parent=None, conflict_resolver=None):
         super().__init__(parent)
         self._running = True
+        self._paused = False
         self.conflict_resolver = conflict_resolver
         self.resolutions: list[tuple[str, str]] = []  # (resolution, path)
 
     def stop(self):
+        self._paused = False
         self._running = False
+
+    def pause(self):
+        self._paused = True
+
+    def resume(self):
+        self._paused = False
+
+    @property
+    def is_paused(self) -> bool:
+        return self._paused
+
+    def _wait_if_paused(self):
+        while self._paused and self._running:
+            self.msleep(50)
 
     def _resolve_conflict(self, source: Path, dest: Path) -> Path | None:
         """Return the target to use, or None to skip; None also on cancel."""
@@ -111,6 +127,7 @@ class CopyWorker(ConflictCapableWorker):
         for i, item in enumerate(items):
             if not self._running:
                 break
+            self._wait_if_paused()
             dest_item = self._resolve_conflict(item, dst / item.name)
             if dest_item is None:
                 continue
@@ -200,6 +217,7 @@ class MoveWorker(ConflictCapableWorker):
             while True:
                 if not self._running:
                     break
+                self._wait_if_paused()
                 buf = fsrc.read(bufsize)
                 if not buf:
                     break
@@ -223,6 +241,7 @@ class MoveWorker(ConflictCapableWorker):
         for i, item in enumerate(items):
             if not self._running:
                 break
+            self._wait_if_paused()
             dest_item = self._resolve_conflict(item, dst / item.name)
             if dest_item is None:
                 if self._running:

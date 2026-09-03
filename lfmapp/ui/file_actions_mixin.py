@@ -338,6 +338,7 @@ class FileActionsMixin:
                         self.tr("Paste Error"),
                         batch,
                     ),
+                    retry_factory=lambda p=src, d=destination, r=conflict_resolver: CopyWorker(p, d, conflict_resolver=r),
                 )
             elif self._clipboard_mode == "cut":
                 self.statusBar().showMessage(self.tr("Moving {name}...").format(name=src.name), 0)
@@ -354,6 +355,7 @@ class FileActionsMixin:
                         self.tr("Paste Error"),
                         batch,
                     ),
+                    retry_factory=lambda p=src, d=destination, r=conflict_resolver: MoveWorker(p, d, conflict_resolver=r),
                 )
             else:
                 self.finish_operation_batch_item(batch_id)

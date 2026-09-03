@@ -1,16 +1,15 @@
-"""Operation center (workers & progress) extracted from MainWindow (Fase 1.1).
+"""Non-modal Operation Center (workers & progress) (ROADMAP Phase 2.2).
 
-Pure mixin: methods keep ``self`` = MainWindow, so moving them here changes
-no behaviour; MainWindow inherits this mixin to keep one class per concern.
+Replaces the old modal progress dialog with a collapsible panel at the
+bottom of the main window: the user keeps navigating while transfers run,
+closing/hiding the panel never cancels operations, and each job offers
+pause/resume/cancel plus retry for failed ones.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -21,70 +20,98 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from lfmapp.ui.icons import app_icon
+
 
 class OperationCenterMixin:
-    def _show_progress(self, title: str, label: str):
-        # Create a custom dialog with per-worker rows
-        if self._progress_dialog is None:
-            dlg = QDialog(self)
-            dlg.setWindowTitle(title)
-            dlg.setModal(True)
-            vlayout = QVBoxLayout(dlg)
-            self._progress_main_label = QLabel(label)
-            vlayout.addWidget(self._progress_main_label)
+    # ─── Panel construction ────────────────────────────────────
 
-            scroll = QScrollArea(dlg)
-            scroll.setWidgetResizable(True)
-            container = QWidget()
-            self._progress_container_layout = QVBoxLayout(container)
-            self._progress_container_layout.setSpacing(6)
-            self._progress_container_layout.setContentsMargins(0, 0, 0, 0)
-            scroll.setWidget(container)
-            vlayout.addWidget(scroll)
+    def build_operation_center_panel(self, central_layout):
+        """Create the bottom operations panel (hidden until a job starts)."""
+        panel = QFrame(self)
+        panel.setObjectName("operationCenterPanel")
+        panel.setFrameShape(QFrame.Shape.StyledPanel)
+        panel_layout = QVBoxLayout(panel)
+        panel_layout.setContentsMargins(6, 4, 6, 4)
+        panel_layout.setSpacing(4)
 
-            # Cancel button
-            btn = QPushButton(self.tr("Cancel"))
-            btn.clicked.connect(self._on_progress_canceled)
-            vlayout.addWidget(btn)
+        header = QHBoxLayout()
+        self._ops_summary_label = QLabel(self.tr("Operations"), panel)
+        header.addWidget(self._ops_summary_label, 1)
+        self._ops_clear_button = QPushButton(self.tr("Clear completed"), panel)
+        self._ops_clear_button.clicked.connect(self.clear_completed_operations)
+        header.addWidget(self._ops_clear_button)
+        self._ops_cancel_all_button = QPushButton(self.tr("Cancel all"), panel)
+        self._ops_cancel_all_button.clicked.connect(self.cancel_all_operations)
+        header.addWidget(self._ops_cancel_all_button)
+        self._ops_hide_button = QPushButton(self.tr("Hide panel"), panel)
+        self._ops_hide_button.clicked.connect(lambda: self.hide_operation_center())
+        header.addWidget(self._ops_hide_button)
+        panel_layout.addLayout(header)
 
-            self._progress_dialog = dlg
-            dlg.setWindowFlags(dlg.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
-            dlg.setStyleSheet(
-                "QDialog { background: #f9f9f9; }"
-                "QLabel { font-weight: bold; padding: 4px; }"
-                "QProgressBar { min-height: 18px; }"
-                "QPushButton { min-width: 80px; padding: 4px; }"
-            )
-            dlg.resize(520, 320)
-        # Update label and show
-        try:
-            self._progress_main_label.setText(label)
-        except Exception:
-            pass
-        self._progress_dialog.show()
+        scroll = QScrollArea(panel)
+        scroll.setWidgetResizable(True)
+        scroll.setMaximumHeight(180)
+        container = QWidget()
+        self._ops_rows_layout = QVBoxLayout(container)
+        self._ops_rows_layout.setContentsMargins(0, 0, 0, 0)
+        self._ops_rows_layout.setSpacing(4)
+        self._ops_rows_layout.addStretch(1)
+        scroll.setWidget(container)
+        panel_layout.addWidget(scroll)
 
-    def _register_worker(self, worker, label: str, finished_callback=None):
-        """Register a worker for aggregated progress and queue it.
+        central_layout.addWidget(panel)
+        panel.hide()
+        self.operation_center_panel = panel
 
-        finished_callback will be invoked after internal cleanup with signature (success, message).
+    def build_jobs_status_button(self):
+        """Small jobs indicator in the status bar; toggles the panel."""
+        button = QPushButton("")
+        button.setFlat(True)
+        button.setVisible(False)
+        button.clicked.connect(self.toggle_operation_center)
+        return button
+
+    def toggle_operation_center(self):
+        panel = getattr(self, "operation_center_panel", None)
+        if panel is None:
+            return
+        panel.setVisible(not panel.isVisible())
+
+    def hide_operation_center(self):
+        """Hiding never cancels: jobs keep running in the background."""
+        panel = getattr(self, "operation_center_panel", None)
+        if panel is not None:
+            panel.hide()
+
+    def show_operation_center(self):
+        panel = getattr(self, "operation_center_panel", None)
+        if panel is not None:
+            panel.show()
+
+    # ─── Job registration ──────────────────────────────────────
+
+    def _register_worker(self, worker, label: str, finished_callback=None, retry_factory=None):
+        """Register a worker, draw its row and queue it.
+
+        ``retry_factory`` (optional callable returning a new equivalent
+        worker) enables a Retry button when the job fails.
         """
         self._worker_labels[worker] = label
         self._worker_progress[worker] = 0
-        self._batch_total += 1
+        self._job_states[worker] = "queued"
+        if retry_factory is not None:
+            self._retry_factories[worker] = retry_factory
 
         if hasattr(worker, "progress"):
             worker.progress.connect(lambda v, w=worker: self._on_worker_progress(w, v))
-
-        if hasattr(worker, "file_copied"):
-            try:
-                worker.file_copied.connect(lambda p, w=worker: self._on_worker_file_event(w, p))
-            except Exception:
-                pass
-        if hasattr(worker, "file_deleted"):
-            try:
-                worker.file_deleted.connect(lambda p, w=worker: self._on_worker_file_event(w, p))
-            except Exception:
-                pass
+        for signal_name in ("file_copied", "file_deleted"):
+            signal = getattr(worker, signal_name, None)
+            if signal is not None:
+                try:
+                    signal.connect(lambda p, w=worker: self._on_worker_file_event(w, p))
+                except Exception:
+                    pass
 
         def _on_finished(success, message, w=worker):
             self._on_worker_finished(w, success, message)
@@ -96,151 +123,192 @@ class OperationCenterMixin:
 
         worker.finished.connect(_on_finished)
 
-        self._show_progress(self.tr("Operation"), label)
-        try:
-            self._add_progress_row(worker, label)
-        except Exception:
-            pass
-        self._update_progress_label(label)
+        self._add_job_row(worker, label)
+        self.show_operation_center()
+        self._update_jobs_summary()
         self.statusBar().showMessage(self.tr("Queued: {label}").format(label=label), 3000)
         self._operation_queue.enqueue(worker)
+
+    def _add_job_row(self, worker, label: str):
+        row = QFrame()
+        row.setObjectName("operationRow")
+        layout = QHBoxLayout(row)
+        layout.setContentsMargins(2, 2, 2, 2)
+        name = QLabel(label, row)
+        bar = QProgressBar(row)
+        bar.setRange(0, 100)
+        bar.setValue(0)
+        bar.setMinimumWidth(140)
+        pause_button = QPushButton(app_icon("media-playback-pause", "media-playback-start"), "", row)
+        pause_button.setToolTip(self.tr("Pause"))
+        pause_button.setFlat(True)
+        pause_button.setFixedWidth(28)
+        pause_button.clicked.connect(lambda checked=False, w=worker: self._toggle_pause(w))
+        retry_button = QPushButton(app_icon("view-refresh", "edit-redo"), "", row)
+        retry_button.setToolTip(self.tr("Retry"))
+        retry_button.setFlat(True)
+        retry_button.setFixedWidth(28)
+        retry_button.setVisible(False)
+        retry_button.clicked.connect(lambda checked=False, w=worker: self._retry_job(w))
+        cancel_button = QPushButton(app_icon("process-stop", "dialog-cancel"), "", row)
+        cancel_button.setToolTip(self.tr("Cancel"))
+        cancel_button.setFlat(True)
+        cancel_button.setFixedWidth(28)
+        cancel_button.clicked.connect(lambda checked=False, w=worker: self._cancel_job(w))
+        layout.addWidget(name, 2)
+        layout.addWidget(bar, 3)
+        layout.addWidget(pause_button)
+        layout.addWidget(retry_button)
+        layout.addWidget(cancel_button)
+        self._ops_rows_layout.insertWidget(self._ops_rows_layout.count() - 1, row)
+        self._job_rows[worker] = (row, name, bar, pause_button, retry_button, cancel_button)
+
+    def _remove_job_row(self, worker):
+        row_pack = self._job_rows.pop(worker, None)
+        if not row_pack:
+            return
+        row = row_pack[0]
+        self._ops_rows_layout.removeWidget(row)
+        row.deleteLater()
+
+    # ─── Job control ───────────────────────────────────────────
+
+    def _toggle_pause(self, worker):
+        if not hasattr(worker, "pause"):
+            return
+        if getattr(worker, "is_paused", False):
+            worker.resume()
+            self._job_states[worker] = "running"
+        else:
+            worker.pause()
+            self._job_states[worker] = "paused"
+        self._refresh_job_row(worker)
+        self._update_jobs_summary()
+
+    def _cancel_job(self, worker):
+        self._operation_queue.cancel_worker(worker)
+        self._job_states[worker] = "cancelling"
+        self.statusBar().showMessage(self.tr("Cancelling {label}...").format(label=self._worker_labels.get(worker, "")), 3000)
+
+    def _retry_job(self, worker):
+        factory = self._retry_factories.pop(worker, None)
+        label = self._worker_labels.get(worker, self.tr("Operation"))
+        owned_by_row = worker in self._job_rows
+        if factory is None:
+            return
+        if owned_by_row:
+            self._remove_job_row(worker)
+        self._worker_labels.pop(worker, None)
+        self._worker_progress.pop(worker, None)
+        self._job_states.pop(worker, None)
+        new_worker = factory()
+        self._register_worker(new_worker, label, retry_factory=factory)
+
+    def cancel_all_operations(self):
+        for worker in list(self._job_states):
+            if self._job_states.get(worker) in {"queued", "running", "paused", "cancelling"}:
+                self._cancel_job(worker)
+        self.statusBar().showMessage(self.tr("Cancelling all operations..."), 3000)
+
+    def clear_completed_operations(self):
+        """Remove rows of finished jobs; keep queued/running/paused rows."""
+        for worker, state in list(self._job_states.items()):
+            if state not in {"queued", "running", "paused", "cancelling"}:
+                self._remove_job_row(worker)
+                del self._job_states[worker]
+                self._worker_labels.pop(worker, None)
+                self._worker_progress.pop(worker, None)
+                self._retry_factories.pop(worker, None)
+        self._update_jobs_summary()
+        if not self._job_states:
+            self.hide_operation_center()
+
+    # ─── Progress plumbing ─────────────────────────────────────
 
     def _on_queued_worker_started(self, worker):
         if worker not in self._active_workers:
             self._active_workers.append(worker)
         self.app_state.operation_started()
-        label = self._worker_labels.get(worker, self.tr("Operation"))
-        self.statusBar().showMessage(label, 0)
-        row = self._progress_rows.get(worker)
-        if row:
-            row[0].setText(self.tr("Running: {label}").format(label=label))
-        self._update_progress_label(label)
+        self._job_states[worker] = "running"
+        self._refresh_job_row(worker)
+        self._update_jobs_summary()
 
     def _on_worker_progress(self, worker, value: int):
-        # Update per-worker value and aggregate (average)
         self._worker_progress[worker] = int(value)
-        if self._progress_dialog is None:
-            return
-        if not self._worker_progress:
-            return
-        total = sum(self._worker_progress.values())
-        avg = int(total / len(self._worker_progress))
-        # Update aggregated UI (show percent)
-        self._update_progress_label(None, percent=avg)
-        # Update per-worker bar if present
-        try:
-            row = self._progress_rows.get(worker)
-            if row:
-                _, bar = row
-                bar.setValue(int(value))
-        except Exception:
-            pass
-
-    def _on_worker_finished(self, worker, success, message):
-        # Remove worker from tracking
-        if worker in self._active_workers:
-            try:
-                self._active_workers.remove(worker)
-            except ValueError:
-                pass
-        self.app_state.operation_finished()
-        if worker in self._worker_progress:
-            try:
-                del self._worker_progress[worker]
-            except KeyError:
-                pass
-        # Mark one completed for batch and update label
-        self._batch_done += 1
-        self._update_progress_label()
-        # Remove per-worker UI row
-        try:
-            self._remove_progress_row(worker)
-        except Exception:
-            pass
-        self._worker_labels.pop(worker, None)
-        # If no more active workers, close progress and reset counters
-        if not self._active_workers and self._operation_queue.pending_count == 0:
-            self._close_progress()
-
-    def _add_progress_row(self, worker, label: str):
-        """Add a labelled progress bar row for a worker."""
-        if not hasattr(self, "_progress_container_layout"):
-            return
-        frame = QFrame()
-        layout = QHBoxLayout(frame)
-        lbl = QLabel(label)
-        bar = QProgressBar()
-        if hasattr(worker, "progress"):
-            bar.setRange(0, 100)
-            bar.setValue(0)
-        else:
-            bar.setRange(0, 0)
-        layout.addWidget(lbl)
-        layout.addWidget(bar)
-        self._progress_container_layout.addWidget(frame)
-        self._progress_rows[worker] = (lbl, bar)
-
-    def _remove_progress_row(self, worker):
-        try:
-            row = self._progress_rows.pop(worker)
-            lbl, bar = row
-            widget = lbl.parent()
-            if widget is not None:
-                widget.setParent(None)
-        except Exception:
-            pass
-
-    def _on_progress_canceled(self):
-        self._operation_queue.stop_active()
-        for worker in self._operation_queue.cancel_pending():
-            self._worker_progress.pop(worker, None)
-            self._worker_labels.pop(worker, None)
-            self._batch_done += 1
-            try:
-                self._remove_progress_row(worker)
-            except Exception:
-                pass
-        self._update_progress_label(self.tr("Canceling operations..."))
-
-    def _update_progress_label(self, base_label: str | None = None, percent: int | None = None):
-        """Update the progress dialog label to include completed/total batch counts."""
-        if self._progress_dialog is None:
-            return
-        label = base_label or (getattr(self, "_progress_main_label", None).text() if getattr(self, "_progress_main_label", None) is not None else "")
-        # Normalize label (strip existing suffix like "(x/y)")
-        if "(" in label:
-            label = label.split("(", 1)[0].strip()
-        if self._batch_total > 0:
-            label = f"{label} ({self._batch_done}/{self._batch_total})"
-        # Append percent and current file if present
-        if percent is not None:
-            label = f"{label} {percent}%"
-        if self._current_file:
-            try:
-                short = Path(self._current_file).name
-                label = f"{label}: {short}"
-            except Exception:
-                pass
-        try:
-            self._progress_main_label.setText(label)
-        except Exception:
-            pass
+        row_pack = self._job_rows.get(worker)
+        if row_pack:
+            row_pack[2].setValue(int(value))
+        self._update_jobs_summary()
 
     def _on_worker_file_event(self, worker, path: str):
-        try:
-            self._current_file = path
-            self._update_progress_label()
-        except Exception:
-            pass
+        self._current_file = path
 
-    def _close_progress(self):
-        if self._progress_dialog is not None:
-            try:
-                self._progress_dialog.reset()
-            except Exception:
-                pass
-            self._progress_dialog = None
-        # Reset batch counters
-        self._batch_total = 0
-        self._batch_done = 0
-        self._worker_progress.clear()
+    def _on_worker_finished(self, worker, success, message):
+        try:
+            self._active_workers.remove(worker)
+        except ValueError:
+            pass
+        self.app_state.operation_finished()
+        self._worker_progress[worker] = 100 if success else self._worker_progress.get(worker, 0)
+        if self._job_states.get(worker) == "cancelling":
+            self._job_states[worker] = "cancelled"
+        else:
+            self._job_states[worker] = "completed" if success else "failed"
+        self._refresh_job_row(worker)
+        self._update_jobs_summary()
+        # Discreet completion/error notice
+        if self._job_states[worker] == "failed":
+            self.statusBar().showMessage(self.tr("Failed: {label}").format(label=self._worker_labels.get(worker, "")), 5000)
+        elif not self._active_workers and self._operation_queue.pending_count == 0:
+            self.statusBar().showMessage(self.tr("All operations completed"), 5000)
+
+    def _refresh_job_row(self, worker):
+        row_pack = self._job_rows.get(worker)
+        if not row_pack:
+            return
+        _row, name, bar, pause_button, retry_button, cancel_button = row_pack
+        state = self._job_states.get(worker, "queued")
+        label = self._worker_labels.get(worker, self.tr("Operation"))
+        state_text = {
+            "queued": self.tr("Queued"),
+            "running": self.tr("Running"),
+            "paused": self.tr("Paused"),
+            "cancelling": self.tr("Cancelling"),
+            "completed": self.tr("Completed"),
+            "failed": self.tr("Failed"),
+            "cancelled": self.tr("Cancelled"),
+        }.get(state, "")
+        name.setText(f"{label} — {state_text}")
+        pause_button.setVisible(state in {"running", "paused"})
+        pause_button.setToolTip(self.tr("Resume") if state == "paused" else self.tr("Pause"))
+        retry_button.setVisible(
+            state in {"failed", "cancelled"} and worker in self._retry_factories
+        )
+        cancel_button.setVisible(state in {"queued", "running", "paused"})
+        bar.setStyleSheet(
+            "QProgressBar::chunk { background-color: #d0743c; }" if state == "failed"
+            else ""
+        )
+
+    def _update_jobs_summary(self):
+        states = list(self._job_states.values())
+        active = sum(1 for s in states if s in {"queued", "running", "paused", "cancelling"})
+        done = sum(1 for s in states if s in {"completed", "failed", "cancelled"})
+        if self._worker_progress:
+            avg = int(sum(self._worker_progress.values()) / len(self._worker_progress))
+        else:
+            avg = 0
+        text = self.tr("Operations: {active} active, {done} finished").format(
+            active=active, done=done
+        )
+        if active:
+            text += self.tr(" — overall {percent}%").format(percent=avg)
+        self._ops_summary_label.setText(text)
+        button = getattr(self, "jobs_status_button", None)
+        if button is not None:
+            button.setVisible(bool(self._job_states))
+            button.setText(self.tr("Jobs {active}").format(active=active))
+
+    # Legacy kept-API compatibility shim (unused internally now).
+    def _show_progress(self, title: str, label: str):
+        self.show_operation_center()

@@ -71,6 +71,7 @@ class CentralWidgetStatusBarMixin:
         central_layout.addWidget(self.path_widget, 0)
         central_layout.addWidget(self.tabbar)
         central_layout.addWidget(self.splitter, 1)
+        self.build_operation_center_panel(central_layout)
         self.setCentralWidget(central)
 
     # ─── Status Bar ────────────────────────────────────────────
@@ -88,6 +89,8 @@ class CentralWidgetStatusBarMixin:
         )
 
         statusbar = self.statusBar()
+        self.jobs_status_button = self.build_jobs_status_button()
+        statusbar.addPermanentWidget(self.jobs_status_button)
         statusbar.addPermanentWidget(self.status_items, 1)
         statusbar.addPermanentWidget(self.status_selection, 1)
         statusbar.addPermanentWidget(self.status_space, 1)

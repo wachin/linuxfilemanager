@@ -45,6 +45,26 @@ class BackgroundOperationQueue(QObject):
             if hasattr(worker, "stop"):
                 worker.stop()
 
+    def cancel_worker(self, worker) -> bool:
+        """Cancel a single job: remove it from pending or stop it if active."""
+        if worker in self._pending:
+            try:
+                self._pending.remove(worker)
+            except ValueError:
+                return False
+            self._start_next()
+            return True
+        if worker in self._active and hasattr(worker, "stop"):
+            worker.stop()
+            return True
+        return False
+
+    def is_pending(self, worker) -> bool:
+        return worker in self._pending
+
+    def is_active(self, worker) -> bool:
+        return worker in self._active
+
     def _start_next(self) -> None:
         while self._pending and len(self._active) < self.max_concurrent:
             worker = self._pending.popleft()

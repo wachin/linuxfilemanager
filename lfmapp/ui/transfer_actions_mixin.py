@@ -292,6 +292,7 @@ class TransferActionsMixin:
                         self.tr("Copy Error"),
                         batch,
                     ),
+                    retry_factory=lambda p=path, d=destination, r=conflict_resolver: CopyWorker(p, d, conflict_resolver=r),
                 )
             except Exception as exc:
                 self.finish_operation_batch_item(batch_id)
@@ -301,7 +302,6 @@ class TransferActionsMixin:
                     self.tr("Could not copy:\n{error}").format(error=exc),
                 )
         self.statusBar().showMessage(self.tr("Copying {count} item(s)...").format(count=len(paths)), 0)
-
     def move_selected_to(self):
         paths = [path for path in self.workspace.selected_paths() if path.exists()]
         if not paths:
@@ -329,6 +329,7 @@ class TransferActionsMixin:
                         self.tr("Move Error"),
                         batch,
                     ),
+                    retry_factory=lambda p=path, d=destination, r=conflict_resolver: MoveWorker(p, d, conflict_resolver=r),
                 )
             except Exception as exc:
                 self.finish_operation_batch_item(batch_id)

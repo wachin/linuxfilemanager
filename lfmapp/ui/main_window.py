@@ -117,16 +117,14 @@ class MainWindow(PaletteActionsMixin, ContextMenuMixin, FileActionsMixin, Transf
         self.action_registry = ActionRegistry()
         self._registry_action_actions: dict[str, object] = {}
         self.recent_files_menu = None
-        self._progress_dialog = None
         # Track active background workers for aggregated progress
         self._active_workers = []
         self._worker_progress = {}
-        # Batch counters for aggregated completed/total display
-        self._batch_total = 0
-        self._batch_done = 0
+        # Non-modal Operation Center state (Phase 2.2)
+        self._job_states = {}
+        self._job_rows = {}
+        self._retry_factories = {}
         self._current_file = None
-        # Map worker -> UI row widgets
-        self._progress_rows = {}
         self._worker_labels = {}
         self.workspace.setDragEnabled(True)
         self.workspace.setAcceptDrops(True)
@@ -157,7 +155,6 @@ class MainWindow(PaletteActionsMixin, ContextMenuMixin, FileActionsMixin, Transf
         self.build_statusbar()
         self.update_view_persistence_indicator()
         self.setup_shortcuts()
-        self._progress_dialog = None
         self.apply_toolbar_preferences()
         self.apply_workspace_preferences()
         self.apply_title_preferences()
@@ -316,6 +313,27 @@ class MainWindow(PaletteActionsMixin, ContextMenuMixin, FileActionsMixin, Transf
         return self._vault_service
 
     def closeEvent(self, event):
+        # Coordinate exit with the operation queue (ROADMAP 2.2): never
+        # abandon half-done operations without an explicit user choice.
+        running = bool(self._active_workers) or self._operation_queue.pending_count > 0
+        if running:
+            from PyQt6.QtWidgets import QMessageBox
+
+            answer = QMessageBox.question(
+                self,
+                self.tr("Operations in progress"),
+                self.tr(
+                    "File operations are still running.\n"
+                    "Cancel them and close Linux File Manager?"
+                ),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                event.ignore()
+                return
+            self._operation_queue.stop_active()
+            self._operation_queue.cancel_pending()
         self._save_window_size_to_config()
         if self._tag_service is not None:
             self._tag_service.close()

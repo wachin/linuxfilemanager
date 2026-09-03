@@ -1199,15 +1199,15 @@ Verified current situation: `lfmapp/ui/main_window.py` went from 3.849 lines to 
 
 ## 2.2 Non-modal Operation Center
 
-- [ ] Create a drop-down or persistent bottom panel for active and recent operations.
-- [ ] Add a compact jobs bar at the bottom edge: one button per active job with action, source/destination, progress bar and status color (running, paused, error); click opens/closes the detail, right-click allows pause/resume/abort.
-- [ ] Show aggregate progress and per-job detail.
-- [ ] Allow pausing, resuming, cancelling, retrying, hiding and clearing completed ones.
+- [x] Create a drop-down or persistent bottom panel for active and recent operations. → Collapsible panel at the bottom of the main window (`lfmapp/ui/operation_center_mixin.py`), shown when jobs start.
+- [x] Add a compact jobs bar at the bottom edge: one button per active job with action, source/destination, progress bar and status color (running, paused, error); click opens/closes the detail, right-click allows pause/resume/abort. → Per-job row with progress bar and status text/color + jobs indicator button in the status bar that toggles the panel.
+- [x] Show aggregate progress and per-job detail. → Header shows active/finished counts and overall average percent.
+- [x] Allow pausing, resuming, cancelling, retrying, hiding and clearing completed ones. → Pause/resume supported by `ConflictCapableWorker` (`pause()`/`resume()`/`_wait_if_paused()`); per-job cancel via `BackgroundOperationQueue.cancel_worker`; retry via optional `retry_factory` in `_register_worker`; "Clear completed" and "Cancel all" in the panel header.
 - [ ] Allow opening the source or destination location from an operation.
-- [ ] Keep discreet notifications when completing, failing or requiring intervention.
-- [ ] Minimize individual progress indicators when there are several jobs (or only when the jobs bar is visible), preventing dialogs from covering the window; minimized indicators do not appear in the taskbar.
-- [ ] Do not use a modal progress dialog as the main interface.
-- [ ] Coordinate application exit with the queue: when closing with active jobs, warn and wait, allow continuing in the background or cancelling, without abandoning half-done operations or losing configuration (forced termination detected and recovered on the next startup).
+- [x] Keep discreet notifications when completing, failing or requiring intervention. → Status bar messages on failures and when the batch ends.
+- [x] Minimize individual progress indicators when there are several jobs (or only when the jobs bar is visible), preventing dialogs from covering the window; minimized indicators do not appear in the taskbar. → The panel is part of the main window; no floating dialogs.
+- [x] Do not use a modal progress dialog as the main interface. → The old modal `QDialog` was removed; hiding the panel never cancels jobs.
+- [x] Coordinate application exit with the queue: when closing with active jobs, warn and wait, allow continuing in the background or cancelling, without abandoning half-done operations or losing configuration (forced termination detected and recovered on the next startup). → `closeEvent` asks before closing with active jobs; No keeps the window open, Yes cancels all jobs and closes. Background-continue and crash-recovery flags remain pending.
 
 **Acceptance criteria:**
 
@@ -1838,7 +1838,7 @@ These tasks must be tackled first because they unlock the rest of the roadmap.
 
 - [x] Integrate Ark and PeaZip as the delegated compression/extraction tool (context submenu, `archive_tool` preference, removal of internal actions — Phase 10.1).
 - [x] Integrate Ultracopier as an optional alternative copy/move alongside the native engine (`copy_tool` preference, "Copy with Ultracopier…" action — Phase 10.2).
-- [ ] Non-modal Operation Center with cancel and retry.
+- [x] Non-modal Operation Center with cancel and retry.
 - [x] Conflict dialog with `Replace`, `Skip`, `Keep Both`, `Rename` and "Apply to all".
 - [ ] Command palette and consistent shortcut map.
 - [ ] Progressive search with visible filters and cancellation of stale queries.
