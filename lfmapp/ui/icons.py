@@ -68,6 +68,12 @@ _ADDITIONAL_ICON_NAMES: set[str] = {
     "archive-insert",
     "ark",
     "peazip",
+    "view-refresh",
+    "process-stop",
+    "dialog-cancel",
+    "media-playback-pause",
+    "media-playback-start",
+    "document-import",
 }
 
 

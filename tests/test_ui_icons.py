@@ -186,6 +186,21 @@ class IconResolutionTests(unittest.TestCase):
         candidates = self.icons._collect_icon_candidate_names()
         self.assertEqual(len(config._found) + len(config._misses), len(candidates))
 
+    def test_candidate_names_cover_operation_and_archive_icons(self):
+        """Regression: these names are used in the UI and must be included in
+        the one-time discovery so the persisted fallback cache covers them."""
+        candidates = set(self.icons._collect_icon_candidate_names())
+        for name in (
+            "view-refresh",
+            "process-stop",
+            "media-playback-pause",
+            "media-playback-start",
+            "archive-extract",
+            "archive-insert",
+            "package-x-generic",
+        ):
+            self.assertIn(name, candidates)
+
     def test_pending_icon_searches_reflects_unresolved_names_only(self):
         config = self._make_config()
         # All candidates known as misses -> nothing pending (no re-scan on start).

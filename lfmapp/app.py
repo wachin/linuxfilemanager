@@ -6,7 +6,12 @@ from PyQt6.QtWidgets import QApplication
 from lfmapp.core.app_data import ensure_app_data
 from lfmapp.core.config import Config
 from lfmapp.core.translator import load_translator
-from lfmapp.ui.icons import application_icon, initialize_icon_cache
+from lfmapp.ui.icons import (
+    application_icon,
+    discover_system_icons,
+    initialize_icon_cache,
+    pending_icon_searches,
+)
 from lfmapp.ui.main_window import MainWindow
 
 
@@ -36,6 +41,13 @@ def main(argv=None):
     # Nothing scans the icon theme trees during startup, so the window appears
     # immediately and later lookups are cheap and cached.
     initialize_icon_cache(config)
+
+    # Self-healing: if the persisted fallback cache is missing or incomplete
+    # (first run, deleted data folder, or an overwritten config), rebuild it
+    # once before showing the window. Later runs skip this entirely because
+    # icon_search_complete is persisted, so cold startup stays fast.
+    if not config.icon_search_complete or pending_icon_searches():
+        discover_system_icons(config)
 
     app.setWindowIcon(application_icon(config))
     window = MainWindow(config=config)
