@@ -1,0 +1,5 @@
+linux-file-manager (0.1.0-1) unstable; urgency=medium
+
+  * Initial Debian packaging.
+
+ -- linux-file-manager contributors <maintainers@example.invalid>  Wed, 20 May 2026 00:00:00 -0500
