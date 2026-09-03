@@ -417,6 +417,19 @@ each concept:
    - [https://github.com/linuxmint/nemo](https://github.com/linuxmint/nemo)
 6. **Caja File Manager**
    - [https://github.com/mate-desktop/caja](https://github.com/mate-desktop/caja)
+   
+---
+
+## Initial Snapshot
+
+The original initial state of this project has been preserved in a separate repository for historical reference and future comparison.
+
+**Initial Snapshot:**  
+[https://github.com/wachin/linuxfilemanager_init](https://github.com/wachin/linuxfilemanager_init)  
+
+Development of LinuxFileManager continues in this repository.
+
+---
 
 ## License
 
