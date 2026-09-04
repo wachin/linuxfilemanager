@@ -27,3 +27,7 @@ linuxfm-daemon = "lfmapp.daemon:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["lfmapp*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["third-party", ".git", "node_modules", "venv", ".venv"]

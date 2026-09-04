@@ -183,6 +183,7 @@ class MenuBarMixin:
         self._add_action(file_menu, "Print", self.print_selected)
         file_menu.addSeparator()
         self._add_action(file_menu, "Bulk Rename...", self.bulk_rename_selection)
+        self._add_action(file_menu, "Bulk Rename Tree...", self.bulk_rename_tree)
         self._add_action(file_menu, "Add Selection to Archive...", self.add_selection_to_archive)
         file_menu.addSeparator()
         self.recent_files_menu = file_menu.addMenu(self.tr("Recent Files"))

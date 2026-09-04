@@ -525,3 +525,25 @@ class FileActionsMixin:
             t.to_dict() for t in dialog.last_batch_transforms()
         ]
         self.config.save()
+
+    def bulk_rename_tree(self):
+        """Open the recursive/template bulk rename dialog for a folder tree (6.2)."""
+        from lfmapp.ui.bulk_rename_tree_dialog import BulkRenameTreeDialog
+
+        root = self.workspace.current_path()
+        selected = self.workspace.selected_path()
+        if selected is not None and selected.is_dir():
+            root = selected
+        if root is None:
+            QMessageBox.information(
+                self, self.tr("Bulk Rename"), self.tr("No folder selected.")
+            )
+            return
+
+        dialog = BulkRenameTreeDialog(
+            root,
+            record_callback=self.record_operation,
+            on_applied_callback=self.refresh_view,
+            parent=self,
+        )
+        dialog.exec()
