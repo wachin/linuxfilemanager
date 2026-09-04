@@ -4,3 +4,6 @@
 [submodule "third-party/dde-file-manager"]
 	path = third-party/dde-file-manager
 	url = https://github.com/linuxdeepin/dde-file-manager
+[submodule "third-party/repopath-sanitizer"]
+	path = third-party/repopath-sanitizer
+	url = https://github.com/wachin/repopath-sanitizer
