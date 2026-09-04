@@ -7,3 +7,6 @@
 [submodule "third-party/repopath-sanitizer"]
 	path = third-party/repopath-sanitizer
 	url = https://github.com/wachin/repopath-sanitizer
+[submodule "third-party/dolphin"]
+	path = third-party/dolphin
+	url = https://github.com/kde/dolphin
