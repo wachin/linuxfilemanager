@@ -291,6 +291,54 @@ class MainWindowMenuTests(unittest.TestCase):
                 config_module.CONFIG_DIR = old_config_dir
                 config_module.CONFIG_FILE = old_config_file
 
+    def test_shortcut_map_receives_commands_and_keyboard_bindings(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                records = window.shortcut_map.commands()
+                ids = {record.command_id for record in records}
+                # Menu action registered via _register_command_action.
+                self.assertTrue(any(r.title == "Command Palette..." for r in records))
+                # Window-level bindings registered via setup_shortcuts.
+                for expected_id in ("rename", "focus_search", "trash_selected", "delete_permanently", "focus_path"):
+                    self.assertIn(expected_id, ids)
+                # No collisions among the default bindings.
+                self.assertEqual(window.shortcut_map.collisions, {})
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
+    def test_palette_entries_carry_disabled_reason_and_icon(self):
+        window = None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_config_dir = config_module.CONFIG_DIR
+            old_config_file = config_module.CONFIG_FILE
+            config_module.CONFIG_DIR = Path(tmpdir) / "config"
+            config_module.CONFIG_FILE = config_module.CONFIG_DIR / "config.json"
+            try:
+                window = MainWindow()
+                entries = window.shortcut_map.palette_entries()
+                # Every entry exposes the fields the dialog renders.
+                for entry in entries:
+                    self.assertIn("enabled", entry)
+                    self.assertIn("disabled_reason", entry)
+                    self.assertIn("shortcut", entry)
+                    self.assertIn("category", entry)
+                    self.assertIn("alias", entry)
+                    self.assertIn("command_id", entry)
+            finally:
+                if window is not None:
+                    window.close()
+                config_module.CONFIG_DIR = old_config_dir
+                config_module.CONFIG_FILE = old_config_file
+
     def test_recent_files_menu_registers_recent_file_actions(self):
         window = None
         with tempfile.TemporaryDirectory() as tmpdir:

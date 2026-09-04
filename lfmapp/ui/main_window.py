@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import QLineEdit, QMainWindow, QTabBar, QTreeView
 from lfmapp.core.config import Config
 from lfmapp.actions import ActionRegistry
 from lfmapp.actions.catalog import build_core_registry, with_callbacks
-from lfmapp.controllers import AppState, NavigationController, SearchController, ViewController
+from lfmapp.controllers import AppState, NavigationController, SearchController, ShortcutMap, ViewController
 from lfmapp.services import (
     BookmarkService,
     SearchFilters,
@@ -116,6 +116,8 @@ class MainWindow(PaletteActionsMixin, ContextMenuMixin, FileActionsMixin, Transf
         # Fase 1.2: central action registry with stable ids.
         self.action_registry = ActionRegistry()
         self._registry_action_actions: dict[str, object] = {}
+        # Fase 4.2: single source of truth for commands and their shortcuts.
+        self.shortcut_map = ShortcutMap()
         self.recent_files_menu = None
         # Track active background workers for aggregated progress
         self._active_workers = []

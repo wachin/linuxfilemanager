@@ -21,21 +21,31 @@ class TabsNavigationMixin:
     # ─── Keyboard Shortcuts ────────────────────────────────────
 
     def setup_shortcuts(self):
-        """Set up additional keyboard shortcuts."""
-        # Delete to trash
-        QShortcut(QKeySequence(Qt.Key.Key_Delete), self, self.trash_selected)
-        # Shift+Delete permanent delete
-        QShortcut(QKeySequence("Shift+Delete"), self, self.delete_selected)
-        # F2 rename
-        QShortcut(QKeySequence(Qt.Key.Key_F2), self, self.rename_selected)
-        # Ctrl+L focus path bar
-        QShortcut(QKeySequence("Ctrl+L"), self, self.focus_path_bar)
-        # Ctrl+E focus search
-        QShortcut(QKeySequence("Ctrl+E"), self, self.focus_search)
-        # Ctrl+Shift+I invert selection
-        QShortcut(QKeySequence("Ctrl+Shift+I"), self, self.invert_selection)
-        # Ctrl+Shift+P open command palette
-        QShortcut(QKeySequence("Ctrl+Shift+P"), self, self.show_command_palette)
+        """Set up additional keyboard shortcuts.
+
+        Window-level bindings live here only when there is no equivalent menu
+        action (which would otherwise create a duplicate shortcut). `Ctrl+Shift+P`
+        (palette) and `Ctrl+Shift+I` (invert selection) are provided by menu
+        actions, so they are intentionally omitted here.
+        """
+        shortcuts = [
+            ("Delete", Qt.Key.Key_Delete, self.trash_selected, "trash_selected"),
+            ("Shift+Delete", "Shift+Delete", self.delete_selected, "delete_permanently"),
+            ("F2", Qt.Key.Key_F2, self.rename_selected, "rename"),
+            ("Ctrl+L", "Ctrl+L", self.focus_path_bar, "focus_path"),
+            ("Ctrl+E", "Ctrl+E", self.focus_search, "focus_search"),
+        ]
+        for _label, seq, slot, command_id in shortcuts:
+            sc = QShortcut(QKeySequence(seq), self, slot)
+            if hasattr(self, "shortcut_map"):
+                # Record window-level bindings in the single-source shortcut map.
+                self.shortcut_map.register(
+                    command_id,
+                    _label,
+                    shortcut=QKeySequence(seq).toString(QKeySequence.SequenceFormat.NativeText),
+                    category=self.tr("Keyboard"),
+                    callback=slot,
+                )
 
     # ─── Tabs ─────────────────────────────────────────────────
 

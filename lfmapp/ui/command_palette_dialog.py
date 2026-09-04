@@ -1,4 +1,5 @@
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -15,7 +16,7 @@ class CommandPaletteDialog(QDialog):
     def __init__(self, commands: list[dict], parent=None):
         super().__init__(parent)
         self.setWindowTitle(self.tr("Command Palette"))
-        self.resize(520, 420)
+        self.resize(540, 440)
 
         layout = QVBoxLayout(self)
         self.filter_edit = QLineEdit(self)
@@ -39,13 +40,14 @@ class CommandPaletteDialog(QDialog):
         title = command.get("title", "")
         category = command.get("category", "") or ""
         shortcut = command.get("shortcut") or ""
+        reason = command.get("disabled_reason") or ""
         parts = [title]
-        if category:
-            parts.append(f"— {category}")
+        if scope := category:
+            parts.append(f"— {scope}")
         if shortcut:
             parts.append(f"({shortcut})")
-        if not command.get("enabled", True):
-            parts.append(self.tr("[disabled]"))
+        if reason:
+            parts.append(f"— {reason}")
         return " ".join(parts)
 
     def _command_score(self, command: dict, query: str) -> int:
@@ -109,6 +111,9 @@ class CommandPaletteDialog(QDialog):
         for command in commands:
             item = QListWidgetItem(self._command_text(command))
             item.setData(Qt.ItemDataRole.UserRole, command)
+            icon = command.get("icon")
+            if isinstance(icon, QIcon) and not icon.isNull():
+                item.setIcon(icon)
             if not command.get("enabled", True):
                 item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEnabled)
             self.command_list.addItem(item)

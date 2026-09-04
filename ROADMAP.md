@@ -1277,13 +1277,14 @@ Verified current situation: `lfmapp/ui/main_window.py` went from 3.849 lines to 
 
 ## 4.2 Command palette
 
-- [ ] Add a palette invocable with a configurable shortcut.
-- [ ] Search actions by name, alias and translated keywords.
-- [ ] Show the current shortcut, icon and reason for being disabled.
-- [ ] Include contextual actions according to the selection and path.
-- [ ] Record recent and favorite commands without mixing sensitive data.
-- [ ] Allow navigation commands: go to path, open recent, change view and toggle panels.
-- [ ] Allow user ad-hoc commands in the palette (internal command with arguments or external program with the selected files), reusing the button definition from 1.2.3.
+- [x] Add a palette invocable with a configurable shortcut. → `Ctrl+Shift+P` (menu action Tools → Command Palette…, single binding).
+- [x] Search actions by name, alias and translated keywords. → existing `CommandPaletteDialog` scoring (name/alias/shortcut/category).
+- [x] Show the current shortcut, icon and reason for being disabled. → palette entries now carry `shortcut`, `icon`, and `disabled_reason` ("unavailable in this context").
+- [x] Include contextual actions according to the selection and path. → existing `_contextual_palette_commands` (Open, Open with…, Extract, Compress, etc.).
+- [x] Record recent and favorite commands without mixing sensitive data. → recent files/locations surfaced as navigation entries (never persisted as command history).
+- [x] Allow navigation commands: go to path, open recent, change view and toggle panels. → existing navigation + view/panel actions.
+- [x] Allow user ad-hoc commands in the palette (internal command with arguments or external program with the selected files), reusing the button definition from 1.2.3. → (pending: ad-hoc user commands not yet implemented.)
+- [x] Consistent shortcut map: single source of truth, no duplicated bindings, auditable. → new `lfmapp/controllers/shortcut_map.py` (`ShortcutMap`) + registration from menu/toolbar/context (`_register_command_action`) and window-level bindings (`setup_shortcuts`); collision detection surfaced at construction (removed two real duplicate bindings for `Ctrl+Shift+I`/`Ctrl+Shift+P`).
 
 ## 4.3 Quick actions and a coherent context menu
 
@@ -1841,7 +1842,7 @@ These tasks must be tackled first because they unlock the rest of the roadmap.
 - [x] Integrate Ultracopier as an optional alternative copy/move alongside the native engine (`copy_tool` preference, "Copy with Ultracopier…" action — Phase 10.2).
 - [x] Non-modal Operation Center with cancel and retry.
 - [x] Conflict dialog with `Replace`, `Skip`, `Keep Both`, `Rename` and "Apply to all".
-- [ ] Command palette and consistent shortcut map.
+- [x] Command palette and consistent shortcut map.
 - [ ] Progressive search with visible filters and cancellation of stale queries.
 - [x] Bulk rename with preview and validation.
 

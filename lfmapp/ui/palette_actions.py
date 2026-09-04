@@ -142,6 +142,20 @@ class PaletteActionsMixin:
         if action is not None:
             self._command_action_by_action[action] = record
 
+        # Fase 4.2: mirror into the single-source ShortcutMap.
+        if hasattr(self, "shortcut_map") and action is not None:
+            reason = "" if action.isEnabled() else self.tr("unavailable in this context")
+            self.shortcut_map.register(
+                command_id or title,
+                title,
+                shortcut=shortcut,
+                category=category,
+                enabled=action.isEnabled(),
+                disabled_reason=reason,
+                callback=lambda action=action: action.trigger(),
+                aliases=alias,
+            )
+
     def _palette_commands(self) -> list[dict]:
         commands = []
         for info in self._command_actions:
@@ -152,6 +166,10 @@ class PaletteActionsMixin:
             enabled = action.isEnabled() if action is not None else info.get("enabled", True)
             category = info.get("category", "")
             alias = list(dict.fromkeys((info.get("alias", []) or []) + self._default_command_aliases(title, category)))
+            icon = action.icon() if action is not None else None
+            disabled_reason = ""
+            if not enabled:
+                disabled_reason = self.tr("unavailable in this context")
             commands.append(
                 {
                     "title": title,
@@ -159,7 +177,9 @@ class PaletteActionsMixin:
                     "shortcut": info.get("shortcut", ""),
                     "category": category,
                     "enabled": enabled,
+                    "disabled_reason": disabled_reason,
                     "alias": alias,
+                    "icon": icon,
                     "command_id": info.get("command_id", ""),
                 }
             )
