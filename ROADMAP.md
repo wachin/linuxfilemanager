@@ -878,6 +878,7 @@ The project already has a broad functional base. It is not in its initial phase.
 
   Baseline finding #1: `MainWindow` construction dropped from ~11.5 s to ~1.0 s on the reference machine (≈1.4 s including `show()` with a clean profile).
 - To change the icon theme in Qt environments, the user may need `qt6ct`.
+- **Vital operational note — file-type icons come from the active Qt icon theme (`qt6ct`), not from any code path.** On the reference system (fluxbox + `QT_QPA_PLATFORMTHEME=qt5ct`) Qt 6 falls back to the bare `hicolor` theme, so the `Name` column showed *no* per-extension icons (folders, documents, audio/video, archives, scripts…) even though image thumbnails still worked (they are rendered directly, not themed). Fix: run `qt6ct` → *Icon theme* tab → select a real theme (e.g. `bloom` from `deepin-icon-theme`, `Breeze`, `papirus`, or the GNOME theme) → Apply → relaunch. All file-type icons then appear. Verify with `python3 -c "from PyQt6.QtGui import QIcon; from PyQt6.QtWidgets import QApplication; QApplication([]); print(QIcon.themeName())"` (if it prints `hicolor`, no theme is selected in qt6ct). Documented in README *"How to change the icon theme"*. A defensive fallback (`FallbackIconProvider` + the lazy icon-file index in `lfmapp/ui/icons.py`) now also supplies per-type icons from installed themes even when the active theme is bare, so the file manager never shows an entirely icon-less listing.
 - The relevant configuration/data storage is at:
   - `~/.local/share/linux-file-manager/`
 - During development it is sometimes convenient to delete that folder to force the new default values to show up if an old config hides them.
@@ -1704,7 +1705,7 @@ Ultracopier is an external copy tool with **queue and advanced control** —paus
 # Phase 12 — Debian, distribution and release
 
 - [ ] Review the real dependencies and separate required, recommended and optional ones (ark and peazip are recommended for delegated compression/extraction, see 10.1).
-- [ ] Confirm the `qt6ct` strategy in documentation and metadata, without imposing it when the environment already manages Qt.
+- [x] Confirm the `qt6ct` strategy in documentation and metadata, without imposing it when the environment already manages Qt. → Documented in README *"How to change the icon theme"* and in "Important technical decisions" above (incl. the vital `hicolor`/`QT_QPA_PLATFORMTHEME=qt5ct` gotcha that hides file-type icons).
 - [ ] Audit all icon names and fallbacks in `lfmapp/ui/icons.py`.
 - [ ] Review licenses, copyright, AppStream, desktop file and manpage.
 - [ ] Validate with `lintian`, clean-install tests and upgrade from a previous version.
@@ -1945,6 +1946,8 @@ Each implementation must respect the golden rule: first check in `lfmapp/` and i
 # Thunar as a study reference (`third-party/thunar` submodule)
 
 Linux File Manager pins the sources of **Thunar** —a mature GTK/GIO file manager— as a git submodule under `third-party/thunar/` (clone instructions in the README, "Reference sources: the Thunar git submodule"). **All source paths below are relative to `third-party/thunar/`.** Use it the same way the icon-theme study used it: read the interaction logic there and **re-express it in Python + PyQt6 for this project; never copy code or text** (Thunar is GPL-2+; this project is GPL-3.0-or-later). Ideas are ordered by real value for Linux File Manager and cross-referenced with the phases below so nothing already planned is re-developed from scratch.
+
+> **Also pinned:** `third-party/dde-file-manager` (Deepin's dde-file-manager, read-only reference, GPL-3). It was added while diagnosing the icon-theme behavior to cross-check how another Qt-based file manager resolves system icon themes through `qt6ct`. Conclusion reached (not copied): Qt 6 file managers depend on the active Qt icon theme reported to `QIcon.themeName()` by the platform theme engine — on Qt 6 that is `qt6ct`; if none is selected (or the env points to `qt5ct`), Qt falls back to the bare `hicolor` theme and file-type icons vanish. The definitive fix is selecting a theme in `qt6ct` (see the vital note in "Important technical decisions"). dde-file-manager remains useful study material for Qt-specific UX patterns (transfers, flat view, batch rename) alongside Thunar's GIO model.
 
 **1. Single instance + D-Bus `org.freedesktop.FileManager1` (highest value).**
 - Sources: `thunar/thunar-dbus-service.c` and the `*.service.in` files at the repository root of the submodule.

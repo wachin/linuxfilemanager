@@ -197,6 +197,27 @@ To change the icon theme for Linux File Manager when using Qt 6 theme icons:
 
 The application will then use the selected system icon theme.
 
+> **Important — why file-type icons may be missing.** Every icon in the
+> workspace (folders, documents, music, video, archives, scripts, …) is
+> resolved through Qt 6's active icon theme, selected with **`qt6ct`**. If
+> that tool has no icon theme chosen (or the environment falls back to the
+> bare `hicolor` theme — e.g. because `QT_QPA_PLATFORMTHEME` points to
+> `qt5ct` on a Qt 6 app), files show few or no icons in the `Name` column,
+> while image thumbnails keep working because they are rendered directly
+> (not from the theme). Selecting any installed theme in `qt6ct` (such as
+> `bloom` from `deepin-icon-theme`, `Breeze`, `papirus`, or the GNOME
+> Adwaita theme) and relaunching fixes all file-type icons.
+>
+> Verify what Qt 6 actually resolves with:
+>
+> ```bash
+> python3 -c "from PyQt6.QtGui import QIcon; from PyQt6.QtWidgets import QApplication; QApplication([]); print(QIcon.themeName())"
+> ```
+>
+> If it prints `hicolor`, run `qt6ct` and pick a real icon theme. You can
+> also install more themes, e.g. `sudo apt install deepin-icon-theme`
+> (provides `bloom`) or `sudo apt install papirus-icon-theme breeze-icon-theme`.
+
 ## Quick Start
 
 Run from the repository root:
