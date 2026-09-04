@@ -25,6 +25,7 @@ class TransformType:
     DATE = "date"
     EXIF = "exif"
     AUDIO = "audio"
+    SANITIZE = "sanitize"
 
 
 @dataclass(frozen=True)
@@ -173,6 +174,39 @@ def _apply_audio(transform: Transform, name: str, parts: _NameParts, index: int,
     return parts.stem + transform.value + value + parts.extension
 
 
+# Characters that commonly break filesystems or desktop sharing.
+_INVALID_FILENAME_CHARS = '\\/:*?"<>|'
+_WIN_RESERVED = {"CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5",
+                 "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4",
+                 "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"}
+
+
+def sanitize_filename(name: str, replacement: str = "_") -> str:
+    """Replace characters invalid in file names and trim trailing dots/spaces.
+
+    Operates on the raw string (not via ``split_name``, which reinterprets
+    ``/`` as a directory separator). Neutralizes Windows reserved device names
+    so generated files can be shared across platforms.
+    """
+    if not name:
+        return replacement
+    cleaned = "".join(
+        replacement if ch in _INVALID_FILENAME_CHARS or ord(ch) < 32 else ch
+        for ch in name
+    )
+    # Neutralize Windows reserved base names (case-insensitive), e.g. CON.txt.
+    dot = cleaned.find(".")
+    base = cleaned[:dot] if dot != -1 else cleaned
+    if base.strip().upper() in _WIN_RESERVED:
+        cleaned = base + replacement + cleaned[dot:]
+    result = cleaned.rstrip(" .")
+    return result or replacement
+
+
+def _apply_sanitize(transform: Transform, name: str, parts: _NameParts, index: int, path: Path | None = None) -> str:
+    return sanitize_filename(name, transform.value or "_")
+
+
 def _exif_datetime(path: Path) -> str | None:
     """Return the EXIF DateTimeOriginal of an image, or None."""
     try:
@@ -236,6 +270,7 @@ _TRANSFORM_HANDLERS = {
     TransformType.DATE: _apply_date,
     TransformType.EXIF: _apply_exif,
     TransformType.AUDIO: _apply_audio,
+    TransformType.SANITIZE: _apply_sanitize,
 }
 
 

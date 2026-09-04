@@ -197,6 +197,11 @@ class BulkRenameDialog(QDialog):
         self.grouped_checkbox.setToolTip(self.tr("photo.jpg + photo.raw share one number"))
         self.grouped_checkbox.toggled.connect(self.rebuild_plan)
         row.addWidget(self.grouped_checkbox)
+
+        self.sanitize_checkbox = QCheckBox(self.tr("Sanitize invalid characters"))
+        self.sanitize_checkbox.setToolTip(self.tr("Replace \\/:*?\"<>| and reserved names"))
+        self.sanitize_checkbox.toggled.connect(self.rebuild_plan)
+        row.addWidget(self.sanitize_checkbox)
         return row
 
     def _build_preset_controls(self) -> QHBoxLayout:
@@ -211,6 +216,12 @@ class BulkRenameDialog(QDialog):
         self.delete_preset_button = QPushButton(self.tr("Delete"), self)
         self.delete_preset_button.clicked.connect(self._delete_preset)
         row.addWidget(self.delete_preset_button)
+        self.export_preset_button = QPushButton(self.tr("Export"), self)
+        self.export_preset_button.clicked.connect(self._export_presets)
+        row.addWidget(self.export_preset_button)
+        self.import_preset_button = QPushButton(self.tr("Import"), self)
+        self.import_preset_button.clicked.connect(self._import_presets)
+        row.addWidget(self.import_preset_button)
         return row
 
     # ─── Presets ───────────────────────────────────────────────
@@ -254,6 +265,8 @@ class BulkRenameDialog(QDialog):
         self.metadata_combo.setCurrentIndex(0)
         self.grouped_checkbox.setChecked(False)
         self.number_start_spin.setValue(0)
+        if hasattr(self, "sanitize_checkbox"):
+            self.sanitize_checkbox.setChecked(False)
         for transform in transforms:
             if transform.type == TransformType.PREFIX:
                 self.prefix_edit.setText(transform.value)
@@ -287,6 +300,9 @@ class BulkRenameDialog(QDialog):
                 self.metadata_combo.setCurrentIndex(
                     self.metadata_combo.findText(self.metadata_combo.itemText(idx))
                 )
+            elif transform.type == TransformType.SANITIZE:
+                if hasattr(self, "sanitize_checkbox"):
+                    self.sanitize_checkbox.setChecked(True)
 
     def _save_preset(self):
         name, ok = QInputDialog.getText(self, self.tr("Save preset"), self.tr("Preset name:"))
@@ -301,6 +317,52 @@ class BulkRenameDialog(QDialog):
         if name in self._presets:
             del self._presets[name]
             self._rebuild_preset_combo()
+
+    def _export_presets(self):
+        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+
+        path, _ = QFileDialog.getSaveFileName(
+            self, self.tr("Export presets"), "bulk-rename-presets.json", "JSON (*.json)"
+        )
+        if not path:
+            return
+        try:
+            Path(path).write_text(
+                json.dumps(
+                    {"presets": [BulkRenamePreset(n, t).to_dict() for n, t in self._presets.items()]},
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+        except OSError as exc:
+            QMessageBox.critical(self, self.tr("Export"), str(exc))
+
+    def _import_presets(self):
+        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+
+        path, _ = QFileDialog.getOpenFileName(
+            self, self.tr("Import presets"), "", "JSON (*.json)"
+        )
+        if not path:
+            return
+        try:
+            data = json.loads(Path(path).read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            QMessageBox.critical(self, self.tr("Import"), str(exc))
+            return
+        for entry in data.get("presets", []):
+            preset = BulkRenamePreset.from_dict(entry)
+            if preset.name:
+                self._presets[preset.name] = preset.transforms
+        self._rebuild_preset_combo()
+
+    def remember_transforms(self, transforms: list[Transform]):
+        """Recall the transforms from the previous batch (a '<last>' preset)."""
+        self._apply_transforms_to_controls(transforms)
+        self.rebuild_plan()
+
+    def last_batch_transforms(self) -> list[Transform]:
+        return self._collect_transforms()
 
     # ─── Plan building ─────────────────────────────────────────
 
@@ -356,6 +418,9 @@ class BulkRenameDialog(QDialog):
             mode, scope = self.case_combo.currentData()
             if mode:
                 transforms.append(Transform(TransformType.CASE, value=mode, search=scope))
+        # Sanitization goes last so it cleans whatever the other transforms produced.
+        if hasattr(self, "sanitize_checkbox") and self.sanitize_checkbox.isChecked():
+            transforms.append(Transform(TransformType.SANITIZE))
         return transforms
 
     def rebuild_plan(self):

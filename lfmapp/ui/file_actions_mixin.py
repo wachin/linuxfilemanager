@@ -486,7 +486,7 @@ class FileActionsMixin:
 
     def bulk_rename_selection(self):
         """Open the non-destructive bulk rename dialog for the selection (6.2)."""
-        from lfmapp.services.bulk_rename import BulkRenamePreset
+        from lfmapp.services.bulk_rename import BulkRenamePreset, Transform
         from lfmapp.ui.bulk_rename_dialog import BulkRenameDialog
 
         paths = [p for p in self.workspace.selected_paths() if p.exists()]
@@ -502,6 +502,10 @@ class FileActionsMixin:
             BulkRenamePreset.from_dict(data)
             for data in self.config.data.get("bulk_rename_presets", [])
         ]
+        last_batch = [
+            Transform.from_dict(data)
+            for data in self.config.data.get("bulk_rename_last_batch", [])
+        ]
 
         dialog = BulkRenameDialog(
             paths,
@@ -510,9 +514,14 @@ class FileActionsMixin:
             parent=self,
         )
         dialog.load_presets(presets)
+        if last_batch:
+            dialog.remember_transforms(last_batch)
         dialog.exec()
 
         self.config.data["bulk_rename_presets"] = [
             p.to_dict() for p in dialog.export_presets()
+        ]
+        self.config.data["bulk_rename_last_batch"] = [
+            t.to_dict() for t in dialog.last_batch_transforms()
         ]
         self.config.save()

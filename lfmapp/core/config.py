@@ -42,6 +42,7 @@ def _default_config_data():
         "media_detect_and_suggest": True,
         "bulk_rename_command": "",
         "bulk_rename_presets": [],
+        "bulk_rename_last_batch": [],
         "archive_tool": "ark",
         "copy_tool": "native",
         "icon_caption_fields": ["none", "size", "date_modified"],

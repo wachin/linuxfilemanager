@@ -17,6 +17,7 @@ from lfmapp.services.bulk_rename import (
     apply_names_list,
     apply_plan,
     build_plan,
+    sanitize_filename,
     split_name,
 )
 
@@ -218,6 +219,38 @@ class PresetTests(unittest.TestCase):
             self.assertEqual(
                 apply_names_list(["_suf", "_suf"], "suffix", paths)[paths[0]], "a_suf.txt"
             )
+
+
+class SanitizeTests(unittest.TestCase):
+    def test_sanitize_removes_invalid_chars(self):
+        self.assertEqual(sanitize_filename("a/b:c.txt"), "a_b_c.txt")
+        self.assertEqual(sanitize_filename('x*y?"z.png'), "x_y__z.png")
+
+    def test_sanitize_trims_trailing_dots_spaces(self):
+        self.assertEqual(sanitize_filename("name  "), "name")
+        self.assertEqual(sanitize_filename("name..."), "name")
+
+    def test_sanitize_neutralizes_reserved_names(self):
+        self.assertEqual(sanitize_filename("CON.txt"), "CON_.txt")
+        self.assertEqual(sanitize_filename("con.txt"), "con_.txt")
+
+    def test_sanitize_transform_in_plan(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = _make_files(tmpdir, "a:b.txt")
+            transforms = [Transform(TransformType.SANITIZE)]
+            plan = build_plan(paths, transforms)
+            self.assertEqual(plan.items[0].new_name, "a_b.txt")
+
+    def test_last_batch_roundtrip(self):
+        transforms = [
+            Transform(TransformType.SEARCH_REPLACE, search="_", replace=" "),
+            Transform(TransformType.SANITIZE),
+            Transform(TransformType.NUMBERING, start=1, digits=2, grouped=True),
+        ]
+        restored = [Transform.from_dict(t.to_dict()) for t in transforms]
+        self.assertEqual([t.type for t in restored], [t.type for t in transforms])
+        self.assertTrue(restored[-1].grouped)
+        self.assertEqual(restored[0].search, "_")
 
 
 class ApplyPlanTests(unittest.TestCase):
