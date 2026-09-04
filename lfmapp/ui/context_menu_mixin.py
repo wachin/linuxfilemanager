@@ -202,6 +202,7 @@ class ContextMenuMixin:
 
         if self._traditional_context_entry_enabled("selection", "rename"):
             menu.addAction(app_icon("document-save-as", "edit-rename"), self.tr("Rename"), self.rename_selected_dialog)
+            menu.addAction(app_icon("edit-select-all", "document-multiple"), self.tr("Bulk Rename..."), self.bulk_rename_selection)
         if self._context_entry_enabled("selection", "move_to_trash"):
             menu.addAction(app_icon("user-trash", "trash-empty"), self.tr("Move to Trash"), self.trash_selected)
         if self.config.data.get("show_delete_bypassing_trash", True):
@@ -268,6 +269,7 @@ class ContextMenuMixin:
 
         if self._traditional_context_entry_enabled("selection", "rename"):
             menu.addAction(app_icon("document-save-as", "edit-rename"), self.tr("Rename"), self.rename_selected_dialog)
+            menu.addAction(app_icon("edit-select-all", "document-multiple"), self.tr("Bulk Rename..."), self.bulk_rename_selection)
         if self._context_entry_enabled("selection", "move_to_trash"):
             menu.addAction(app_icon("user-trash", "trash-empty"), self.tr("Move to Trash"), self.trash_selected)
         if self.config.data.get("show_delete_bypassing_trash", True):

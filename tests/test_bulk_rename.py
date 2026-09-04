@@ -1,0 +1,226 @@
+"""Tests for the bulk rename engine and dialog (ROADMAP Phase 6.2)."""
+
+import os
+import tempfile
+import unittest
+from pathlib import Path
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+from PyQt6.QtWidgets import QApplication
+
+from lfmapp.services.bulk_rename import (
+    RenamePlan,
+    Transform,
+    TransformType,
+    apply_plan,
+    build_plan,
+    split_name,
+)
+
+_app = None
+
+
+def _ensure_app():
+    global _app
+    if _app is None:
+        _app = QApplication.instance() or QApplication([])
+
+
+def _make_files(tmpdir, *names):
+    root = Path(tmpdir)
+    paths = []
+    for name in names:
+        p = root / name
+        p.write_text("x")
+        paths.append(p)
+    return paths
+
+
+class NameSplittingTests(unittest.TestCase):
+    def test_simple_extension(self):
+        self.assertEqual(split_name("report.pdf").stem, "report")
+        self.assertEqual(split_name("report.pdf").extension, ".pdf")
+
+    def test_multi_part_extension(self):
+        parts = split_name("archive.tar.gz")
+        self.assertEqual(parts.stem, "archive")
+        self.assertEqual(parts.extension, ".tar.gz")
+
+    def test_no_extension(self):
+        parts = split_name("Makefile")
+        self.assertEqual(parts.stem, "Makefile")
+        self.assertEqual(parts.extension, "")
+
+
+class BuildPlanTests(unittest.TestCase):
+    def test_search_replace(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = _make_files(tmpdir, "a.txt", "b.txt")
+            transforms = [Transform(TransformType.SEARCH_REPLACE, search="t", replace="z")]
+            plan = build_plan(paths, transforms)
+            result = {i.original_name: i.new_name for i in plan.items}
+            # "t" -> "z" everywhere in the full name (case-insensitive).
+            self.assertEqual(result["a.txt"], "a.zxz")
+            self.assertEqual(result["b.txt"], "b.zxz")
+
+    def test_search_replace_ignore_extension_by_default(self):
+        # Search/replace applies to the whole name; case-insensitive default.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = _make_files(tmpdir, "Photo.JPG")
+            transforms = [Transform(TransformType.SEARCH_REPLACE, search="photo", replace="pic")]
+            plan = build_plan(paths, transforms)
+            self.assertEqual(plan.items[0].new_name, "pic.JPG")
+
+    def test_prefix_and_suffix(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = _make_files(tmpdir, "a.txt")
+            transforms = [
+                Transform(TransformType.PREFIX, value="pre_"),
+                Transform(TransformType.SUFFIX, value="_post"),
+            ]
+            plan = build_plan(paths, transforms)
+            self.assertEqual(plan.items[0].new_name, "pre_a_post.txt")
+
+    def test_numbering(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = _make_files(tmpdir, "a.txt", "b.txt", "c.txt")
+            transforms = [
+                Transform(TransformType.SEARCH_REPLACE, search="", replace=""),
+                Transform(TransformType.NUMBERING, start=1, digits=2),
+            ]
+            # No-op search then numbering
+            transforms = [Transform(TransformType.NUMBERING, start=1, digits=2)]
+            plan = build_plan(paths, transforms)
+            self.assertEqual(plan.items[0].new_name, "a01.txt")
+            self.assertEqual(plan.items[1].new_name, "b02.txt")
+            self.assertEqual(plan.items[2].new_name, "c03.txt")
+
+    def test_case_change(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = _make_files(tmpdir, "hello.txt")
+            transforms = [Transform(TransformType.CASE, value="upper")]
+            plan = build_plan(paths, transforms)
+            self.assertEqual(plan.items[0].new_name, "HELLO.TXT")
+
+    def test_regex_rename(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = _make_files(tmpdir, "img_001.jpg")
+            transforms = [
+                Transform(
+                    TransformType.REGEX,
+                    search=r"img_(\d+)",
+                    replace=r"photo_\1",
+                )
+            ]
+            plan = build_plan(paths, transforms)
+            self.assertEqual(plan.items[0].new_name, "photo_001.jpg")
+
+    def test_duplicate_conflict_detected(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = _make_files(tmpdir, "a.txt", "b.txt")
+            # Regex maps every name to the same target -> second becomes duplicate.
+            transforms = [Transform(TransformType.REGEX, search=".*", replace="same.txt")]
+            plan = build_plan(paths, transforms)
+            conflicts = [i.conflict for i in plan.items if i.conflict]
+            self.assertEqual(conflicts, ["duplicate"])
+
+    def test_invalid_name_detected(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = _make_files(tmpdir, "a.txt")
+            transforms = [Transform(TransformType.PREFIX, value="sub/")]
+            plan = build_plan(paths, transforms)
+            self.assertEqual(plan.items[0].conflict, "invalid")
+
+
+class ApplyPlanTests(unittest.TestCase):
+    def test_apply_renames_files_and_reports_pairs(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = _make_files(tmpdir, "a.txt", "b.txt")
+            transforms = [Transform(TransformType.SEARCH_REPLACE, search=".txt", replace=".md")]
+            plan = build_plan(paths, transforms)
+            renamed = apply_plan(plan)
+            self.assertEqual(len(renamed), 2)
+            self.assertTrue((Path(tmpdir) / "a.md").exists())
+            self.assertTrue((Path(tmpdir) / "b.md").exists())
+            self.assertFalse((Path(tmpdir) / "a.txt").exists())
+
+    def test_apply_skips_disabled_items(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = _make_files(tmpdir, "a.txt", "b.txt")
+            transforms = [Transform(TransformType.SEARCH_REPLACE, search=".txt", replace=".md")]
+            plan = build_plan(paths, transforms)
+            plan.items[1].enabled = False
+            renamed = apply_plan(plan)
+            self.assertEqual(len(renamed), 1)
+            self.assertTrue((Path(tmpdir) / "a.md").exists())
+            self.assertTrue((Path(tmpdir) / "b.txt").exists())
+
+    def test_apply_refuses_unresolved_conflict(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = _make_files(tmpdir, "a.txt", "b.txt")
+            transforms = [Transform(TransformType.REGEX, search=".*", replace="same.txt")]
+            plan = build_plan(paths, transforms)
+            with self.assertRaises(ValueError):
+                apply_plan(plan)
+
+
+class BulkRenameDialogTests(unittest.TestCase):
+    def setUp(self):
+        _ensure_app()
+
+    def test_dialog_previews_search_replace(self):
+        from lfmapp.ui.bulk_rename_dialog import BulkRenameDialog
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = _make_files(tmpdir, "a.txt", "b.txt")
+            dialog = BulkRenameDialog(paths, record_callback=None)
+            dialog.search_edit.setText("txt")
+            dialog.replace_edit.setText("md")
+            dialog.rebuild_plan()
+            self.assertEqual(dialog.table.rowCount(), 2)
+            after_values = {
+                dialog.table.item(r, 1).text(): dialog.table.item(r, 2).text()
+                for r in range(dialog.table.rowCount())
+            }
+            self.assertEqual(after_values["a.txt"], "a.md")
+            self.assertEqual(after_values["b.txt"], "b.md")
+            dialog.deleteLater()
+
+    def test_dialog_apply_records_composite_operation(self):
+        from lfmapp.ui.bulk_rename_dialog import BulkRenameDialog
+
+        recorded = []
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = _make_files(tmpdir, "a.txt", "b.txt")
+            dialog = BulkRenameDialog(paths, record_callback=recorded.append)
+            dialog.search_edit.setText("txt")
+            dialog.replace_edit.setText("md")
+            dialog.rebuild_plan()
+            dialog.apply_batch()
+            self.assertEqual(len(recorded), 1)
+            self.assertEqual(len(recorded[0].operations), 2)
+            self.assertTrue((Path(tmpdir) / "a.md").exists())
+            self.assertTrue((Path(tmpdir) / "b.md").exists())
+            dialog.deleteLater()
+
+    def test_dialog_undo_last_batch(self):
+        from lfmapp.ui.bulk_rename_dialog import BulkRenameDialog
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = _make_files(tmpdir, "a.txt", "b.txt")
+            dialog = BulkRenameDialog(paths, record_callback=None)
+            dialog.search_edit.setText("txt")
+            dialog.replace_edit.setText("md")
+            dialog.rebuild_plan()
+            dialog.apply_batch()
+            self.assertTrue((Path(tmpdir) / "a.md").exists())
+            dialog.undo_last_batch()
+            self.assertTrue((Path(tmpdir) / "a.txt").exists())
+            self.assertFalse((Path(tmpdir) / "a.md").exists())
+            dialog.deleteLater()
+
+
+if __name__ == "__main__":
+    unittest.main()

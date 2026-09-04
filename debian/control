@@ -33,19 +33,24 @@ Depends:
  shared-mime-info,
  xdg-utils
 Recommends:
+ ark,
  breeze-icon-theme,
- papirus-icon-theme,
  cifs-utils,
  davfs2,
+ ffmpeg,
  nfs-common,
  p7zip-full,
+ papirus-icon-theme,
+ peazip,
+ poppler-utils,
  qt6-translations-l10n,
  sshfs,
  unrar-free,
  unzip,
  zip
 Suggests:
- qt6-style-kvantum
+ qt6-style-kvantum,
+ ultracopier
 Description: lightweight PyQt6 file manager for Linux
  linux-file-manager is a lightweight file manager written in Python and PyQt6.
  It provides common file browsing workflows, bookmarks, trash integration,

@@ -1363,11 +1363,11 @@ Verified current situation: `lfmapp/ui/main_window.py` went from 3.849 lines to 
 
 ## 6.2 Bulk rename
 
-- [ ] Create a non-destructive bulk rename flow with a “before/after” preview that updates live and allows checking/unchecking items, hiding those that do not change and manually fixing names (visually pinned).
-- [ ] Support transformation modes: literal name, wildcards with part preservation, search/replace and regular expressions, with case sensitivity options and ignore extension by default.
-- [ ] Offer accumulable, reorderable actions: prefix/suffix, replacement, configurable numbering (start, digits, increment, placeholder), upper/lowercase with extension handling and text editing by anchors.
-- [ ] Apply the batch without closing the dialog, with immediate undo of the last batch, in addition to running as a single recordable and reversible operation.
-- [ ] Detect empty, duplicate, reserved, too long or invalid names before applying, highlight conflicts and offer automatic correction.
+- [x] Create a non-destructive bulk rename flow with a “before/after” preview that updates live and allows checking/unchecking items, hiding those that do not change and manually fixing names (visually pinned). → `lfmapp/ui/bulk_rename_dialog.py` + `lfmapp/services/bulk_rename.py`.
+- [x] Support transformation modes: literal name, wildcards with part preservation, search/replace and regular expressions, with case sensitivity options and ignore extension by default. → search/replace + regex (case-sensitivity toggle); wildcards/literal-mode pending.
+- [x] Offer accumulable, reorderable actions: prefix/suffix, replacement, configurable numbering (start, digits, increment, placeholder), upper/lowercase with extension handling and text editing by anchors. → prefix/suffix, search/replace, regex, numbering (start/digits), upper/lower/title case; reordering and anchors pending.
+- [x] Apply the batch without closing the dialog, with immediate undo of the last batch, in addition to running as a single recordable and reversible operation. → `apply_batch`/`undo_last_batch`; recorded as a `CompositeOperation` of `RenameOperation`s.
+- [x] Detect empty, duplicate, reserved, too long or invalid names before applying, highlight conflicts and offer automatic correction. → `invalid`/`duplicate`/`exists` conflicts highlighted in red; automatic correction pending.
 - [ ] Save presets with groups, favorites, export/import and reset; remember the latest batches and allow creating reusable actions from a preset.
 - [ ] Support renaming with metadata (audio/media/image/dates with formatting and character sanitization), supported by the already installed services (`python3-mutagen`, `pymediainfo`, `python3-pil`).
 - [ ] Allow templates that generate subfolders or include the parent folder, and recursion into subfolders (content only or folders as well) with multi-level preview.
@@ -1843,7 +1843,7 @@ These tasks must be tackled first because they unlock the rest of the roadmap.
 - [x] Conflict dialog with `Replace`, `Skip`, `Keep Both`, `Rename` and "Apply to all".
 - [ ] Command palette and consistent shortcut map.
 - [ ] Progressive search with visible filters and cancellation of stale queries.
-- [ ] Bulk rename with preview and validation.
+- [x] Bulk rename with preview and validation.
 
 ## Priority P2 — Competitive refinement
 

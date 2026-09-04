@@ -483,3 +483,24 @@ class FileActionsMixin:
                 self.tr("Error"),
                 self.tr("Could not rename:\n{error}").format(error=exc),
             )
+
+    def bulk_rename_selection(self):
+        """Open the non-destructive bulk rename dialog for the selection (6.2)."""
+        from lfmapp.ui.bulk_rename_dialog import BulkRenameDialog
+
+        paths = [p for p in self.workspace.selected_paths() if p.exists()]
+        if not paths:
+            QMessageBox.information(
+                self,
+                self.tr("Bulk Rename"),
+                self.tr("Select two or more items to rename."),
+            )
+            return
+
+        dialog = BulkRenameDialog(
+            paths,
+            record_callback=self.record_operation,
+            on_applied_callback=self.refresh_view,
+            parent=self,
+        )
+        dialog.exec()
