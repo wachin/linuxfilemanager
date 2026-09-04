@@ -38,6 +38,35 @@ class FallbackIconProvider(QFileIconProvider):
         "font": ("font-x-generic",),
     }
 
+    # Extension -> themed icon names (Thunar/gi style) for formats Python's
+    # mimetypes database does not map reliably.
+    _EXTENSION_ICONS = {
+        ".py": ("text-x-python",),
+        ".sh": ("application-x-shellscript",),
+        ".bash": ("application-x-shellscript",),
+        ".md": ("text-markdown",),
+        ".markdown": ("text-markdown",),
+        ".pdf": ("application-pdf",),
+        ".zip": ("application-zip", "package-x-generic"),
+        ".7z": ("application-x-7z-compressed", "package-x-generic"),
+        ".rar": ("application-x-rar", "package-x-generic"),
+        ".tar": ("application-x-tar", "package-x-generic"),
+        ".gz": ("application-x-compressed-tar", "package-x-generic"),
+        ".tgz": ("application-x-compressed-tar", "package-x-generic"),
+        ".xz": ("application-x-xz-compressed-tar", "package-x-generic"),
+        ".bz2": ("application-x-bzip-compressed-tar", "package-x-generic"),
+        ".mp3": ("audio-mpeg", "audio-x-generic"),
+        ".ogg": ("audio-x-generic",),
+        ".flac": ("audio-x-flac", "audio-x-generic"),
+        ".mp4": ("video-mp4", "video-x-generic"),
+        ".mkv": ("video-x-matroska", "video-x-generic"),
+        ".png": ("image-png", "image-x-generic"),
+        ".jpg": ("image-jpeg", "image-x-generic"),
+        ".jpeg": ("image-jpeg", "image-x-generic"),
+        ".gif": ("image-gif", "image-x-generic"),
+        ".svg": ("image-svg+xml", "image-x-generic"),
+    }
+
     def icon(self, info):
         if isinstance(info, QFileInfo):
             base = QFileIconProvider.icon(self, info)
@@ -56,19 +85,22 @@ class FallbackIconProvider(QFileIconProvider):
             if not icon.isNull():
                 return icon
 
-        if is_archive(Path(info.absoluteFilePath())):
+        path = info.absoluteFilePath()
+        if is_archive(Path(path)):
             icon = app_icon("package-x-generic")
             if not icon.isNull():
                 return icon
 
-        mime_type, _ = mimetypes.guess_type(info.absoluteFilePath())
-        candidates: list[str] = []
-        if mime_type:
-            candidates.append(mime_type.replace("/", "-"))
-            family = mime_type.split("/", 1)[0]
-            candidates.extend(self._FAMILY_ICONS.get(family, ()))
-            if mime_type == "application/pdf":
-                candidates.append("application-pdf")
+        suffix = Path(path).suffix.lower()
+        if suffix in self._EXTENSION_ICONS:
+            candidates = list(self._EXTENSION_ICONS[suffix])
+        else:
+            mime_type, _ = mimetypes.guess_type(path)
+            candidates = []
+            if mime_type:
+                candidates.append(mime_type.replace("/", "-"))
+                family = mime_type.split("/", 1)[0]
+                candidates.extend(self._FAMILY_ICONS.get(family, ()))
         candidates.extend(("application-octet-stream", "text-x-generic", "folder"))
         return app_icon(*candidates)
 

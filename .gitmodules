@@ -1,3 +1,6 @@
 [submodule "third-party/thunar"]
 	path = third-party/thunar
 	url = https://github.com/xfce-mirror/thunar
+[submodule "third-party/dde-file-manager"]
+	path = third-party/dde-file-manager
+	url = https://github.com/linuxdeepin/dde-file-manager

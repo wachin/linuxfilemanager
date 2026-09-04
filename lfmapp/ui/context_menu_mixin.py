@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QHBoxLayout, QToolButton, QWidget, QWidgetAction
+from PyQt6.QtWidgets import QHBoxLayout, QMenu, QToolButton, QWidget, QWidgetAction
 
 from lfmapp.ui.icons import app_icon
 from lfmapp.utils.open_with import (

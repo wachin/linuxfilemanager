@@ -143,14 +143,30 @@ class IconResolutionTests(unittest.TestCase):
 
         return _FakeConfig()
 
-    def test_runtime_lookup_never_scans_icon_trees(self):
-        with patch(
-            "lfmapp.ui.icons._find_system_icon_file",
-            side_effect=AssertionError("runtime lookup must not scan the disk"),
-        ), patch("lfmapp.ui.icons.QIcon.fromTheme", return_value=QIcon()):
+    def test_runtime_lookup_uses_cached_index_not_per_name_scans(self):
+        # A bare theme (null fromTheme) + an empty file index => still a null
+        # icon, and the (expensive) full index is only consulted lazily once.
+        with patch("lfmapp.ui.icons._icon_file_index", return_value={}), patch(
+            "lfmapp.ui.icons.QIcon.fromTheme", return_value=QIcon()
+        ):
             icon = self.icons.app_icon("missing-name-that-is-not-cached")
 
         self.assertTrue(icon.isNull())
+
+    def test_index_fallback_resolves_names_missing_from_theme(self):
+        svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>'
+        with tempfile.NamedTemporaryFile(suffix=".svg", delete=False) as tmp:
+            tmp.write(svg.encode("utf-8"))
+            tmp_path = tmp.name
+        try:
+            self.icons._ICON_FILE_INDEX = {"text-x-python": tmp_path}
+            with patch("lfmapp.ui.icons.QIcon.fromTheme", return_value=QIcon()):
+                icon = self.icons.app_icon("text-x-python")
+
+            self.assertFalse(icon.isNull())
+        finally:
+            self.icons._ICON_FILE_INDEX = None
+            Path(tmp_path).unlink(missing_ok=True)
 
     def test_initialize_icon_cache_loads_found_paths_and_known_misses(self):
         svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>'

@@ -3,12 +3,16 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
+import os
+
 from PyQt6.QtGui import QIcon
 
 from lfmapp.core.config import Config
 
 _ICON_CACHE: dict[str, QIcon] = {}
 _ICON_PATH_CACHE: dict[str, Path | None] = {}
+_ICON_FILE_INDEX: dict[str, str] | None = None
+_DEFAULT_CONFIG = None  # config object used to persist lazy fallback hits
 _LAST_THEME_NAME: str | None = None
 _ICON_ALIASES: dict[str, list[str]] = {
     "go-previous": ["arrow-left", "go-previous"],
@@ -135,6 +139,8 @@ def _load_cached_icon_paths(config: Config) -> dict[str, Path]:
 
 
 def initialize_icon_cache(config: Config) -> None:
+    global _DEFAULT_CONFIG
+    _DEFAULT_CONFIG = config
     cached_paths = _load_cached_icon_paths(config)
     _ICON_PATH_CACHE.update(cached_paths)
     for icon_name in config.icon_search_misses:
@@ -182,12 +188,87 @@ def _discover_one(theme_name: str, config: Config) -> Path | None:
     return path
 
 
+_ICON_INDEX_SIZE_DIRS = {
+    "16x16", "22x22", "24x24", "32x32", "48x48", "64x64", "96x96", "scalable",
+}
+_ICON_INDEX_EXTENSIONS = {"svg", "png", "xpm", "ico"}
+# Preferred size roots when several files provide the same icon name.
+_ICON_INDEX_SIZE_PRIORITY = {"48x48": 3, "scalable": 2, "32x32": 1}
+
+
+def _build_icon_file_index() -> dict[str, str]:
+    """Walk the icon theme directories ONCE and index ``name -> file path``.
+
+    Only standard size directories are scanned (16–96 px and scalable), which
+    keeps the walk near a second on typical systems. Used by the fallback path
+    so that arbitrary themed names (per MIME type, Thunar-style) can be found
+    even when the active QIcon theme is bare (e.g. plain ``hicolor`` via
+    qt6ct). Results are consumed per name and persisted in the config.
+    """
+    index: dict[str, str] = {}
+    priority_of: dict[str, int] = {}
+    for search_root in QIcon.themeSearchPaths():
+        root_path = Path(search_root)
+        if not root_path.is_dir():
+            continue
+        for theme_entry in os.scandir(root_path):
+            if not theme_entry.is_dir(follow_symlinks=True):
+                continue
+            theme_dir = theme_entry.path
+            for dirpath, dirnames, filenames in os.walk(theme_dir):
+                relative = os.path.relpath(dirpath, theme_dir)
+                first_component = relative.split(os.sep, 1)[0]
+                if relative == os.curdir:
+                    dirnames[:] = [
+                        name
+                        for name in dirnames
+                        if name in _ICON_INDEX_SIZE_DIRS or name == "symbolic"
+                    ]
+                    continue
+                if first_component not in _ICON_INDEX_SIZE_DIRS and first_component != "symbolic":
+                    dirnames[:] = []
+                    continue
+                dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+                priority = _ICON_INDEX_SIZE_PRIORITY.get(first_component, 0)
+                for filename in filenames:
+                    stem, dot, ext = filename.rpartition(".")
+                    if not dot or ext.lower() not in _ICON_INDEX_EXTENSIONS:
+                        continue
+                    if stem in index and priority <= priority_of[stem]:
+                        continue
+                    index[stem] = os.path.join(dirpath, filename)
+                    priority_of[stem] = priority
+    return index
+
+
+def _icon_file_index() -> dict[str, str]:
+    global _ICON_FILE_INDEX
+    if _ICON_FILE_INDEX is None:
+        _ICON_FILE_INDEX = _build_icon_file_index()
+    return _ICON_FILE_INDEX
+
+
 def _search_for_icon_path(theme_name: str, config: Config | None = None) -> Path | None:
-    # Consult-only lookup: never walk the icon theme trees from the UI thread.
-    # A full recursive scan can take seconds per missing name, so it is allowed
-    # exclusively inside discover_system_icons() (see _discover_one). The module
-    # cache is seeded from the persisted profile by initialize_icon_cache().
-    return _ICON_PATH_CACHE.get(theme_name)
+    # Consult the fast caches first (persisted paths and known misses).
+    if theme_name in _ICON_PATH_CACHE:
+        return _ICON_PATH_CACHE[theme_name]
+    # Then the lazily built file index of all icon themes (Thunar checks the
+    # theme for each name; we check the indexed files instead, so names that
+    # only exist as files on disk are still found when the active theme engine
+    # does not expose them).
+    indexed = _icon_file_index().get(theme_name)
+    if indexed is not None:
+        path = Path(indexed)
+        _ICON_PATH_CACHE[theme_name] = path
+        persist_config = config or _DEFAULT_CONFIG
+        if persist_config is not None:
+            try:
+                persist_config.set_cached_icon_path(theme_name, str(path))
+            except Exception:
+                pass
+        return path
+    _ICON_PATH_CACHE[theme_name] = None
+    return None
 
 
 def _resolve_aliases(theme_name: str) -> list[str]:
