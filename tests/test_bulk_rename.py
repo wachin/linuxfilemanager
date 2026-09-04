@@ -253,6 +253,29 @@ class SanitizeTests(unittest.TestCase):
         self.assertEqual(restored[0].search, "_")
 
 
+class TransformOrderTests(unittest.TestCase):
+    def test_order_changes_result(self):
+        """Order matters when two transforms act on the same text."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = _make_files(tmpdir, "one.txt")
+
+            lower_first = [
+                Transform(TransformType.CASE, value="upper"),
+                Transform(TransformType.SEARCH_REPLACE, search="txt", replace="file", case_sensitive=True),
+            ]
+            search_first = [
+                Transform(TransformType.SEARCH_REPLACE, search="txt", replace="file", case_sensitive=True),
+                Transform(TransformType.CASE, value="upper"),
+            ]
+            plan_a = build_plan(paths, lower_first)
+            plan_b = build_plan(paths, search_first)
+            # upper first -> "ONE.TXT" then "txt" (case-sensitive) no longer matches -> "ONE.TXT"
+            # search first -> "one.file" then upper -> "ONE.FILE"
+            self.assertEqual(plan_a.items[0].new_name, "ONE.TXT")
+            self.assertEqual(plan_b.items[0].new_name, "ONE.FILE")
+            self.assertNotEqual(plan_a.items[0].new_name, plan_b.items[0].new_name)
+
+
 class ApplyPlanTests(unittest.TestCase):
     def test_apply_renames_files_and_reports_pairs(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -339,6 +362,31 @@ class BulkRenameDialogTests(unittest.TestCase):
             dialog.undo_last_batch()
             self.assertTrue((Path(tmpdir) / "a.txt").exists())
             self.assertFalse((Path(tmpdir) / "a.md").exists())
+            dialog.deleteLater()
+
+    def test_dialog_reorders_transforms(self):
+        from lfmapp.ui.bulk_rename_dialog import BulkRenameDialog
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = _make_files(tmpdir, "one.txt", "two.txt")
+            dialog = BulkRenameDialog(paths, record_callback=None)
+
+            # Two steps: numbering (index 0) and case-upper (index 1).
+            dialog.number_start_spin.setValue(1)
+            dialog.number_digits_spin.setValue(2)
+            dialog.case_combo.setCurrentIndex([m for _l, m, _s in dialog.CASE_MODES].index("upper"))
+            dialog.rebuild_plan()
+
+            self.assertEqual(dialog.order_list.count(), 2)
+            order_before = list(dialog._transform_order)
+
+            # Move the first step (numbering) down.
+            dialog.order_list.setCurrentRow(0)
+            dialog._move_transform_down()
+
+            self.assertNotEqual(dialog._transform_order, order_before)
+            # The list widget row order now reflects the new order.
+            self.assertEqual(dialog.order_list.count(), 2)
             dialog.deleteLater()
 
 

@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
     QInputDialog,
     QLabel,
     QLineEdit,
+    QListWidget,
     QPushButton,
     QSpinBox,
     QTableWidget,
@@ -75,6 +76,7 @@ class BulkRenameDialog(QDialog):
         self._plan = RenamePlan()
         self._last_batch: list[RenameOperation] = []
         self._presets: dict[str, list[Transform]] = {}
+        self._transform_order: list[int] | None = None
 
         self.setWindowTitle(self.tr("Bulk Rename"))
         self.resize(760, 560)
@@ -83,6 +85,7 @@ class BulkRenameDialog(QDialog):
         layout.addLayout(self._build_transform_controls())
         layout.addLayout(self._build_more_controls())
         layout.addLayout(self._build_metadata_controls())
+        layout.addLayout(self._build_order_controls())
         layout.addLayout(self._build_preset_controls())
 
         self.hide_unchanged_checkbox = QCheckBox(self.tr("Hide files that do not change"))
@@ -203,6 +206,105 @@ class BulkRenameDialog(QDialog):
         self.sanitize_checkbox.toggled.connect(self.rebuild_plan)
         row.addWidget(self.sanitize_checkbox)
         return row
+
+    def _build_order_controls(self) -> QHBoxLayout:
+        row = QHBoxLayout()
+        list_box = QVBoxLayout()
+        list_box.addWidget(QLabel(self.tr("Active steps (applied top to bottom):")))
+        self.order_list = QListWidget(self)
+        self.order_list.setMaximumHeight(88)
+        list_box.addWidget(self.order_list)
+
+        nav = QVBoxLayout()
+        self.up_button = QPushButton(self.tr("Up"), self)
+        self.up_button.clicked.connect(self._move_transform_up)
+        self.down_button = QPushButton(self.tr("Down"), self)
+        self.down_button.clicked.connect(self._move_transform_down)
+        self.remove_button = QPushButton(self.tr("Remove"), self)
+        self.remove_button.clicked.connect(self._remove_transform)
+        nav.addWidget(self.up_button)
+        nav.addWidget(self.down_button)
+        nav.addWidget(self.remove_button)
+        nav.addStretch(1)
+
+        row.addLayout(list_box, 1)
+        row.addLayout(nav)
+        return row
+
+    def _humanize_transform(self, transform: Transform) -> str:
+        t = transform.type
+        if t == TransformType.SEARCH_REPLACE:
+            return f"Replace “{transform.search}” → “{transform.replace}”"
+        if t == TransformType.REGEX:
+            return f"Regex “{transform.search}” → “{transform.replace}”"
+        if t == TransformType.PREFIX:
+            return f"Prefix “{transform.value}”"
+        if t == TransformType.SUFFIX:
+            return f"Suffix “{transform.value}”"
+        if t == TransformType.NUMBERING:
+            grouped = " (paired)" if transform.grouped else ""
+            return f"Numbering from {transform.start}, {transform.digits} digits{grouped}"
+        if t == TransformType.CASE:
+            return f"Case {transform.value or 'none'}"
+        if t == TransformType.DATE:
+            return f"Date ({transform.format or 'default'})"
+        if t == TransformType.EXIF:
+            return f"EXIF date ({transform.format or 'default'})"
+        if t == TransformType.AUDIO:
+            return f"Audio {transform.field}"
+        if t == TransformType.SANITIZE:
+            return "Sanitize characters"
+        return transform.type
+
+    def _sync_order_list(self):
+        transforms = self._collect_transforms(record_order=False)
+        if self._transform_order is None:
+            self._transform_order = list(range(len(transforms)))
+        else:
+            # Keep only valid indices for the current transform count.
+            self._transform_order = [i for i in self._transform_order if i < len(transforms)]
+            # Append any new steps at the end.
+            existing = set(self._transform_order)
+            for i in range(len(transforms)):
+                if i not in existing:
+                    self._transform_order.append(i)
+        self.order_list.clear()
+        for i in self._transform_order:
+            self.order_list.addItem(self._humanize_transform(transforms[i]))
+
+    def _move_transform_up(self):
+        row = self.order_list.currentRow()
+        if row <= 0 or self._transform_order is None:
+            return
+        self._transform_order[row], self._transform_order[row - 1] = (
+            self._transform_order[row - 1],
+            self._transform_order[row],
+        )
+        self._sync_order_list()
+        self._rebuild_plan_from_order()
+
+    def _move_transform_down(self):
+        row = self.order_list.currentRow()
+        if row < 0 or self._transform_order is None or row >= len(self._transform_order) - 1:
+            return
+        self._transform_order[row], self._transform_order[row + 1] = (
+            self._transform_order[row + 1],
+            self._transform_order[row],
+        )
+        self._sync_order_list()
+        self._rebuild_plan_from_order()
+
+    def _remove_transform(self):
+        row = self.order_list.currentRow()
+        if row < 0 or self._transform_order is None:
+            return
+        self._transform_order.pop(row)
+        self._sync_order_list()
+        self._rebuild_plan_from_order()
+
+    def _rebuild_plan_from_order(self):
+        self._plan = build_plan(self.paths, self._collect_transforms(record_order=True))
+        self._refresh_preview()
 
     def _build_preset_controls(self) -> QHBoxLayout:
         row = QHBoxLayout()
@@ -366,7 +468,7 @@ class BulkRenameDialog(QDialog):
 
     # ─── Plan building ─────────────────────────────────────────
 
-    def _collect_transforms(self) -> list[Transform]:
+    def _collect_transforms(self, record_order: bool = True) -> list[Transform]:
         transforms: list[Transform] = []
         search = self.search_edit.text() if hasattr(self, "search_edit") else ""
         replace = self.replace_edit.text() if hasattr(self, "replace_edit") else ""
@@ -421,11 +523,22 @@ class BulkRenameDialog(QDialog):
         # Sanitization goes last so it cleans whatever the other transforms produced.
         if hasattr(self, "sanitize_checkbox") and self.sanitize_checkbox.isChecked():
             transforms.append(Transform(TransformType.SANITIZE))
+
+        # Respect an explicit user order when present and still consistent.
+        order = getattr(self, "_transform_order", None)
+        if record_order and order is not None and len(order) == len(transforms):
+            ordered = [transforms[i] for i in order]
+            return ordered
         return transforms
 
     def rebuild_plan(self):
-        transforms = self._collect_transforms()
-        self._plan = build_plan(self.paths, transforms)
+        transforms = self._collect_transforms(record_order=False)
+        # Reset the explicit order whenever the underlying steps change.
+        if self._transform_order is not None and len(self._transform_order) != len(transforms):
+            self._transform_order = None
+        self._plan = build_plan(self.paths, self._collect_transforms(record_order=True))
+        if hasattr(self, "order_list"):
+            self._sync_order_list()
         self._refresh_preview()
 
     # ─── Preview table ─────────────────────────────────────────
