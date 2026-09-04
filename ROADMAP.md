@@ -1365,14 +1365,14 @@ Verified current situation: `lfmapp/ui/main_window.py` went from 3.849 lines to 
 
 - [x] Create a non-destructive bulk rename flow with a “before/after” preview that updates live and allows checking/unchecking items, hiding those that do not change and manually fixing names (visually pinned). → `lfmapp/ui/bulk_rename_dialog.py` + `lfmapp/services/bulk_rename.py`.
 - [x] Support transformation modes: literal name, wildcards with part preservation, search/replace and regular expressions, with case sensitivity options and ignore extension by default. → search/replace + regex (case-sensitivity toggle); wildcards/literal-mode pending.
-- [x] Offer accumulable, reorderable actions: prefix/suffix, replacement, configurable numbering (start, digits, increment, placeholder), upper/lowercase with extension handling and text editing by anchors. → prefix/suffix, search/replace, regex, numbering (start/digits), upper/lower/title case; reordering and anchors pending.
+- [x] Offer accumulable, reorderable actions: prefix/suffix, replacement, configurable numbering (start, digits, increment, placeholder), upper/lowercase with extension handling and text editing by anchors. → prefix/suffix, search/replace, regex, numbering (start/digits/increment, `{n}` placeholder), upper/lower/title case (incl. extension scope); reordering and anchors pending.
 - [x] Apply the batch without closing the dialog, with immediate undo of the last batch, in addition to running as a single recordable and reversible operation. → `apply_batch`/`undo_last_batch`; recorded as a `CompositeOperation` of `RenameOperation`s.
 - [x] Detect empty, duplicate, reserved, too long or invalid names before applying, highlight conflicts and offer automatic correction. → `invalid`/`duplicate`/`exists` conflicts highlighted in red; automatic correction pending.
-- [ ] Save presets with groups, favorites, export/import and reset; remember the latest batches and allow creating reusable actions from a preset.
-- [ ] Support renaming with metadata (audio/media/image/dates with formatting and character sanitization), supported by the already installed services (`python3-mutagen`, `pymediainfo`, `python3-pil`).
+- [x] Save presets with groups, favorites, export/import and reset; remember the latest batches and allow creating reusable actions from a preset. → Save/load/delete presets persisted in config (`bulk_rename_presets`); export/import and "latest batches" memory pending.
+- [x] Support renaming with metadata (audio/media/image/dates with formatting and character sanitization), supported by the already installed services (`python3-mutagen`, `pymediainfo`, `python3-pil`). → modification date (`%` strftime), EXIF image date (PIL), and audio tags title/artist/album (mutagen); character sanitization pending.
 - [ ] Allow templates that generate subfolders or include the parent folder, and recursion into subfolders (content only or folders as well) with multi-level preview.
-- [ ] Renumber as a single unit the files that share the same base name and differ in extension (e.g., photo and RAW) so that pairs are not desynchronized.
-- [ ] Clipboard: copy the list of names, paste names line by line as replacement or as prefix/suffix.
+- [x] Renumber as a single unit the files that share the same base name and differ in extension (e.g., photo and RAW) so that pairs are not desynchronized. → grouping option; `photo.jpg` + `photo.raw` share one number.
+- [x] Clipboard: copy the list of names, paste names line by line as replacement or as prefix/suffix. → Copy/Paste names buttons; `apply_names_list` helper (replace/prefix/suffix).
 
 ## 6.3 Other batch actions
 

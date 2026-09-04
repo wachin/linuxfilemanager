@@ -10,9 +10,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PyQt6.QtWidgets import QApplication
 
 from lfmapp.services.bulk_rename import (
+    BulkRenamePreset,
     RenamePlan,
     Transform,
     TransformType,
+    apply_names_list,
     apply_plan,
     build_plan,
     split_name,
@@ -131,6 +133,91 @@ class BuildPlanTests(unittest.TestCase):
             transforms = [Transform(TransformType.PREFIX, value="sub/")]
             plan = build_plan(paths, transforms)
             self.assertEqual(plan.items[0].conflict, "invalid")
+
+
+class MetadataTests(unittest.TestCase):
+    def test_date_uses_modification_time(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = _make_files(tmpdir, "a.txt")
+            import os
+
+            stamp = 1600000000
+            os.utime(paths[0], (stamp, stamp))
+            transforms = [Transform(TransformType.DATE, value="-", format="%Y")]
+            plan = build_plan(paths, transforms)
+            # 1600000000 -> 2020
+            self.assertEqual(plan.items[0].new_name, "a-2020.txt")
+
+    def test_exif_missing_keeps_name(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = _make_files(tmpdir, "a.txt")  # not an image -> no EXIF
+            transforms = [Transform(TransformType.EXIF, format="%Y")]
+            plan = build_plan(paths, transforms)
+            self.assertEqual(plan.items[0].new_name, "a.txt")
+
+    def test_audio_missing_keeps_name(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = _make_files(tmpdir, "a.txt")
+            transforms = [Transform(TransformType.AUDIO, value="_", field="title")]
+            plan = build_plan(paths, transforms)
+            self.assertEqual(plan.items[0].new_name, "a.txt")
+
+
+class GroupedNumberingTests(unittest.TestCase):
+    def test_paired_files_share_number(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = _make_files(tmpdir, "photo.jpg", "photo.raw", "other.jpg")
+            transforms = [
+                Transform(
+                    TransformType.NUMBERING,
+                    start=1,
+                    digits=2,
+                    value="-",
+                    grouped=True,
+                )
+            ]
+            plan = build_plan(paths, transforms)
+            by_name = {i.original_name: i.new_name for i in plan.items}
+            # photo.jpg and photo.raw share base -> both get "01"; other -> "02".
+            self.assertEqual(by_name["photo.jpg"], "photo-01.jpg")
+            self.assertEqual(by_name["photo.raw"], "photo-01.raw")
+            self.assertEqual(by_name["other.jpg"], "other-02.jpg")
+
+
+class PresetTests(unittest.TestCase):
+    def test_transform_roundtrip(self):
+        t = Transform(TransformType.CASE, value="upper", search="extension")
+        t2 = Transform.from_dict(t.to_dict())
+        self.assertEqual(t2.type, TransformType.CASE)
+        self.assertEqual(t2.value, "upper")
+        self.assertEqual(t2.search, "extension")
+
+    def test_preset_roundtrip(self):
+        preset = BulkRenamePreset(
+            name="strip",
+            transforms=[
+                Transform(TransformType.SEARCH_REPLACE, search="_", replace=" "),
+                Transform(TransformType.CASE, value="title"),
+            ],
+        )
+        restored = BulkRenamePreset.from_dict(preset.to_dict())
+        self.assertEqual(restored.name, "strip")
+        self.assertEqual(len(restored.transforms), 2)
+        self.assertEqual(restored.transforms[0].search, "_")
+
+    def test_apply_names_list_modes(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paths = _make_files(tmpdir, "a.txt", "b.txt")
+            names = ["x.md", "y.md"]
+            self.assertEqual(
+                apply_names_list(names, "replace", paths)[paths[0]], "x.md"
+            )
+            self.assertEqual(
+                apply_names_list(["pre_", "pre_"], "prefix", paths)[paths[1]], "pre_b.txt"
+            )
+            self.assertEqual(
+                apply_names_list(["_suf", "_suf"], "suffix", paths)[paths[0]], "a_suf.txt"
+            )
 
 
 class ApplyPlanTests(unittest.TestCase):

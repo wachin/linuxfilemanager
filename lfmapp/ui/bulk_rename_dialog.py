@@ -6,15 +6,19 @@ hide-unchanged option, manual name editing, and apply/undo of the last batch.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QClipboard
 from PyQt6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QPushButton,
@@ -25,11 +29,14 @@ from PyQt6.QtWidgets import (
 )
 
 from lfmapp.services.bulk_rename import (
+    BulkRenamePreset,
     RenamePlan,
     Transform,
     TransformType,
+    apply_names_list,
     apply_plan,
     build_plan,
+    split_name,
 )
 from lfmapp.services.operation_history import CompositeOperation, RenameOperation
 
@@ -46,6 +53,20 @@ class BulkRenameDialog(QDialog):
         ("lower extension", "lower", "extension"),
     ]
 
+    METADATA_FIELDS = [
+        ("<none>", ""),
+        ("Modification date", TransformType.DATE),
+        ("Image date (EXIF)", TransformType.EXIF),
+        ("Audio — Title", TransformType.AUDIO),
+        ("Audio — Artist", TransformType.AUDIO),
+        ("Audio — Album", TransformType.AUDIO),
+    ]
+    AUDIO_FIELD = {
+        1: "title",
+        2: "artist",
+        3: "album",
+    }
+
     def __init__(self, paths: list[Path], record_callback, on_applied_callback=None, parent=None):
         super().__init__(parent)
         self.paths = [p for p in paths if p.exists()]
@@ -53,13 +74,16 @@ class BulkRenameDialog(QDialog):
         self.on_applied_callback = on_applied_callback
         self._plan = RenamePlan()
         self._last_batch: list[RenameOperation] = []
+        self._presets: dict[str, list[Transform]] = {}
 
         self.setWindowTitle(self.tr("Bulk Rename"))
-        self.resize(720, 520)
+        self.resize(760, 560)
         layout = QVBoxLayout(self)
 
         layout.addLayout(self._build_transform_controls())
         layout.addLayout(self._build_more_controls())
+        layout.addLayout(self._build_metadata_controls())
+        layout.addLayout(self._build_preset_controls())
 
         self.hide_unchanged_checkbox = QCheckBox(self.tr("Hide files that do not change"))
         self.hide_unchanged_checkbox.setChecked(False)
@@ -79,6 +103,10 @@ class BulkRenameDialog(QDialog):
             QDialogButtonBox.StandardButton.Apply
             | QDialogButtonBox.StandardButton.Close
         )
+        self.copy_names_button = buttons.addButton(self.tr("Copy names"), QDialogButtonBox.ButtonRole.ActionRole)
+        self.copy_names_button.clicked.connect(self._copy_names)
+        self.paste_names_button = buttons.addButton(self.tr("Paste names"), QDialogButtonBox.ButtonRole.ActionRole)
+        self.paste_names_button.clicked.connect(self._paste_names)
         self.apply_button = buttons.button(QDialogButtonBox.StandardButton.Apply)
         self.apply_button.setText(self.tr("Rename"))
         self.apply_button.clicked.connect(self.apply_batch)
@@ -149,6 +177,131 @@ class BulkRenameDialog(QDialog):
         row.addWidget(self.case_combo)
         return row
 
+    def _build_metadata_controls(self) -> QHBoxLayout:
+        row = QHBoxLayout()
+        row.addWidget(QLabel(self.tr("Metadata:")))
+        self.metadata_combo = QComboBox(self)
+        for label, value in self.METADATA_FIELDS:
+            self.metadata_combo.addItem(self.tr(label), value)
+        self.metadata_combo.currentIndexChanged.connect(self.rebuild_plan)
+        row.addWidget(self.metadata_combo)
+
+        row.addWidget(QLabel(self.tr("Format:")))
+        self.metadata_format_edit = QLineEdit(self)
+        self.metadata_format_edit.setPlaceholderText(self.tr("e.g. %Y-%m-%d"))
+        self.metadata_format_edit.setText("%Y-%m-%d")
+        self.metadata_format_edit.textChanged.connect(self.rebuild_plan)
+        row.addWidget(self.metadata_format_edit)
+
+        self.grouped_checkbox = QCheckBox(self.tr("Renumber paired files together"))
+        self.grouped_checkbox.setToolTip(self.tr("photo.jpg + photo.raw share one number"))
+        self.grouped_checkbox.toggled.connect(self.rebuild_plan)
+        row.addWidget(self.grouped_checkbox)
+        return row
+
+    def _build_preset_controls(self) -> QHBoxLayout:
+        row = QHBoxLayout()
+        row.addWidget(QLabel(self.tr("Preset:")))
+        self.preset_combo = QComboBox(self)
+        self.preset_combo.currentIndexChanged.connect(self._on_preset_selected)
+        row.addWidget(self.preset_combo, 1)
+        self.save_preset_button = QPushButton(self.tr("Save"), self)
+        self.save_preset_button.clicked.connect(self._save_preset)
+        row.addWidget(self.save_preset_button)
+        self.delete_preset_button = QPushButton(self.tr("Delete"), self)
+        self.delete_preset_button.clicked.connect(self._delete_preset)
+        row.addWidget(self.delete_preset_button)
+        return row
+
+    # ─── Presets ───────────────────────────────────────────────
+
+    def load_presets(self, presets: list[BulkRenamePreset]):
+        self._presets = {p.name: p.transforms for p in presets}
+        self._rebuild_preset_combo()
+
+    def export_presets(self) -> list[BulkRenamePreset]:
+        return [BulkRenamePreset(name, transforms) for name, transforms in self._presets.items()]
+
+    def _rebuild_preset_combo(self):
+        current = self.preset_combo.currentText()
+        self.preset_combo.blockSignals(True)
+        self.preset_combo.clear()
+        self.preset_combo.addItem(self.tr("— none —"))
+        for name in sorted(self._presets):
+            self.preset_combo.addItem(name)
+        if current:
+            index = self.preset_combo.findText(current)
+            if index >= 0:
+                self.preset_combo.setCurrentIndex(index)
+        self.preset_combo.blockSignals(False)
+
+    def _on_preset_selected(self):
+        name = self.preset_combo.currentText()
+        transforms = self._presets.get(name)
+        if transforms is None:
+            return
+        self._apply_transforms_to_controls(transforms)
+        self.rebuild_plan()
+
+    def _apply_transforms_to_controls(self, transforms: list[Transform]):
+        # Reflect a preset into the controls (best-effort, one transform each).
+        self.search_edit.clear()
+        self.replace_edit.clear()
+        self.prefix_edit.clear()
+        self.suffix_edit.clear()
+        self.regex_checkbox.setChecked(False)
+        self.case_combo.setCurrentIndex(0)
+        self.metadata_combo.setCurrentIndex(0)
+        self.grouped_checkbox.setChecked(False)
+        self.number_start_spin.setValue(0)
+        for transform in transforms:
+            if transform.type == TransformType.PREFIX:
+                self.prefix_edit.setText(transform.value)
+            elif transform.type == TransformType.SUFFIX:
+                self.suffix_edit.setText(transform.value)
+            elif transform.type == TransformType.SEARCH_REPLACE:
+                self.search_edit.setText(transform.search)
+                self.replace_edit.setText(transform.replace)
+                self.case_checkbox.setChecked(transform.case_sensitive)
+            elif transform.type == TransformType.REGEX:
+                self.search_edit.setText(transform.search)
+                self.replace_edit.setText(transform.replace)
+                self.regex_checkbox.setChecked(True)
+                self.case_checkbox.setChecked(transform.case_sensitive)
+            elif transform.type == TransformType.NUMBERING:
+                self.number_start_spin.setValue(transform.start)
+                self.number_digits_spin.setValue(transform.digits)
+                self.grouped_checkbox.setChecked(transform.grouped)
+            elif transform.type == TransformType.CASE:
+                for i, (_label, mode, scope) in enumerate(self.CASE_MODES):
+                    if mode == transform.value and scope == transform.search:
+                        self.case_combo.setCurrentIndex(i)
+                        break
+            elif transform.type in (TransformType.DATE, TransformType.EXIF):
+                idx = self.metadata_combo.findData(transform.type)
+                if idx >= 0:
+                    self.metadata_combo.setCurrentIndex(idx)
+                self.metadata_format_edit.setText(transform.format or "%Y-%m-%d")
+            elif transform.type == TransformType.AUDIO:
+                idx = 1 + list(self.AUDIO_FIELD.values()).index(transform.field)
+                self.metadata_combo.setCurrentIndex(
+                    self.metadata_combo.findText(self.metadata_combo.itemText(idx))
+                )
+
+    def _save_preset(self):
+        name, ok = QInputDialog.getText(self, self.tr("Save preset"), self.tr("Preset name:"))
+        if not ok or not name.strip():
+            return
+        self._presets[name.strip()] = self._collect_transforms()
+        self._rebuild_preset_combo()
+        self.preset_combo.setCurrentText(name.strip())
+
+    def _delete_preset(self):
+        name = self.preset_combo.currentText()
+        if name in self._presets:
+            del self._presets[name]
+            self._rebuild_preset_combo()
+
     # ─── Plan building ─────────────────────────────────────────
 
     def _collect_transforms(self) -> list[Transform]:
@@ -184,8 +337,21 @@ class BulkRenameDialog(QDialog):
                     TransformType.NUMBERING,
                     start=self.number_start_spin.value(),
                     digits=self.number_digits_spin.value(),
+                    grouped=getattr(self, "grouped_checkbox").isChecked() if hasattr(self, "grouped_checkbox") else False,
                 )
             )
+        # Metadata transforms (date / EXIF / audio).
+        if hasattr(self, "metadata_combo") and self.metadata_combo.currentData():
+            mtype = self.metadata_combo.currentData()
+            fmt = getattr(self, "metadata_format_edit").text() if hasattr(self, "metadata_format_edit") else ""
+            if mtype == TransformType.DATE:
+                transforms.append(Transform(TransformType.DATE, format=fmt))
+            elif mtype == TransformType.EXIF:
+                transforms.append(Transform(TransformType.EXIF, format=fmt))
+            elif mtype == TransformType.AUDIO:
+                index = self.metadata_combo.currentIndex()
+                field = self.AUDIO_FIELD.get(index, "title")
+                transforms.append(Transform(TransformType.AUDIO, value="_", field=field))
         if hasattr(self, "case_combo") and self.case_combo.currentData():
             mode, scope = self.case_combo.currentData()
             if mode:
@@ -259,6 +425,23 @@ class BulkRenameDialog(QDialog):
             item.setForeground(Qt.GlobalColor.black)
 
     # ─── Apply / undo ──────────────────────────────────────────
+
+    def _copy_names(self):
+        names = [item.new_name for item in self._plan.items]
+        QApplication.clipboard().setText("\n".join(names))
+
+    def _paste_names(self):
+        text = QApplication.clipboard().text()
+        if not text:
+            return
+        lines = [line for line in text.splitlines() if line.strip()]
+        for idx, line in enumerate(lines):
+            if idx >= len(self._plan.items):
+                break
+            self._plan.items[idx].new_name = line.strip()
+            self._plan.items[idx].new_path = self._plan.items[idx].original_path.with_name(line.strip())
+            self._plan.items[idx].changed = line.strip() != self._plan.items[idx].original_name
+        self._refresh_preview()
 
     def apply_batch(self):
         plan = self._plan

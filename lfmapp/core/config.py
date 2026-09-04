@@ -41,6 +41,7 @@ def _default_config_data():
         "media_close_on_unmount": False,
         "media_detect_and_suggest": True,
         "bulk_rename_command": "",
+        "bulk_rename_presets": [],
         "archive_tool": "ark",
         "copy_tool": "native",
         "icon_caption_fields": ["none", "size", "date_modified"],

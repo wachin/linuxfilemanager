@@ -10,7 +10,8 @@ Every applied rename is reported back so the caller can record a reversible
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 
@@ -21,6 +22,9 @@ class TransformType:
     SUFFIX = "suffix"
     NUMBERING = "numbering"
     CASE = "case"
+    DATE = "date"
+    EXIF = "exif"
+    AUDIO = "audio"
 
 
 @dataclass(frozen=True)
@@ -37,10 +41,25 @@ class Transform:
     start: int = 1
     digits: int = 1
     increment: int = 1
+    grouped: bool = False
+    # metadata options
+    field: str = ""
+    format: str = ""
 
-    def apply_to(self, name: str, parts: "_NameParts", index: int) -> str:
+    def apply_to(self, name: str, parts: "_NameParts", index: int, path: Path | None = None) -> str:
         handler = _TRANSFORM_HANDLERS[self.type]
-        return handler(self, name, parts, index)
+        return handler(self, name, parts, index, path)
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Transform":
+        known = {
+            "type", "value", "search", "replace", "case_sensitive",
+            "start", "digits", "increment", "grouped", "field", "format",
+        }
+        return cls(**{k: v for k, v in data.items() if k in known})
 
 
 @dataclass(frozen=True)
@@ -67,13 +86,13 @@ def split_name(name: str) -> _NameParts:
     return _NameParts(stem, extension)
 
 
-def _apply_search_replace(transform: Transform, name: str, parts: _NameParts, index: int) -> str:
+def _apply_search_replace(transform: Transform, name: str, parts: _NameParts, index: int, path: Path | None = None) -> str:
     flags = 0 if transform.case_sensitive else re.IGNORECASE
     search = re.escape(transform.search)
     return re.sub(search, lambda m: transform.replace, name, flags=flags)
 
 
-def _apply_regex(transform: Transform, name: str, parts: _NameParts, index: int) -> str:
+def _apply_regex(transform: Transform, name: str, parts: _NameParts, index: int, path: Path | None = None) -> str:
     flags = 0 if transform.case_sensitive else re.IGNORECASE
     try:
         return re.sub(transform.search, transform.replace, name, flags=flags)
@@ -81,16 +100,16 @@ def _apply_regex(transform: Transform, name: str, parts: _NameParts, index: int)
         return name
 
 
-def _apply_prefix(transform: Transform, name: str, parts: _NameParts, index: int) -> str:
+def _apply_prefix(transform: Transform, name: str, parts: _NameParts, index: int, path: Path | None = None) -> str:
     return transform.value + name
 
 
-def _apply_suffix(transform: Transform, name: str, parts: _NameParts, index: int) -> str:
+def _apply_suffix(transform: Transform, name: str, parts: _NameParts, index: int, path: Path | None = None) -> str:
     # Insert the suffix before the extension by default (ignore-extension).
     return parts.stem + transform.value + parts.extension if parts.extension else name + transform.value
 
 
-def _apply_numbering(transform: Transform, name: str, parts: _NameParts, index: int) -> str:
+def _apply_numbering(transform: Transform, name: str, parts: _NameParts, index: int, path: Path | None = None) -> str:
     number = transform.start + index * transform.increment
     formatted = str(number).zfill(transform.digits) if transform.digits > 0 else str(number)
     if transform.value:
@@ -101,7 +120,7 @@ def _apply_numbering(transform: Transform, name: str, parts: _NameParts, index: 
     return parts.stem + formatted + parts.extension
 
 
-def _apply_case(transform: Transform, name: str, parts: _NameParts, index: int) -> str:
+def _apply_case(transform: Transform, name: str, parts: _NameParts, index: int, path: Path | None = None) -> str:
     mode = transform.value
     if transform.search == "extension":
         # Apply to the extension only.
@@ -120,6 +139,93 @@ def _apply_case(transform: Transform, name: str, parts: _NameParts, index: int) 
     return name
 
 
+def _apply_date(transform: Transform, name: str, parts: _NameParts, index: int, path: Path | None = None) -> str:
+    if path is None:
+        return name
+    fmt = transform.format or "%Y-%m-%d"
+    try:
+        date_text = datetime.fromtimestamp(path.stat().st_mtime).strftime(fmt)
+    except (OSError, ValueError):
+        return name
+    return parts.stem + transform.value + date_text + parts.extension
+
+
+def _apply_exif(transform: Transform, name: str, parts: _NameParts, index: int, path: Path | None = None) -> str:
+    if path is None:
+        return name
+    date_text = _exif_datetime(path)
+    if date_text is None:
+        return name
+    try:
+        fmt = transform.format or "%Y-%m-%d"
+        date_text = datetime.strptime(date_text, "%Y:%m:%d %H:%M:%S").strftime(fmt)
+    except ValueError:
+        pass
+    return parts.stem + transform.value + date_text + parts.extension
+
+
+def _apply_audio(transform: Transform, name: str, parts: _NameParts, index: int, path: Path | None = None) -> str:
+    if path is None:
+        return name
+    value = _audio_metadata(path, transform.field)
+    if not value:
+        return name
+    return parts.stem + transform.value + value + parts.extension
+
+
+def _exif_datetime(path: Path) -> str | None:
+    """Return the EXIF DateTimeOriginal of an image, or None."""
+    try:
+        from PIL import Image
+
+        with Image.open(path) as image:
+            exif = image.getexif()
+            if not exif:
+                return None
+            # DateTimeOriginal = 36867, DateTime = 306
+            for tag in (36867, 306):
+                value = exif.get(tag)
+                if value:
+                    return str(value)
+    except Exception:
+        return None
+    return None
+
+
+def _audio_metadata(path: Path, field: str) -> str:
+    """Return an audio tag value via mutagen, or the empty string."""
+    if not field:
+        return ""
+    try:
+        import mutagen
+
+        audio = mutagen.File(str(path))
+        if audio is None or audio.tags is None:
+            return ""
+    except Exception:
+        return ""
+    mapping = {
+        "title": "title",
+        "artist": "artist",
+        "album": "album",
+        "track": "tracknumber",
+        "year": "date",
+        "genre": "genre",
+    }
+    tag = mapping.get(field)
+    if not tag:
+        return ""
+    try:
+        value = audio.tags.get(tag)
+    except Exception:
+        return ""
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple)):
+        value = value[0] if value else ""
+    return str(value)
+
+
 _TRANSFORM_HANDLERS = {
     TransformType.SEARCH_REPLACE: _apply_search_replace,
     TransformType.REGEX: _apply_regex,
@@ -127,6 +233,9 @@ _TRANSFORM_HANDLERS = {
     TransformType.SUFFIX: _apply_suffix,
     TransformType.NUMBERING: _apply_numbering,
     TransformType.CASE: _apply_case,
+    TransformType.DATE: _apply_date,
+    TransformType.EXIF: _apply_exif,
+    TransformType.AUDIO: _apply_audio,
 }
 
 
@@ -192,12 +301,18 @@ def build_plan(
     planned_names: dict[str, Path] = {}
     original_by_name: dict[str, Path] = {p.name: p for p in paths}
 
+    # Resolve grouped-numbering indices: files that share the base name (differ
+    # only in extension) receive the same number so pairs stay in sync.
+    group_index = _compute_group_indices(paths)
+
     for index, path in enumerate(paths):
         original_name = path.name
         parts = split_name(original_name)
         new_name = original_name
+        effective_index = group_index.get(_base_of(path.name), index)
         for transform in transforms:
-            new_name = transform.apply_to(new_name, _NameParts(*_split_current(new_name)), index)
+            idx = effective_index if (transform.type == TransformType.NUMBERING and transform.grouped) else index
+            new_name = transform.apply_to(new_name, _NameParts(*_split_current(new_name)), idx, path)
 
         changed = new_name != original_name
         conflict = _detect_conflict(new_name, path, existing_names, planned_names) if changed else None
@@ -216,6 +331,22 @@ def build_plan(
         plan.items.append(item)
 
     return plan
+
+
+def _base_of(name: str) -> str:
+    """Return the base name without any extension (photo.jpg -> photo)."""
+    parts = split_name(name)
+    return parts.stem
+
+
+def _compute_group_indices(paths: list[Path]) -> dict[str, int]:
+    """Map base name -> group index (appearance order of distinct bases)."""
+    bases: list[str] = []
+    for path in paths:
+        base = _base_of(path.name)
+        if base not in bases:
+            bases.append(base)
+    return {base: i for i, base in enumerate(bases)}
 
 
 def _split_current(name: str) -> tuple[str, str]:
@@ -240,3 +371,45 @@ def apply_plan(plan: RenamePlan, include_unchanged: bool = False) -> list[tuple[
         item.original_path.rename(item.new_path)
         renamed.append((item.original_path, item.new_path))
     return renamed
+
+
+# ─── Presets ─────────────────────────────────────────────────────
+
+
+@dataclass
+class BulkRenamePreset:
+    name: str
+    transforms: list[Transform]
+
+    def to_dict(self) -> dict:
+        return {"name": self.name, "transforms": [t.to_dict() for t in self.transforms]}
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "BulkRenamePreset":
+        return cls(
+            name=str(data.get("name", "")),
+            transforms=[Transform.from_dict(t) for t in data.get("transforms", [])],
+        )
+
+
+def apply_names_list(names: list[str], mode: str, paths: list[Path]) -> dict[Path, str]:
+    """Apply a pasted list of names to the given paths.
+
+    ``mode`` is one of ``replace``, ``prefix``, ``suffix``; returns a mapping
+    of path -> resulting name. Extra names are ignored; missing names leave the
+    original untouched.
+    """
+    result: dict[Path, str] = {}
+    for path, name in zip(paths, names):
+        current = path.name
+        if mode == "replace":
+            new_name = name
+        elif mode == "prefix":
+            new_name = name + current
+        elif mode == "suffix":
+            parts = split_name(current)
+            new_name = parts.stem + name + parts.extension
+        else:
+            new_name = current
+        result[path] = new_name
+    return result
