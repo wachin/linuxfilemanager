@@ -276,22 +276,53 @@ class FileActionsMixin:
 
     # ─── Clipboard ─────────────────────────────────────────────
 
-    def copy_selected(self):
+    # ─── Clipboard with nested structure (flat view / expandable folders) ───
+    #
+    # The clipboard stores tuples (path, relative_parent): the folder the item
+    # lived in, relative to the base folder where the copy happened. This is
+    # how Dolphin's KIO paste keeps enough context to recreate structure, and
+    # how Directory Opus "preserve folder structure" works: the relationship
+    # is recorded when copying, not guessed when pasting.
+
+    def _clipboard_capture(self) -> list[tuple]:
+        """Build (path, relative_parent) pairs for the current selection."""
         paths = self.workspace.selected_paths()
         if not paths:
+            return []
+        base = self.workspace.current_path()
+        captured = []
+        for path in paths:
+            rel_parent = ""
+            try:
+                rel = path.parent.relative_to(base)
+                # A direct child of the base has no structure (Path(".")
+                # stringifies as "."; normalize it away).
+                rel_parent = "" if rel == Path(".") else str(rel)
+            except ValueError:
+                # Not under the base folder (e.g. copied from elsewhere, or a
+                # direct child of the base itself keeps rel_parent == "").
+                rel_parent = ""
+            captured.append((path, rel_parent))
+        return captured
+
+    def copy_selected(self):
+        captured = self._clipboard_capture()
+        if not captured:
             return
-        self._clipboard_paths = paths
+        self._clipboard_paths = [path for path, _ in captured]
+        self._clipboard_structure = captured
         self._clipboard_mode = "copy"
-        self.statusBar().showMessage(self.tr("Copied {count} item(s)").format(count=len(paths)), 3000)
+        self.statusBar().showMessage(self.tr("Copied {count} item(s)").format(count=len(captured)), 3000)
         self.refresh_registry_enablement()
 
     def cut_selected(self):
-        paths = self.workspace.selected_paths()
-        if not paths:
+        captured = self._clipboard_capture()
+        if not captured:
             return
-        self._clipboard_paths = paths
+        self._clipboard_paths = [path for path, _ in captured]
+        self._clipboard_structure = captured
         self._clipboard_mode = "cut"
-        self.statusBar().showMessage(self.tr("Cut {count} item(s)").format(count=len(paths)), 3000)
+        self.statusBar().showMessage(self.tr("Cut {count} item(s)").format(count=len(captured)), 3000)
         self.refresh_registry_enablement()
 
     def paste_from_clipboard(self):
@@ -304,6 +335,15 @@ class FileActionsMixin:
         sources = [src for src in self._clipboard_paths if src.exists()]
         if not sources:
             return
+
+        # Nested-file rule (ROADMAP "Flat view" / "Expandable folders"):
+        # the relative structure was captured when the items were copied
+        # (clipboard tuples). When pasting in a *different* folder than the
+        # base, ask once whether to recreate that structure or dump all files
+        # in the same destination folder.
+        structure_mode = self._resolve_nested_structure_mode(destination)
+        if structure_mode is None:
+            return  # user cancelled the whole paste
 
         # Optional Ultracopier delegation (ROADMAP 10.2): Ultracopier manages
         # its own queue/collisions, so no workers/undo are recorded here.
@@ -321,12 +361,29 @@ class FileActionsMixin:
         )
 
         conflict_resolver = self._new_conflict_resolver()
+        # (path, relative_parent) pairs captured at copy time; sources that no
+        # longer exist are dropped, and legacy plain-path clipboards (no
+        # structure) paste flat as before.
+        structure = getattr(self, "_clipboard_structure", None) or [
+            (src, "") for src in sources
+        ]
+        structure_map = {path: rel for path, rel in structure if path in sources}
+
         # Process each clipboard item with worker threads
         for src in sources:
+            item_destination = destination
+            if structure_mode == "recreate":
+                relative_parent = structure_map.get(src, "")
+                if relative_parent:
+                    item_destination = destination / relative_parent
+                    try:
+                        item_destination.mkdir(parents=True, exist_ok=True)
+                    except OSError:
+                        item_destination = destination
             if self._clipboard_mode == "copy":
                 self.statusBar().showMessage(self.tr("Copying {name}...").format(name=src.name), 0)
-                worker = CopyWorker(src, destination, conflict_resolver=conflict_resolver)
-                copied_path = destination / src.name
+                worker = CopyWorker(src, item_destination, conflict_resolver=conflict_resolver)
+                copied_path = item_destination / src.name
                 self._register_worker(
                     worker,
                     self.tr("Copying {name}...").format(name=src.name),
@@ -342,8 +399,8 @@ class FileActionsMixin:
                 )
             elif self._clipboard_mode == "cut":
                 self.statusBar().showMessage(self.tr("Moving {name}...").format(name=src.name), 0)
-                worker = MoveWorker(src, destination, conflict_resolver=conflict_resolver)
-                moved_path = destination / src.name
+                worker = MoveWorker(src, item_destination, conflict_resolver=conflict_resolver)
+                moved_path = item_destination / src.name
                 self._register_worker(
                     worker,
                     self.tr("Moving {name}...").format(name=src.name),
@@ -363,6 +420,7 @@ class FileActionsMixin:
         # If cut mode, clear clipboard after paste
         if self._clipboard_mode == "cut":
             self._clipboard_paths = []
+            self._clipboard_structure = []
             self._clipboard_mode = None
 
     def _on_paste_finished(self, success, message):
@@ -376,6 +434,57 @@ class FileActionsMixin:
             )
         self.refresh_view()
         # _register_worker/unregister handles active worker bookkeeping
+
+    # ─── Nested-file structure rule (flat view / expandable folders) ───
+
+    def _resolve_nested_structure_mode(self, destination: Path) -> str | None:
+        """Decide how pasted nested files are placed (shared rule, P2).
+
+        The relative structure was recorded when the items were copied
+        (``_clipboard_structure`` tuples). Ask **once per paste** whether to
+        recreate it at the destination or to place all files in the same
+        folder — but only when there is real structure to recreate and the
+        destination is a different folder than the one where the copy
+        happened (pasting back into the same tree would duplicate files onto
+        themselves).
+
+        Returns one of:
+        - ``"same_folder"``: everything goes directly into destination;
+        - ``"recreate"``: recreate each source's relative parent structure;
+        - ``None``: the user cancelled the operation.
+        """
+        structure = getattr(self, "_clipboard_structure", None) or []
+        nested = [(path, rel) for path, rel in structure if rel and path.exists()]
+        if not nested:
+            return "same_folder"
+
+        # Skip the question when pasting inside the same base folder: the
+        # structure already exists there and recreating it would copy files
+        # onto themselves (the workers skip source==dest targets anyway).
+        destination = Path(destination)
+        if all(path.parent == destination / rel for path, rel in nested):
+            return "same_folder"
+
+        from PyQt6.QtWidgets import QMessageBox
+
+        answer = QMessageBox.question(
+            self,
+            self.tr("Nested files"),
+            self.tr(
+                "{count} of the selected files are inside subfolders.\n\n"
+                "Recreate the source folder structure at the destination, "
+                "or place all files in the same folder?"
+            ).format(count=len(nested)),
+            QMessageBox.StandardButton.Yes  # recreate structure
+            | QMessageBox.StandardButton.No  # same folder
+            | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Yes,
+        )
+        if answer == QMessageBox.StandardButton.Cancel:
+            return None
+        if answer == QMessageBox.StandardButton.Yes:
+            return "recreate"
+        return "same_folder"
 
     def copy_path(self):
         path = self.workspace.selected_path()

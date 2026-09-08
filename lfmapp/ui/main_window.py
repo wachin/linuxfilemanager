@@ -72,6 +72,7 @@ class MainWindow(PaletteActionsMixin, ContextMenuMixin, FileActionsMixin, Transf
         self._tabs = []
         self._active_tab_index = -1
         self._clipboard_paths: list[Path] = []
+        self._clipboard_structure: list[tuple] = []  # (path, relative_parent)
         self._clipboard_mode = None  # "copy" or "cut"
         self._current_search_results = []
         self._active_search_filters = SearchFilters()
@@ -99,6 +100,8 @@ class MainWindow(PaletteActionsMixin, ContextMenuMixin, FileActionsMixin, Transf
         self.workspace.model.dataChanged.connect(self.on_model_data_changed)
         self.workspace.model.fileRenamed.connect(self.on_file_renamed)
         self.workspace.doubleClicked.connect(self.on_workspace_double_clicked)
+        self.workspace.flatEntryActivated.connect(self.on_flat_entry_activated)
+        self.workspace.flatScanFinished.connect(self.on_flat_scan_finished)
         self.workspace.selectionChanged.connect(self.on_selection_changed)
         self.workspace.customContextMenuRequested.connect(self.open_context_menu)
         self.workspace.filesDropped.connect(self.on_files_dropped)
@@ -317,6 +320,9 @@ class MainWindow(PaletteActionsMixin, ContextMenuMixin, FileActionsMixin, Transf
     def closeEvent(self, event):
         # Coordinate exit with the operation queue (ROADMAP 2.2): never
         # abandon half-done operations without an explicit user choice.
+        # Stop background flat scans first: their QThread is parented to the
+        # workspace and would abort at destruction if still running.
+        self.workspace.shutdown_flat_scan()
         running = bool(self._active_workers) or self._operation_queue.pending_count > 0
         if running:
             from PyQt6.QtWidgets import QMessageBox

@@ -39,6 +39,7 @@ class ViewMode(Enum):
     LIST = "list"
     DETAILS = "details"
     COMPACT = "compact"
+    FLAT = "flat"
 
     @classmethod
     def from_string(cls, value: str, default: "ViewMode" = None) -> "ViewMode":
@@ -78,6 +79,8 @@ class Workspace(QWidget):
     customContextMenuRequested = pyqtSignal(object)
     filesDropped = pyqtSignal(list, str)  # paths, action: 'copy'|'move'
     selectionChanged = pyqtSignal(object, object)
+    flatEntryActivated = pyqtSignal(object)   # Path activated in flat view
+    flatScanFinished = pyqtSignal(int)        # flat scan total count
 
     def __init__(self, parent=None, initial_path: Path | str | None = None, config=None):
         super().__init__(parent)
@@ -141,10 +144,41 @@ class Workspace(QWidget):
         self.icon_view.setDropIndicatorShown(True)
         self.icon_view.setDragDropMode(QListView.DragDropMode.DragDrop)
 
+        # Flat view (QTreeView over FlatViewModel) — backlog P2
+        from lfmapp.models.flat_view_model import FlatViewModel
+        from lfmapp.services.flat_view_service import FlatViewMode
+
+        self.flat_model = FlatViewModel(self)
+        self.flat_view_mode = FlatViewMode.MIXED
+        self._flat_worker = None
+        self.flat_view = QTreeView(self)
+        self.flat_view.setAlternatingRowColors(True)
+        self.flat_view.setUniformRowHeights(True)
+        self.flat_view.setRootIsDecorated(False)
+        self.flat_view.setItemsExpandable(False)
+        self.flat_view.setIconSize(QSize(22, 22))
+        self.flat_view.setSortingEnabled(True)
+        self.flat_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.flat_view.setSelectionMode(QTreeView.SelectionMode.ExtendedSelection)
+        self.flat_view.setEditTriggers(QTreeView.EditTrigger.NoEditTriggers)
+        self.flat_view.setDragEnabled(True)
+        self.flat_view.setAcceptDrops(True)
+        self.flat_view.setDropIndicatorShown(True)
+        self.flat_view.setDragDropMode(QTreeView.DragDropMode.DragDrop)
+        self.flat_view.setModel(self.flat_model)
+        for column, width in ((0, 320), (1, 220), (2, 90), (3, 120), (4, 160)):
+            self.flat_view.setColumnWidth(column, width)
+        header = self.flat_view.header()
+        header.setStretchLastSection(False)
+        header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        header.setSectionsMovable(True)
+        header.setSortIndicator(0, Qt.SortOrder.AscendingOrder)
+
         # Add views to stacked widget
         self.stacked_widget.addWidget(self.details_view)
         self.stacked_widget.addWidget(self.list_view)
         self.stacked_widget.addWidget(self.icon_view)
+        self.stacked_widget.addWidget(self.flat_view)
 
         # Create and set up the custom model
         self.model = FileSystemModel(self, root_path=self._current_path, config=config)
@@ -189,14 +223,17 @@ class Workspace(QWidget):
         self.details_view.doubleClicked.connect(self._forward_double_clicked)
         self.list_view.doubleClicked.connect(self._forward_double_clicked)
         self.icon_view.doubleClicked.connect(self._forward_double_clicked)
+        self.flat_view.doubleClicked.connect(self._forward_flat_double_clicked)
 
         self.details_view.selectionModel().selectionChanged.connect(self._forward_selection_changed)
         self.list_view.selectionModel().selectionChanged.connect(self._forward_selection_changed)
         self.icon_view.selectionModel().selectionChanged.connect(self._forward_selection_changed)
+        self.flat_view.selectionModel().selectionChanged.connect(self._forward_selection_changed)
 
         self.details_view.customContextMenuRequested.connect(self._forward_context_menu_requested)
         self.list_view.customContextMenuRequested.connect(self._forward_context_menu_requested)
         self.icon_view.customContextMenuRequested.connect(self._forward_context_menu_requested)
+        self.flat_view.customContextMenuRequested.connect(self._forward_context_menu_requested)
 
         # Set up layout
         layout = QVBoxLayout(self)
@@ -207,7 +244,7 @@ class Workspace(QWidget):
         self.set_view_mode(ViewMode.DETAILS)
 
         # Install event filter on views to handle drag & drop semantics
-        for v in (self.details_view, self.list_view, self.icon_view):
+        for v in (self.details_view, self.list_view, self.icon_view, self.flat_view):
             v.setAcceptDrops(True)
             v.installEventFilter(self)
         self.apply_preferences()
@@ -489,6 +526,8 @@ class Workspace(QWidget):
             return self.details_view
         elif self._view_mode == ViewMode.LIST:
             return self.list_view
+        elif self._view_mode == ViewMode.FLAT:
+            return self.flat_view
         else:
             return self.icon_view
 
@@ -500,6 +539,10 @@ class Workspace(QWidget):
             self._ensure_name_column_width()
         elif mode == ViewMode.LIST:
             self.stacked_widget.setCurrentWidget(self.list_view)
+        elif mode == ViewMode.FLAT:
+            # Flat view: one folder and its whole tree as a single list (P2).
+            self.stacked_widget.setCurrentWidget(self.flat_view)
+            self._start_flat_scan()
         elif mode == ViewMode.ICON:
             # Standard icon view with the configured grid density.
             self.icon_view.setViewMode(QListView.ViewMode.IconMode)
@@ -563,6 +606,85 @@ class Workspace(QWidget):
         if self._view_mode == ViewMode.COMPACT:
             self.icon_view.setIconSize(QSize(compact_size, compact_size))
 
+    # ─── Flat view (backlog P2) ─────────────────────────────────
+
+    def set_flat_view_mode(self, mode):
+        """Set the flat view degree (mixed / files_only / grouped)."""
+        from lfmapp.services.flat_view_service import FlatViewMode
+
+        if not isinstance(mode, FlatViewMode):
+            mode = FlatViewMode.from_string(str(mode), self.flat_view_mode)
+        if mode == self.flat_view_mode and self.flat_model.entries():
+            return
+        self.flat_view_mode = mode
+        if self._view_mode == ViewMode.FLAT:
+            self._start_flat_scan()
+
+    def flat_view_mode_value(self) -> str:
+        return self.flat_view_mode.value
+
+    def _start_flat_scan(self):
+        """(Re)scan the tree of the current folder, populating the flat model.
+
+        Runs in a background worker (FlatViewWorker) with progressive
+        batches. A worker still running for a previous folder/mode is asked
+        to stop, but its reference is **not** dropped: the thread must stay
+        owned (parented here) until it finishes, or Qt aborts with "thread
+        destroyed while running". The stale-results guard is the
+        sender()-based check in the batch handler.
+        """
+        from lfmapp.services.flat_view_service import FlatViewWorker
+
+        if self._flat_worker is not None:
+            self._flat_worker.stop()
+            self._flat_worker = None
+        self.flat_model.set_entries([])
+        root = self._current_path
+        if root is None:
+            return
+        include_hidden = True
+        if self.config is not None:
+            include_hidden = bool(self.config.data.get("show_hidden_files", True))
+        worker = FlatViewWorker(root, self.flat_view_mode, include_hidden, parent=self)
+        self._flat_worker = worker
+        worker.batch.connect(self._on_flat_batch)
+        worker.finished.connect(self._on_flat_finished)
+        worker.finished.connect(worker.deleteLater)
+        worker.start()
+
+    def _on_flat_batch(self, entries):
+        # Stale guard: only the worker that is still current may populate.
+        if self.sender() is not self._flat_worker:
+            return
+        self.flat_model.append_entries(entries)
+
+    def _on_flat_finished(self, count):
+        if self.sender() is not self._flat_worker:
+            return
+        self._flat_worker = None
+        self.flatScanFinished.emit(count)
+
+    def shutdown_flat_scan(self):
+        """Stop the flat scan worker and wait for it (safe window close)."""
+        worker = self._flat_worker
+        if worker is None:
+            return
+        self._flat_worker = None
+        worker.batch.disconnect()
+        worker.finished.disconnect()
+        worker.stop()
+        if worker.isRunning():
+            worker.wait(3000)
+
+    def _forward_flat_double_clicked(self, index):
+        """Flat rows navigate folders through the real model index."""
+        entry = self.flat_model.entry_at(index.row()) if index.isValid() else None
+        if entry is None:
+            return
+        # Re-emit as the standard doubleClicked(index) shape is model-bound;
+        # flat rows must resolve through the file system model instead.
+        self.flatEntryActivated.emit(entry.path)
+
     def set_root_path(self, path: Path):
         """Set the root path for all views."""
         self._current_path = path
@@ -573,6 +695,9 @@ class Workspace(QWidget):
         self._ensure_name_column_width()
         # Restore this folder's saved columns after the root switch (P2).
         self.apply_list_columns_preferences()
+        # Re-scan the tree for the flat view when it is the active mode.
+        if self._view_mode == ViewMode.FLAT:
+            self._start_flat_scan()
 
     def current_path(self) -> Path:
         """Get the current root path."""
@@ -580,6 +705,10 @@ class Workspace(QWidget):
 
     def selected_path(self) -> Path | None:
         """Return the path of the currently selected item."""
+        if self._view_mode == ViewMode.FLAT:
+            index = self.flat_view.currentIndex()
+            entry = self.flat_model.entry_at(index.row()) if index.isValid() else None
+            return entry.path if entry else None
         view = self._get_current_view()
         index = view.currentIndex()
         if index.isValid():
@@ -588,6 +717,18 @@ class Workspace(QWidget):
 
     def selected_paths(self) -> list[Path]:
         """Return list of all selected file/folder paths."""
+        if self._view_mode == ViewMode.FLAT:
+            paths = []
+            for index in self.flat_view.selectedIndexes():
+                if index.column() != 0:
+                    continue
+                entry = self.flat_model.entry_at(index.row())
+                if entry and entry.path not in paths:
+                    paths.append(entry.path)
+            for path in self.model.checked_paths():
+                if path not in paths:
+                    paths.append(path)
+            return paths
         view = self._get_current_view()
         paths = []
         for index in view.selectedIndexes():
@@ -631,6 +772,7 @@ class Workspace(QWidget):
         self.details_view.setAlternatingRowColors(enable)
         self.list_view.setAlternatingRowColors(enable)
         self.icon_view.setAlternatingRowColors(enable)
+        self.flat_view.setAlternatingRowColors(enable)
 
     def setSortingEnabled(self, enable: bool):
         """Set sorting enabled for all views."""
@@ -656,6 +798,16 @@ class Workspace(QWidget):
         self.model.sort(column, order)
         self.details_view.sortByColumn(column, order)
         self.details_view.header().setSortIndicator(column, order)
+        # Keep the flat view consistent with the active sort criterion.
+        flat_columns = {
+            "name": 0,
+            "size": 2,
+            "type": 3,
+            "modified": 4,
+        }
+        if key in flat_columns and self.flat_model.entries():
+            self.flat_model.sort(flat_columns[key], order)
+            self.flat_view.header().setSortIndicator(flat_columns[key], order)
 
     def group_by(self, key: str, order: Qt.SortOrder | None = None):
         """Group the workspace by a known file-model column."""
@@ -696,18 +848,21 @@ class Workspace(QWidget):
         self.details_view.setContextMenuPolicy(policy)
         self.list_view.setContextMenuPolicy(policy)
         self.icon_view.setContextMenuPolicy(policy)
+        self.flat_view.setContextMenuPolicy(policy)
 
     def setSelectionMode(self, mode: QTreeView.SelectionMode):
         """Set selection mode for all views."""
         self.details_view.setSelectionMode(mode)
         self.list_view.setSelectionMode(mode)
         self.icon_view.setSelectionMode(mode)
+        self.flat_view.setSelectionMode(mode)
 
     def setEditTriggers(self, triggers: QTreeView.EditTrigger):
         """Set edit triggers for all views."""
         self.details_view.setEditTriggers(triggers)
         self.list_view.setEditTriggers(triggers)
         self.icon_view.setEditTriggers(triggers)
+        self.flat_view.setEditTriggers(triggers)
 
     def selectAll(self):
         """Select all items in the current view."""
@@ -744,21 +899,25 @@ class Workspace(QWidget):
         self.details_view.setDragEnabled(enable)
         self.list_view.setDragEnabled(enable)
         self.icon_view.setDragEnabled(enable)
+        self.flat_view.setDragEnabled(enable)
 
     def setAcceptDrops(self, accept: bool):
         """Set accept drops for all views."""
         self.details_view.setAcceptDrops(accept)
         self.list_view.setAcceptDrops(accept)
         self.icon_view.setAcceptDrops(accept)
+        self.flat_view.setAcceptDrops(accept)
 
     def setDropIndicatorShown(self, show: bool):
         """Set drop indicator shown for all views."""
         self.details_view.setDropIndicatorShown(show)
         self.list_view.setDropIndicatorShown(show)
         self.icon_view.setDropIndicatorShown(show)
+        self.flat_view.setDropIndicatorShown(show)
 
     def setDragDropMode(self, mode: QTreeView.DragDropMode):
         """Set drag drop mode for all views."""
         self.details_view.setDragDropMode(mode)
         self.list_view.setDragDropMode(mode)
         self.icon_view.setDragDropMode(mode)
+        self.flat_view.setDragDropMode(mode)

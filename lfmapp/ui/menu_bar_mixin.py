@@ -120,6 +120,30 @@ class MenuBarMixin:
         if persistent:
             self._icon_grid_actions = grid_actions
 
+    def _add_flat_mode_menu(self, menu):
+        """Add the flat-view degree submenu (mixed / files only / grouped)."""
+        from lfmapp.services.flat_view_service import FlatViewMode
+
+        mode_menu = menu.addMenu(self.tr("Flat View Mode"))
+        mode_group = QActionGroup(self)
+        mode_group.setExclusive(True)
+        self._action_groups.append(mode_group)
+        self._flat_mode_actions = {}
+        for mode, label in (
+            (FlatViewMode.MIXED, self.tr("Files and folders (mixed)")),
+            (FlatViewMode.FILES_ONLY, self.tr("Only files")),
+            (FlatViewMode.GROUPED, self.tr("Grouped by structure")),
+        ):
+            action = QAction(label, self, checkable=True)
+            action.setChecked(self.workspace.flat_view_mode == mode)
+            action.triggered.connect(
+                lambda checked=False, mode=mode: self.set_flat_view_mode(mode)
+            )
+            mode_group.addAction(action)
+            mode_menu.addAction(action)
+            self._flat_mode_actions[mode] = action
+            self._register_command_action(action, category=mode_menu.title().replace("&", ""))
+
     def rebuild_recent_files_menu(self):
         """Refresh the File > Recent Files menu."""
         if self.recent_files_menu is None:
@@ -246,6 +270,8 @@ class MenuBarMixin:
         self._add_action(view_menu, "List View", lambda: self.set_view_mode(ViewMode.LIST), "Ctrl+2")
         self._add_action(view_menu, "Details View", lambda: self.set_view_mode(ViewMode.DETAILS), "Ctrl+3")
         self._add_action(view_menu, "Compact View", lambda: self.set_view_mode(ViewMode.COMPACT), "Ctrl+4")
+        self._add_action(view_menu, "Flat View", lambda: self.set_view_mode(ViewMode.FLAT), "Ctrl+5")
+        self._add_flat_mode_menu(view_menu)
         view_menu.addSeparator()
         self._add_icon_grid_menu(view_menu, persistent=True)
         view_menu.addSeparator()

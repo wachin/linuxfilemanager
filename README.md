@@ -25,7 +25,7 @@ Are you a developer who writes code with an AI assistant? This repository is pre
 ## Highlights
 
 - Modular PyQt6 application structure
-- Multiple view modes: icons, list, details, compact
+- Multiple view modes: icons, list, details, compact, and flat (whole tree in one list)
 - Per-folder view memory: view mode, sorting, grouping, icon grid and Details columns saved per folder, with optional inheritance from parent folders
 - Quick Access, bookmarks, recent locations, and tabbed navigation
 - XDG User Directories support for localized and user-customized standard folders
@@ -47,6 +47,7 @@ Already implemented:
 - File navigation history and multiple tabs
 - Context menus and toolbar actions
 - Per-folder visual persistence: complete folder format (view, sort, group, icon grid, columns) saved per folder and restored on navigation, with parent inheritance and clear commands
+- Flat view: the current folder and its whole tree as one list (mixed, files-only, structure-grouped), with a nested-files paste rule (recreate structure vs. same folder)
 - XDG-compliant Quick Access that resolves Desktop, Downloads, Documents, Music, Pictures, and Videos from the system instead of hardcoded English folder names
 - Bookmarks kept separate from built-in Quick Access places by default
 - Search, bookmarks, trash, properties, and basic archive support
@@ -382,6 +383,41 @@ every saved format and view mode.
 A folder without a saved format simply uses your global defaults from
 `Preferences > Default View` — nothing is ever applied without you having
 chosen it somewhere.
+
+## Flat View (One Folder and Its Whole Tree)
+
+Sometimes you want to see **everything inside a folder and its subfolders**
+without walking level by level. `View > Flat View` (`Ctrl+5`) collapses the
+whole tree into a single list that behaves like a normal folder listing:
+double-click opens, right-click works, drag and drop works, and the quick
+selection feeds the usual copy/cut operations.
+
+The flat view has three degrees, under `View > Flat View Mode`:
+
+- **Files and folders (mixed)** — everything in the tree, interleaved.
+- **Only files** — folders are hidden (but still walked), so you see just
+  the files at any depth.
+- **Grouped by structure** — entries keep tree order, and the **Location**
+  column shows where each item lives relative to the base folder.
+
+The scan runs in the background and fills the list progressively, so large
+trees do not block the interface. Hidden files follow your global
+`View > Hidden Files` preference, and folders you cannot read are skipped.
+
+**Copying files that live in subfolders.** When you copy nested files (from
+the flat view, or anywhere else) and paste them into a *different* folder,
+Linux File Manager asks once:
+
+- **Yes** — recreate the source folder structure at the destination
+  (`docs/readme.md` lands in `destination/docs/readme.md`);
+- **No** — place all files in the same destination folder
+  (`docs/readme.md` lands in `destination/readme.md`);
+- **Cancel** — abort the paste entirely.
+
+Pasting back into the same base folder asks nothing (the structure is
+already there), and items that would copy onto themselves are skipped
+automatically. The flat degree you choose is remembered per folder as part
+of its format (see above).
 
 ## XDG User Directories
 

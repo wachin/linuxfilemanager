@@ -53,6 +53,10 @@ class ConflictCapableWorker(QThread):
 
     def _resolve_conflict(self, source: Path, dest: Path) -> Path | None:
         """Return the target to use, or None to skip; None also on cancel."""
+        if source == dest:
+            # Copying onto itself is a no-op (can happen when pasting flat-view
+            # selections inside their own base folder): skip without asking.
+            return None
         if not dest.exists() or self.conflict_resolver is None:
             return dest
         answer = self.conflict_resolver(Conflict(source, dest))

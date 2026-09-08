@@ -25,7 +25,9 @@ FORMAT_VERSION = 1
 _SORT_KEYS = {"name", "size", "type", "modified"}
 _GROUP_KEYS = {"none", "name", "type", "size", "modified"}
 _GRID_KEYS = {"small", "medium", "large"}
-_VIEW_KEYS = {"icon", "list", "details", "compact"}
+_VIEW_KEYS = {"icon", "list", "details", "compact", "flat"}
+# Degrees of the flat view (lfmapp.services.flat_view_service.FlatViewMode).
+_FLAT_MODES = {"mixed", "files_only", "grouped"}
 
 
 class ViewController:
@@ -137,21 +139,27 @@ class ViewController:
             clean["group"] = fmt["group"]
         if isinstance(fmt.get("grid"), str) and fmt["grid"] in _GRID_KEYS:
             clean["grid"] = fmt["grid"]
+        if isinstance(fmt.get("flat_mode"), str) and fmt["flat_mode"] in _FLAT_MODES:
+            clean["flat_mode"] = fmt["flat_mode"]
         return clean
 
     def remember_format(self, path: Path | None, view_mode: ViewMode | str,
-                        sort_key: str, group_key: str, grid_size: str) -> None:
+                        sort_key: str, group_key: str, grid_size: str,
+                        flat_mode: str | None = None) -> None:
         """Persist the complete visual format of a folder (when enabled)."""
         if not self.enabled or not self.per_folder_enabled or path is None:
             return
         view = view_mode.value if isinstance(view_mode, ViewMode) else str(view_mode)
-        fmt = self.sanitize_format({
+        raw = {
             "version": FORMAT_VERSION,
             "view": view,
             "sort": sort_key,
             "group": group_key,
             "grid": grid_size,
-        })
+        }
+        if flat_mode is not None:
+            raw["flat_mode"] = flat_mode
+        fmt = self.sanitize_format(raw)
         if fmt is None:
             return
         try:

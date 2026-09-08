@@ -66,10 +66,21 @@ class ViewControlsMixin:
             self.workspace.sort_key(),
             self.workspace.group_key(),
             self.workspace.icon_grid_size().value,
+            flat_mode=self.workspace.flat_view_mode_value(),
         )
         self._sync_sort_group_menu_state()
         mode_name = mode.value.capitalize()
         self.statusBar().showMessage(self.tr("View mode: {mode}").format(mode=mode_name), 3000)
+
+    def set_flat_view_mode(self, mode):
+        """Set the flat view degree and persist it in the folder format."""
+        self.workspace.set_flat_view_mode(mode)
+        self._remember_current_folder_format()
+        self._sync_sort_group_menu_state()
+        self.statusBar().showMessage(
+            self.tr("Flat view: {mode}").format(mode=self.workspace.flat_view_mode_value()),
+            3000,
+        )
 
     def _remember_current_folder_format(self):
         """Snapshot the current visual presentation as this folder's format."""
@@ -79,6 +90,7 @@ class ViewControlsMixin:
             self.workspace.sort_key(),
             self.workspace.group_key(),
             self.workspace.icon_grid_size().value,
+            flat_mode=self.workspace.flat_view_mode_value(),
         )
 
     def _sync_sort_group_menu_state(self):
@@ -91,6 +103,17 @@ class ViewControlsMixin:
             action.setChecked(group_key == self.workspace.group_key())
         for grid_size, action in self._icon_grid_actions.items():
             action.setChecked(grid_size == self.workspace.icon_grid_size())
+        flat_actions = getattr(self, "_flat_mode_actions", None)
+        if flat_actions:
+            from lfmapp.services.flat_view_service import FlatViewMode
+
+            for mode, action in flat_actions.items():
+                action.setChecked(
+                    FlatViewMode.from_string(
+                        self.workspace.flat_view_mode_value(), FlatViewMode.MIXED
+                    )
+                    == mode
+                )
 
     def set_icon_grid_size(self, size: IconGridSize):
         """Set and persist the icon grid density."""
@@ -200,6 +223,8 @@ class ViewControlsMixin:
                 self.workspace.set_icon_grid_size(
                     _IconGridSize.from_string(fmt["grid"], self.workspace.icon_grid_size())
                 )
+            if fmt.get("flat_mode"):
+                self.workspace.set_flat_view_mode(fmt["flat_mode"])
         self._sync_sort_group_menu_state()
 
     def refresh_view(self):

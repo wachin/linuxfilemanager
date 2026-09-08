@@ -97,3 +97,6 @@ __all__.append("IndexerService")
 from .terminal_service import TerminalService
 
 __all__.append("TerminalService")
+from .flat_view_service import FlatEntry, FlatViewMode, FlatViewWorker, collect_entries
+
+__all__.extend(["FlatEntry", "FlatViewMode", "FlatViewWorker", "collect_entries"])

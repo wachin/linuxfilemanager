@@ -257,6 +257,22 @@ class TabsNavigationMixin:
         else:
             self.open_file(path)
 
+    def on_flat_entry_activated(self, path):
+        """Open a flat-view row: folders navigate, files open (P2)."""
+        path = Path(path)
+        if path.is_dir():
+            self.go_to(path)
+        else:
+            self.open_file(path)
+
+    def on_flat_scan_finished(self, count: int):
+        """Report the end of a flat scan without interrupting navigation."""
+        if self.workspace.view_mode().value == "flat":
+            self.statusBar().showMessage(
+                self.tr("Flat view: {count} item(s) from the whole tree").format(count=count),
+                4000,
+            )
+
     def on_selection_changed(self, *_):
         path = self.workspace.selected_path()
         if path and path.exists():
