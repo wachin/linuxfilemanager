@@ -292,11 +292,22 @@ This forces Linux File Manager to recreate its saved state from current defaults
 └── README.md
 ```
 
-### Reference sources: the Thunar git submodule
+### Reference sources: the Thunar and Dolphin git submodules
 
-The repository pins the sources of the [Thunar file manager](https://github.com/xfce-mirror/thunar) as a git submodule under [`third-party/thunar`](third-party/thunar/) (`org.xfce.*` code, GPL-2+). They are a **read-only reference** for studying how a mature Linux file manager is built (GIO/gvfs integration, icon themes, transfers, thumbnails, D-Bus activation, …) — they are **never built, installed or copied**; Linux File Manager only re-expresses the interaction logic (see the *Thunar as a study reference* section of [`ROADMAP.md`](ROADMAP.md) and “Sources of Inspiration” below).
+The repository pins the sources of two mature file managers as read-only git submodules — they are **never built, installed or copied**; Linux File Manager only reads their interaction logic and re-expresses it in Python + PyQt6 (see the *Thunar as a study reference* and *Dolphin as a study reference* sections of [`ROADMAP.md`](ROADMAP.md), and “Sources of Inspiration” below):
 
-To get the submodule when cloning the repository:
+- [`third-party/thunar`](third-party/thunar/) — [Thunar](https://github.com/xfce-mirror/thunar) (Xfce, GPL-2+): GIO/gvfs integration, icon themes, transfers, thumbnails, D-Bus activation.
+- [`third-party/dolphin`](third-party/dolphin/) — [Dolphin](https://github.com/kde/dolphin) (KDE, GPL): clipboard/paste and job model, panels architecture, view capabilities.
+
+A concrete example of how these references pay off is documented in
+[`docs/adr/ADR-0001-clipboard-structure-dolphin.md`](docs/adr/ADR-0001-clipboard-structure-dolphin.md):
+studying `DolphinView::paste()` in Dolphin's source (made freely available
+by the KDE community) revealed the correct clipboard-with-structure design
+for our flat view and exposed two real bugs — a self-copy deadlock and a
+spurious "nested files?" dialog. No Dolphin code was copied; the diagnosis
+and the credit to its developers are recorded there for future contributors.
+
+To get the submodules when cloning the repository:
 
 ```bash
 # Option A — clone with the submodule from the start (recommended):

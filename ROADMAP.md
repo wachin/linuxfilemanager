@@ -1986,6 +1986,18 @@ Linux File Manager pins the sources of **Thunar** —a mature GTK/GIO file manag
 
 **Recommended order (opinion):** (1) D-Bus `FileManager1` + single instance — closes the "the system opens Linux File Manager" goal and is self-contained and testable, with no new dependency if `python3-dbus.mainloop.pyqt6` is used; then (2) the URI/virtual-folders model + the volume monitor (Thunar's gvfs foundation); then (3) per-volume trash; and in parallel (4) the shared thumbnail cache, as a quick win.
 
+# Dolphin as a study reference (`third-party/dolphin` submodule)
+
+Linux File Manager also pins the sources of **Dolphin** — the KDE file manager — as a read-only submodule under `third-party/dolphin/` (GPL; study only: interaction logic is re-expressed in Python + PyQt6, **never copied**). The most valuable study so far came from its **clipboard/paste flow**, recorded in detail in [`docs/adr/ADR-0001-clipboard-structure-dolphin.md`](docs/adr/ADR-0001-clipboard-structure-dolphin.md):
+
+- **Sources read:** [`third-party/dolphin/src/views/dolphinview.cpp`](third-party/dolphin/src/views/dolphinview.cpp) — `DolphinView::paste()` (line ~1009), `DolphinView::pasteToUrl()` (line ~2661), `DolphinView::duplicateSelectedItems()` (line ~1022), and the `KIO::PasteJob` wiring that shows how a single asynchronous job resolves conflicts, progress and undo.
+- **What was learned (and re-expressed, not copied):**
+  1. **The clipboard transports full context.** Dolphin's clipboard carries the complete source URLs; the relationship "where did this file come from" is recorded **at copy time**, never guessed at paste time. This corrected our nested-file rule for the flat view: the clipboard now stores `(path, relative_parent)` tuples captured when the user copies, so pasting elsewhere can faithfully recreate the structure (or flatten it, after asking once).
+  2. **Never copy onto yourself.** Dolphin's jobs validate the resolved destination before asking anything. This exposed a real deadlock in our `CopyWorker`: a nested item pasted inside its own base folder resolved to `source == dest` and blocked forever on a conflict dialog against itself; `_resolve_conflict()` now treats it as a silent no-op.
+- **Result:** two genuine bugs fixed (self-copy freeze; spurious "nested files?" dialog on every ordinary paste — caused by `str(Path("."))` being `"."`, not `""`), 18 new tests, full suite at 459 green. The ADR documents the diagnosis with the exact stacks so the reasoning is reproducible.
+
+Other Dolphin areas worth studying later (recorded for future sessions): the KIO job/undo model (`FileUndoManager`) for Phase 2.3, the places/panels architecture for Phase 7, and its view capabilites handling for dual-pane work.
+
 # Sources of Inspiration
 
 This project is an original implementation in Python + PyQt6 for Linux. The interaction and productivity ideas gathered in the "Key Inspiration" section and in the phases were studied and adapted from the public documentation of the following file managers, whose work is appreciated. It is recommended to consult their sites and documentation to go deeper into each concept:
