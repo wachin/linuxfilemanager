@@ -26,6 +26,7 @@ Are you a developer who writes code with an AI assistant? This repository is pre
 
 - Modular PyQt6 application structure
 - Multiple view modes: icons, list, details, compact
+- Per-folder view memory: view mode, sorting, grouping, icon grid and Details columns saved per folder, with optional inheritance from parent folders
 - Quick Access, bookmarks, recent locations, and tabbed navigation
 - XDG User Directories support for localized and user-customized standard folders
 - Core file operations: copy, move, rename, delete, trash, create folder/file
@@ -45,6 +46,7 @@ Already implemented:
 - Main window, sidebar, workspace, preview panel, and status bar
 - File navigation history and multiple tabs
 - Context menus and toolbar actions
+- Per-folder visual persistence: complete folder format (view, sort, group, icon grid, columns) saved per folder and restored on navigation, with parent inheritance and clear commands
 - XDG-compliant Quick Access that resolves Desktop, Downloads, Documents, Music, Pictures, and Videos from the system instead of hardcoded English folder names
 - Bookmarks kept separate from built-in Quick Access places by default
 - Search, bookmarks, trash, properties, and basic archive support
@@ -341,6 +343,45 @@ Examples of configurable settings:
 - sidebar and preview visibility
 - hidden files, file extensions, and selection checkboxes
 - preferred terminal for `Open in Terminal`
+
+## Per-Folder View Settings (Folder Format)
+
+Linux File Manager remembers how you like to **see each folder** — not just
+the global view mode. For every folder you visit, the following presentation
+is saved automatically and restored the next time you navigate there:
+
+- **View mode** (Icons, List, Details, Compact)
+- **Sort criterion and direction** (name, size, type, date modified)
+- **Grouping** (by type, size, date, name, or none)
+- **Icon grid density** (small, medium, large)
+- **Details columns** (which columns are visible, their order and widths)
+
+This group of settings is called the folder's **format**. It is stored
+per folder in `config.json` under `folder_formats` (versioned, so future
+updates can migrate old entries safely).
+
+**Inheritance from parent folders.** When a folder has no format of its own,
+it inherits the format of the closest ancestor folder that has one (for
+example, set up `/home/you/Photos` once and every subfolder you visit under
+it starts with the same presentation). This can be turned off in
+`Tools > Preferences... > Default View > Inherit folder format from parent
+folders`.
+
+**Turning everything off.** Two switches control the behavior:
+
+- `View > Remember folder view` — stops saving new formats and stops
+  restoring saved ones (existing entries are kept).
+- `Tools > Preferences... > Behavior > Ignore per-folder view preferences` —
+  keeps per-folder memory off even for folders that already have a saved
+  format.
+
+**Cleaning up.** Use `View > Clear saved view for current folder` to reset
+only the active folder, or `View > Clear all saved folder views` to remove
+every saved format and view mode.
+
+A folder without a saved format simply uses your global defaults from
+`Preferences > Default View` — nothing is ever applied without you having
+chosen it somewhere.
 
 ## XDG User Directories
 
