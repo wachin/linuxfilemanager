@@ -1,5 +1,6 @@
 import os
-from dataclasses import dataclass
+import shutil
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import ClassVar
 
@@ -31,6 +32,27 @@ class SearchFilters:
             or self.max_size is not None
             or self.modified_after is not None
             or self.modified_before is not None
+        )
+
+    def to_dict(self) -> dict:
+        return {
+            "file_type": self.file_type,
+            "min_size": self.min_size,
+            "max_size": self.max_size,
+            "modified_after": self.modified_after,
+            "modified_before": self.modified_before,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict | None) -> "SearchFilters":
+        if not data:
+            return cls()
+        return cls(
+            file_type=data.get("file_type", "any"),
+            min_size=data.get("min_size"),
+            max_size=data.get("max_size"),
+            modified_after=data.get("modified_after"),
+            modified_before=data.get("modified_before"),
         )
 
     def matches(self, path: Path) -> bool:
@@ -80,29 +102,89 @@ class SearchFilters:
         return suffix in extension_map.get(file_type, set())
 
 
+@dataclass(frozen=True)
+class SearchQuery:
+    """Serializable search request (ROADMAP Phase 5.1).
+
+    Separates the query text from its mode (name vs content) and scope
+    (current folder vs recursive), plus the optional filters. Serialisable so
+    it can be stored, re-executed and passed to a service.
+    """
+
+    query: str = ""
+    mode: str = "name"          # "name" | "content"
+    recursive: bool = False
+    filters: SearchFilters = field(default_factory=SearchFilters)
+
+    def to_dict(self) -> dict:
+        return {
+            "query": self.query,
+            "mode": self.mode,
+            "recursive": self.recursive,
+            "filters": self.filters.to_dict(),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict | None) -> "SearchQuery":
+        if not data:
+            return cls()
+        return cls(
+            query=str(data.get("query", "")),
+            mode=data.get("mode", "name"),
+            recursive=bool(data.get("recursive", False)),
+            filters=SearchFilters.from_dict(data.get("filters")),
+        )
+
+
 class SearchThread(QThread):
     found = pyqtSignal(Path)
+    batch = pyqtSignal(list)      # progressive results in small batches
     finished = pyqtSignal(int)
 
-    def __init__(self, root: Path, query: str, recursive: bool = False, filters: SearchFilters | None = None):
+    NAME_MODE = "name"
+    CONTENT_MODE = "content"
+
+    def __init__(
+        self,
+        root: Path,
+        query: str,
+        recursive: bool = False,
+        filters: SearchFilters | None = None,
+        mode: str = "name",
+        batch_size: int = 50,
+    ):
         super().__init__()
         self.root = root
         self.query = query.lower()
         self.recursive = recursive
         self.filters = filters or SearchFilters()
+        self.mode = mode
+        self.batch_size = max(1, batch_size)
         self._running = True
 
     def run(self):
         count = 0
+        pending: list[Path] = []
+
+        def emit(path: Path):
+            nonlocal count, pending
+            count += 1
+            pending.append(path)
+            if len(pending) >= self.batch_size:
+                self.batch.emit(list(pending))
+                pending = []
+
         if self.recursive:
             for current_root, dirs, files in os.walk(self.root):
                 if not self._running:
                     break
                 for name in dirs + files:
+                    if not self._running:
+                        break
                     path = Path(current_root) / name
                     if self._matches(path):
                         self.found.emit(path)
-                        count += 1
+                        emit(path)
         else:
             try:
                 for entry in Path(self.root).iterdir():
@@ -110,13 +192,44 @@ class SearchThread(QThread):
                         break
                     if self._matches(entry):
                         self.found.emit(entry)
-                        count += 1
+                        emit(entry)
             except PermissionError:
                 pass
+        if pending:
+            self.batch.emit(pending)
         self.finished.emit(count)
 
     def _matches(self, path: Path) -> bool:
-        return self.query in path.name.lower() and self.filters.matches(path)
+        if not self.filters.matches(path):
+            return False
+        if self.mode == self.CONTENT_MODE:
+            if not path.is_file():
+                return False
+            return self.query in self._file_text(path)
+        return self.query in path.name.lower()
+
+    def _file_text(self, path: Path) -> str:
+        """Read a small text preview of a file for content search.
+
+        Uses a size cap and encoding fallback so a binary/huge file never
+        blocks the search.
+        """
+        try:
+            size = path.stat().st_size
+        except OSError:
+            return ""
+        if size == 0 or size > 2 * 1024 * 1024:
+            return ""
+        try:
+            data = path.read_bytes()
+        except OSError:
+            return ""
+        for encoding in ("utf-8", "latin-1"):
+            try:
+                return data.decode(encoding).lower()
+            except UnicodeDecodeError:
+                continue
+        return ""
 
     def stop(self):
         self._running = False

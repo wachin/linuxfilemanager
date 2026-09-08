@@ -1,7 +1,7 @@
 """Service package for linux-file-manager."""
 
 from .file_operations import FileOperations
-from .search_service import SearchFilters, SearchThread
+from .search_service import SearchFilters, SearchQuery, SearchThread
 from .trash_service import (
     send_to_trash,
     restore_from_trash,
@@ -47,6 +47,7 @@ __all__ = [
     "FileOperations",
     "SearchThread",
     "SearchFilters",
+    "SearchQuery",
     "send_to_trash",
     "restore_from_trash",
     "empty_trash",

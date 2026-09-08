@@ -32,12 +32,20 @@ class SearchFilterDialog(QDialog):
     def __init__(self, query: str = "", parent=None):
         super().__init__(parent)
         self.setWindowTitle(self.tr("Search Filters"))
-        self.resize(360, 260)
+        self.resize(360, 320)
 
         layout = QFormLayout(self)
 
+        self.mode_combo = QComboBox()
+        self.mode_combo.addItem(self.tr("File names"), "name")
+        self.mode_combo.addItem(self.tr("File contents"), "content")
+        layout.addRow(self.tr("Search in:"), self.mode_combo)
+
         self.query_edit = QLineEdit(query)
-        layout.addRow(self.tr("Name contains:"), self.query_edit)
+        layout.addRow(self.tr("Contains:"), self.query_edit)
+
+        self.recursive_checkbox = QCheckBox(self.tr("Search in subfolders"))
+        layout.addRow(self.tr("Scope:"), self.recursive_checkbox)
 
         self.type_combo = QComboBox()
         type_labels = {
@@ -78,6 +86,12 @@ class SearchFilterDialog(QDialog):
 
     def query(self) -> str:
         return self.query_edit.text().strip()
+
+    def mode(self) -> str:
+        return self.mode_combo.currentData()
+
+    def recursive(self) -> bool:
+        return self.recursive_checkbox.isChecked()
 
     def filters(self) -> SearchFilters:
         return SearchFilters(

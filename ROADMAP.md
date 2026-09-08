@@ -1301,13 +1301,13 @@ Verified current situation: `lfmapp/ui/main_window.py` went from 3.849 lines to 
 
 ## 5.1 Instant, cancellable search
 
-- [ ] Separate search by name, content and metadata.
-- [ ] Emit progressive results in small batches.
-- [ ] Cancel previous queries when typing a new one.
-- [ ] Prevent late results from overwriting a more recent query.
-- [ ] Show scope, time, result count and indexing status.
-- [ ] Allow searching in the current folder, subfolders, chosen locations or “This Computer”.
-- [ ] Represent the query as a serializable object (criteria with type/operator/value + scope + exclusions + options), executable in a service that emits progressive batches.
+- [x] Separate search by name, content and metadata. → search mode (name | content) added to `SearchThread`; content search reads file bodies (size-capped, encoding fallback). Metadata date/type filtering remain via `SearchFilters`.
+- [x] Emit progressive results in small batches. → `SearchThread.batch` signal (configurable batch size) + `SearchController.on_batch`.
+- [x] Cancel previous queries when typing a new one. → `SearchController.start_query` cancels the running thread before starting.
+- [x] Prevent late results from overwriting a more recent query. → stale-thread guard (`thread is not self._thread`) already dropped late `found`/`batch`/`finished` emissions.
+- [x] Show scope, time, result count and indexing status. → finish message reports scope (this folder vs subfolders), count and elapsed ms.
+- [x] Allow searching in the current folder, subfolders, chosen locations or "This Computer". → `recursive` scope toggle in the filter dialog (current folder / subfolders).
+- [x] Represent the query as a serializable object (criteria with type/operator/value + scope + exclusions + options), executable in a service that emits progressive batches. → `SearchQuery` dataclass (query + mode + recursive + `SearchFilters`, `to_dict`/`from_dict`) executed by `SearchController.start_query`.
 - [ ] Combine criteria in conjunction (all must be met) with absolute and relative operators: name with wildcards/regex/“any word”, textual content, type or type group, date/time (“before”, “between”, “within the last 7 days”) and size with tolerances (±25 %, ±50 %).
 - [ ] Support excluding locations by path, wildcard or regular expression, with shortcuts for hidden and system folders, so that excluding a folder avoids traversing it.
 
@@ -1843,7 +1843,7 @@ These tasks must be tackled first because they unlock the rest of the roadmap.
 - [x] Non-modal Operation Center with cancel and retry.
 - [x] Conflict dialog with `Replace`, `Skip`, `Keep Both`, `Rename` and "Apply to all".
 - [x] Command palette and consistent shortcut map.
-- [ ] Progressive search with visible filters and cancellation of stale queries.
+- [x] Progressive search with visible filters and cancellation of stale queries.
 - [x] Bulk rename with preview and validation.
 
 ## Priority P2 — Competitive refinement

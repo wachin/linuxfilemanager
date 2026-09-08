@@ -27,7 +27,7 @@ class SearchActionsMixin:
 
     def on_search_requested(self):
         query = self.search_edit.text().strip()
-        self._start_search(query, SearchFilters())
+        self._start_search(query, SearchFilters(), mode="name", recursive=False)
 
     def on_search_filters_requested(self):
         dialog = SearchFilterDialog(self.search_edit.text().strip(), self)
@@ -36,9 +36,9 @@ class SearchActionsMixin:
         query = dialog.query()
         filters = dialog.filters()
         self.search_edit.setText(query)
-        self._start_search(query, filters)
+        self._start_search(query, filters, mode=dialog.mode(), recursive=dialog.recursive())
 
-    def _start_search(self, query: str, filters: SearchFilters):
+    def _start_search(self, query: str, filters: SearchFilters, mode: str = "name", recursive: bool = False):
         current_dir = self.workspace.current_path()
         if not current_dir:
             return
@@ -50,6 +50,8 @@ class SearchActionsMixin:
             query,
             filters,
             root=current_dir,
+            mode=mode,
+            recursive=recursive,
             outcome=SearchOutcome(
                 on_result=lambda path: self.on_search_result(path),
                 on_finished=lambda count: self.on_search_finished(count),
@@ -63,11 +65,15 @@ class SearchActionsMixin:
         self.app_state.set_searching(True, result_count=len(self._current_search_results))
 
     def on_search_finished(self, count):
+        elapsed = self._search_controller.elapsed_ms
         self.app_state.set_searching(False, result_count=count)
+        scope = self.tr("subfolders") if self._search_controller.recursive else self.tr("this folder")
         if self._active_search_filters.is_active():
-            message = self.tr("Search complete with filters: {count} results").format(count=count)
+            message = self.tr("Search in {scope} complete with filters: {count} results").format(scope=scope, count=count)
         else:
-            message = self.tr("Search complete: {count} results").format(count=count)
+            message = self.tr("Search in {scope}: {count} results").format(scope=scope, count=count)
+        if elapsed is not None:
+            message += self.tr(" ({elapsed:.0f} ms)").format(elapsed=elapsed)
         self.statusBar().showMessage(message, 5000)
 
     def on_index_current_folder(self):
