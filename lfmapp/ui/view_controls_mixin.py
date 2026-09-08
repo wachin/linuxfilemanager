@@ -58,10 +58,39 @@ class ViewControlsMixin:
         """Set the workspace view mode (Icon, List, or Details)."""
         self.workspace.set_view_mode(mode)
         self.app_state.set_view_mode(mode.value)
-        # Persist view type for current folder (policy lives in the controller).
-        self.view_controller.remember(self.workspace.current_path(), mode)
+        # Persist the complete folder format for the current folder (P2);
+        # the legacy view-only store stays in sync through the controller.
+        self.view_controller.remember_format(
+            self.workspace.current_path(),
+            mode,
+            self.workspace.sort_key(),
+            self.workspace.group_key(),
+            self.workspace.icon_grid_size().value,
+        )
+        self._sync_sort_group_menu_state()
         mode_name = mode.value.capitalize()
         self.statusBar().showMessage(self.tr("View mode: {mode}").format(mode=mode_name), 3000)
+
+    def _remember_current_folder_format(self):
+        """Snapshot the current visual presentation as this folder's format."""
+        self.view_controller.remember_format(
+            self.workspace.current_path(),
+            self.workspace.view_mode(),
+            self.workspace.sort_key(),
+            self.workspace.group_key(),
+            self.workspace.icon_grid_size().value,
+        )
+
+    def _sync_sort_group_menu_state(self):
+        """Refresh the sort/group/grid menu checkmarks from the workspace."""
+        for sort_key, action in self._sort_column_actions.items():
+            action.setChecked(sort_key == self.workspace.sort_key())
+        for sort_order, action in self._sort_order_actions.items():
+            action.setChecked(sort_order == self.workspace.sort_order())
+        for group_key, action in self._group_actions.items():
+            action.setChecked(group_key == self.workspace.group_key())
+        for grid_size, action in self._icon_grid_actions.items():
+            action.setChecked(grid_size == self.workspace.icon_grid_size())
 
     def set_icon_grid_size(self, size: IconGridSize):
         """Set and persist the icon grid density."""
@@ -69,6 +98,7 @@ class ViewControlsMixin:
         self.config.set_icon_grid_size(self.workspace.icon_grid_size().value)
         for grid_size, action in self._icon_grid_actions.items():
             action.setChecked(grid_size == self.workspace.icon_grid_size())
+        self._remember_current_folder_format()
         label = self.workspace.icon_grid_size().value.capitalize()
         self.statusBar().showMessage(self.tr("Icon grid size: {label}").format(label=label), 3000)
 
@@ -83,6 +113,7 @@ class ViewControlsMixin:
             action.setChecked(sort_key == self.workspace.sort_key())
         for sort_order, action in self._sort_order_actions.items():
             action.setChecked(sort_order == self.workspace.sort_order())
+        self._remember_current_folder_format()
         order_name = self.tr("ascending") if order == Qt.SortOrder.AscendingOrder else self.tr("descending")
         self.statusBar().showMessage(
             self.tr("Sorted by {key} ({order})").format(key=key, order=order_name),
@@ -98,6 +129,7 @@ class ViewControlsMixin:
         self.workspace.group_by(key, order)
         for group_key, action in self._group_actions.items():
             action.setChecked(group_key == self.workspace.group_key())
+        self._remember_current_folder_format()
         if self.workspace.group_key() == "none":
             self.statusBar().showMessage(self.tr("Grouping disabled"), 3000)
         else:
@@ -135,6 +167,40 @@ class ViewControlsMixin:
     def clear_all_folder_views(self):
         self.view_controller.clear_all()
         self.statusBar().showMessage(self.tr("Cleared all saved folder views"), 3000)
+
+    def restore_folder_format(self, path) -> None:
+        """Apply the remembered visual format for a folder (P2).
+
+        Called on navigation: view mode, sort, group and icon grid are
+        restored together; columns are handled by the workspace itself.
+        Absent/ignored folders keep the current presentation (global
+        defaults), and the menu checkmarks are refreshed either way.
+        """
+        from lfmapp.ui.workspace import ViewMode as _ViewMode
+
+        fmt = self.view_controller.format_to_restore(path)
+        if fmt is not None:
+            view_mode = _ViewMode.from_string(fmt.get("view", ""), self.workspace.view_mode())
+            if view_mode != self.workspace.view_mode():
+                self.workspace.set_view_mode(view_mode)
+                self.app_state.set_view_mode(view_mode.value)
+                self.statusBar().showMessage(
+                    self.tr("Restored saved view: {view}").format(view=view_mode.value),
+                    3000,
+                )
+            # Apply group before sort: Workspace.group_by("none") re-sorts by
+            # name, so sort must have the final word to keep the saved order.
+            if fmt.get("group"):
+                self.workspace.group_by(fmt["group"], self.workspace.sort_order())
+            if fmt.get("sort"):
+                self.workspace.sort_by(fmt["sort"], self.workspace.sort_order())
+            if fmt.get("grid"):
+                from lfmapp.ui.workspace import IconGridSize as _IconGridSize
+
+                self.workspace.set_icon_grid_size(
+                    _IconGridSize.from_string(fmt["grid"], self.workspace.icon_grid_size())
+                )
+        self._sync_sort_group_menu_state()
 
     def refresh_view(self):
         """Refresh the current directory view."""

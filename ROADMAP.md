@@ -1415,7 +1415,7 @@ Verified current situation: `lfmapp/ui/main_window.py` went from 3.849 lines to 
 
 ## 7.3 Context persistence
 
-- [ ] Persist per folder: view, zoom, visible columns, order, width and sort criterion.
+- [x] Persist per folder: view, zoom, visible columns, order, width and sort criterion. → First slice: the **folder format** (view + sort + group + icon grid) is persisted per folder in `config["folder_formats"]` (versioned), snapshotted on every change and restored on navigation, with optional inheritance from the closest saved ancestor, the `ignore_per_folder_view_preferences` flag honored end-to-end, and Details columns (visible/order/widths) already persisted per folder in `list_columns_by_folder` **and now restored on `set_root_path`** (guard `_applying_columns` avoids restore loops). Tests in `tests/test_folder_format.py`. Pending refinements of this same item: per-folder zoom and grouping by non-visible fields.
 - [ ] Implement the folder format as a serializable object (view, columns, order, grouping, visibility) with hierarchical sources: path/pattern, content type, folder type, favorite and default user format.
 - [ ] Support automatic formats by content type (type group + percentage threshold + minimums/maximums), opt-in and explainable.
 - [ ] Assign background color and image by path, pattern, folder type or content group (fit modes, opacity, fill color, inheritance to subfolders), resolved with the same hierarchy as the folder format.
@@ -1848,7 +1848,7 @@ These tasks must be tackled first because they unlock the rest of the roadmap.
 
 ## Priority P2 — Competitive refinement
 
-- [ ] Per-folder visual persistence (folder format saved and automatic by content).
+- [x] Per-folder visual persistence (folder format saved and automatic by content). → First slice delivered (7.3 "Persist per folder"): a complete **folder format** (view mode + sort key/order + group key + icon grid) is snapshotted on every change (`set_view_mode`/`set_sort`/`set_group`/`set_icon_grid_size`), stored as a versioned dict in `config["folder_formats"]`, and restored on navigation (`go_to` → `restore_folder_format`), with optional **inheritance from the closest saved ancestor** (`folder_format_inherit_from_parent`, wired to the Preferences "Inherit folder format from parent folders" checkbox) and the previously-dead `ignore_per_folder_view_preferences` flag now honored end-to-end. Details-view columns are restored per folder on `set_root_path` (the `_applying_columns` guard prevents restore loops from overwriting the store). Corrupt/foreign entries are sanitized (unknown keys and versions dropped). "Clear saved view for current folder" / "Clear all saved folder views" now clear both stores (view + format). Tests: `tests/test_folder_format.py` (18). Files: `lfmapp/controllers/view_controller.py`, `lfmapp/core/config.py`, `lfmapp/ui/view_controls_mixin.py`, `lfmapp/ui/tabs_navigation_mixin.py`, `lfmapp/ui/workspace.py`, `lfmapp/ui/preferences_dialog.py`. Still pending from this P2 item: automatic formats **by content type** (7.3 "hierarchical sources" and provenance indicator/lock).
 - [ ] Flat View with mixed, files-only and grouped modes, and rules for copying nested files.
 - [ ] Expandable folders in the list itself (inline tree with expansion control and `Alt`+`↓`/`Alt`+`↑`), with automatic opening of the folder being dragged over and optional hiding of the controls.
 - [ ] Two-phase folder synchronization (compare → review → apply) in the utility panel.

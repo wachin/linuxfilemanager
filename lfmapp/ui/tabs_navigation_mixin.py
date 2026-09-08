@@ -14,7 +14,6 @@ from PyQt6.QtWidgets import QInputDialog, QMessageBox, QTabBar
 
 from lfmapp.controllers import NavigationController
 from lfmapp.services import RenameOperation, trash_count
-from lfmapp.ui.workspace import ViewMode
 
 
 class TabsNavigationMixin:
@@ -153,19 +152,10 @@ class TabsNavigationMixin:
             return
         self.workspace.set_root_path(path)
         self.app_state.set_path(path)
-        # Apply any persisted view preference (policy lives in the controller).
-        view_name = self.view_controller.view_to_restore(
-            path, fallback=self.workspace.view_mode().value
-        )
-        if view_name:
-            view_mode = ViewMode.from_string(view_name, self.workspace.view_mode())
-            if view_mode != self.workspace.view_mode():
-                self.workspace.set_view_mode(view_mode)
-                self.app_state.set_view_mode(view_mode.value)
-                self.statusBar().showMessage(
-                    self.tr("Restored saved view: {view}").format(view=view_mode.value),
-                    3000,
-                )
+        # Restore the remembered visual presentation for this folder (P2):
+        # view mode + sort + group + grid as one folder format; the columns
+        # are restored by the workspace on set_root_path.
+        self.restore_folder_format(path)
         self.path_edit.setText(str(path))
         self.statusBar().showMessage(str(path), 5000)
         if record_history:

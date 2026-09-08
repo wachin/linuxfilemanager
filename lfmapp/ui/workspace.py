@@ -148,6 +148,9 @@ class Workspace(QWidget):
 
         # Create and set up the custom model
         self.model = FileSystemModel(self, root_path=self._current_path, config=config)
+        # While restoring saved columns programmatically, ignore the header's
+        # resize/move signals so a folder restore never overwrites the store.
+        self._applying_columns = False
 
         # Set model for all views
         self.details_view.setModel(self.model)
@@ -240,6 +243,13 @@ class Workspace(QWidget):
     def apply_list_columns_preferences(self):
         if self.config is None:
             return
+        self._applying_columns = True
+        try:
+            self._apply_list_columns_preferences_locked()
+        finally:
+            self._applying_columns = False
+
+    def _apply_list_columns_preferences_locked(self):
         # Prefer per-folder settings when available
         folder_key = str(self.current_path())
         folder_map = self.config.data.get("list_columns_by_folder", {})
@@ -318,12 +328,14 @@ class Workspace(QWidget):
             pass
 
     def _on_column_resized(self, logicalIndex, oldSize, newSize):
-        # Save new widths after a resize event
-        self._save_list_columns_preferences()
+        # Save new widths after a resize event (never during a programmatic restore)
+        if not self._applying_columns:
+            self._save_list_columns_preferences()
 
     def _on_column_moved(self, logicalIndex, oldVisualIndex, newVisualIndex):
-        # Save new order after a move event
-        self._save_list_columns_preferences()
+        # Save new order after a move event (never during a programmatic restore)
+        if not self._applying_columns:
+            self._save_list_columns_preferences()
 
     def _show_list_columns_dialog(self, _pos):
         if self.config is None:
@@ -559,6 +571,8 @@ class Workspace(QWidget):
         self.list_view.setRootIndex(index)
         self.icon_view.setRootIndex(index)
         self._ensure_name_column_width()
+        # Restore this folder's saved columns after the root switch (P2).
+        self.apply_list_columns_preferences()
 
     def current_path(self) -> Path:
         """Get the current root path."""
@@ -748,30 +762,3 @@ class Workspace(QWidget):
         self.details_view.setDragDropMode(mode)
         self.list_view.setDragDropMode(mode)
         self.icon_view.setDragDropMode(mode)
-
-    def set_root_path(self, path: Path):
-        self._current_path = path
-        self.setRootIndex(self.model.index(str(path)))
-
-    def current_path(self) -> Path:
-        return self._current_path
-
-    def selected_path(self) -> Path | None:
-        index = self.currentIndex()
-        if index.isValid():
-            return Path(self.model.filePath(index))
-        return None
-
-    def selected_paths(self) -> list[Path]:
-        """Return list of all selected file/folder paths."""
-        paths = []
-        for index in self.selectedIndexes():
-            # Only count column 0 to avoid duplicates
-            if index.column() == 0:
-                path = Path(self.model.filePath(index))
-                if path not in paths:
-                    paths.append(path)
-        for path in self.model.checked_paths():
-            if path not in paths:
-                paths.append(path)
-        return paths

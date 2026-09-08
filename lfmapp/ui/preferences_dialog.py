@@ -257,7 +257,8 @@ class PreferencesDialog(QDialog):
         self.arrange_items_combo = QComboBox(self)
         for label, value in self.SORT_OPTIONS:
             self.arrange_items_combo.addItem(self.tr(label), value)
-        self.inherit_view_checkbox = QCheckBox(self.tr("Inherit view type from parent"))
+        self.inherit_view_checkbox = QCheckBox(self.tr("Inherit folder format from parent folders"))
+        self.inherit_view_checkbox.toggled.connect(self._on_inherit_view_toggled)
         self.reverse_sort_checkbox = QCheckBox(self.tr("Reverse sort"))
         self.sort_folders_first_checkbox = QCheckBox(self.tr("Sort folders before files"))
         self.sort_favorites_first_checkbox = QCheckBox(self.tr("Sort favorites before other files"))
@@ -648,6 +649,10 @@ class PreferencesDialog(QDialog):
         tree.setRootIsDecorated(False)
         return tree
 
+    def _on_inherit_view_toggled(self, checked: bool):
+        # Keep the new folder-format flag in sync with the legacy checkbox.
+        self.config.set_folder_format_inherit_from_parent(bool(checked))
+
     def _zoom_combo(self) -> QComboBox:
         combo = QComboBox(self)
         for percent in self.ZOOM_OPTIONS:
@@ -656,7 +661,7 @@ class PreferencesDialog(QDialog):
 
     def _load_from_config(self):
         self.default_view_combo.setCurrentIndex(self.default_view_combo.findData(self.config.data.get("default_view_mode", "details")))
-        self.inherit_view_checkbox.setChecked(bool(self.config.data.get("inherit_view_from_parent", True)))
+        self.inherit_view_checkbox.setChecked(self.config.folder_format_inherit_from_parent)
         self.arrange_items_combo.setCurrentIndex(self.arrange_items_combo.findData(self.config.data.get("default_sort_key", "name")))
         self.reverse_sort_checkbox.setChecked(bool(self.config.data.get("default_sort_descending", False)))
         self.sort_folders_first_checkbox.setChecked(bool(self.config.data.get("sort_folders_first", True)))
@@ -847,6 +852,7 @@ class PreferencesDialog(QDialog):
         return {
             "default_view_mode": self.default_view_combo.currentData(),
             "inherit_view_from_parent": self.inherit_view_checkbox.isChecked(),
+            "folder_format_inherit_from_parent": self.inherit_view_checkbox.isChecked(),
             "default_sort_key": self.arrange_items_combo.currentData(),
             "default_sort_descending": self.reverse_sort_checkbox.isChecked(),
             "sort_folders_first": self.sort_folders_first_checkbox.isChecked(),

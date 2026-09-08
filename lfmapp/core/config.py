@@ -139,6 +139,8 @@ def _default_config_data():
         "recent_files": [],
         "folder_visit_counts": {},
         "folder_views": {},
+        "folder_formats": {},
+        "folder_format_inherit_from_parent": True,
     }
 
 
@@ -393,6 +395,48 @@ class Config:
 
     def set_remember_folder_view(self, enabled: bool):
         self.data["remember_folder_view"] = bool(enabled)
+        self.save()
+
+    # ── Folder format (Phase 7.3 / P2: per-folder visual persistence) ──
+
+    FOLDER_FORMAT_VERSION = 1
+
+    @property
+    def folder_format_inherit_from_parent(self) -> bool:
+        return bool(self.data.setdefault("folder_format_inherit_from_parent", True))
+
+    def set_folder_format_inherit_from_parent(self, enabled: bool):
+        self.data["folder_format_inherit_from_parent"] = bool(enabled)
+        self.save()
+
+    def get_folder_format(self, path: str) -> dict | None:
+        """Return the saved folder format for a path (validated dict or None)."""
+        formats = self.data.setdefault("folder_formats", {})
+        stored = formats.get(str(path))
+        if isinstance(stored, dict) and stored.get("version") == self.FOLDER_FORMAT_VERSION:
+            return stored
+        return None
+
+    def set_folder_format(self, path: str | None, fmt: dict | None):
+        """Persist a folder format for a path. ``None`` clears the entry."""
+        formats = self.data.setdefault("folder_formats", {})
+        if path is None:
+            return
+        key = str(path)
+        if fmt is None:
+            if key in formats:
+                del formats[key]
+        else:
+            formats[key] = dict(fmt)
+        self.save()
+
+    def clear_folder_format(self, path: str | None):
+        """Clear the stored folder format for a specific folder."""
+        self.set_folder_format(path, None)
+
+    def clear_all_folder_formats(self):
+        """Clear all persisted folder formats (views remain)."""
+        self.data["folder_formats"] = {}
         self.save()
 
     @property
