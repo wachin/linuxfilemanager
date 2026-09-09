@@ -35,6 +35,7 @@ Are you a developer who writes code with an AI assistant? This repository is pre
 - Preview and properties panels
 - Archive extraction and ZIP creation
 - Undo/redo support for several file operations
+- Non-modal notification banners with an inline **Undo** action for reversible operations (e.g. moving to Trash), replacing confirmations that block the workflow
 - Desktop integration through `xdg-open`, MIME detection, and default app handling
 - Debian packaging skeleton and AppStream metadata
 

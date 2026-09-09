@@ -71,6 +71,7 @@ class CentralWidgetStatusBarMixin:
         central_layout.addWidget(self.path_widget, 0)
         central_layout.addWidget(self.tabbar)
         central_layout.addWidget(self.splitter, 1)
+        self.build_notification_area(central_layout)
         self.build_operation_center_panel(central_layout)
         self.setCentralWidget(central)
 

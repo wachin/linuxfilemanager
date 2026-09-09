@@ -75,7 +75,16 @@ class TransferActionsMixin:
                 )
             )
         if success:
-            self.statusBar().showMessage(message, 5000)
+            count = len(operations)
+            msg = self.tr("Moved {count} item(s) to Trash").format(count=count) if count else message
+            if self.operation_history.can_undo():
+                self.show_undo_banner(
+                    msg,
+                    self.undo_last_operation,
+                    action_label=self.tr("Undo"),
+                )
+            else:
+                self.show_success_banner(msg)
         else:
             QMessageBox.critical(
                 self,

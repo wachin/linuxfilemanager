@@ -47,9 +47,10 @@ from lfmapp.ui.central_status_mixin import CentralWidgetStatusBarMixin
 from lfmapp.ui.tabs_navigation_mixin import TabsNavigationMixin
 from lfmapp.ui.view_controls_mixin import ViewControlsMixin
 from lfmapp.ui.archive_tag_vault_mixin import ArchiveTagVaultMixin
+from lfmapp.ui.notifications_mixin import NotificationsMixin
 
 
-class MainWindow(PaletteActionsMixin, ContextMenuMixin, FileActionsMixin, TransferActionsMixin, OperationCenterMixin, HistoryActionsMixin, SearchActionsMixin, MenuBarMixin, ToolbarMixin, CentralWidgetStatusBarMixin, TabsNavigationMixin, ViewControlsMixin, ArchiveTagVaultMixin, QMainWindow):
+class MainWindow(PaletteActionsMixin, NotificationsMixin, ContextMenuMixin, FileActionsMixin, TransferActionsMixin, OperationCenterMixin, HistoryActionsMixin, SearchActionsMixin, MenuBarMixin, ToolbarMixin, CentralWidgetStatusBarMixin, TabsNavigationMixin, ViewControlsMixin, ArchiveTagVaultMixin, QMainWindow):
     def __init__(self, config: Config | None = None):
         super().__init__()
         self.setWindowTitle("linux-file-manager")

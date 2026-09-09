@@ -204,10 +204,8 @@ class TabsNavigationMixin:
     def go_to(self, path: Path, record_history=True):
         path = path.expanduser()
         if not path.exists() or not path.is_dir():
-            QMessageBox.warning(
-                self,
-                self.tr("Invalid path"),
-                self.tr("Does not exist or is not a folder:\n{path}").format(path=path),
+            self.show_warning_banner(
+                self.tr("Path does not exist or is not a folder: {path}").format(path=path)
             )
             return
         self.workspace.set_root_path(path)
@@ -292,10 +290,8 @@ class TabsNavigationMixin:
         except Exception:
             return
         if not target.exists() or not target.is_dir():
-            QMessageBox.warning(
-                self,
-                self.tr("Invalid location"),
-                self.tr("This location is not available:\n{path}").format(path=path),
+            self.show_warning_banner(
+                self.tr("This location is not available: {path}").format(path=path)
             )
             return
         self.go_to(target)
