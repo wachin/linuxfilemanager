@@ -141,6 +141,8 @@ def _default_config_data():
         "folder_visit_counts": {},
         "folder_views": {},
         "folder_formats": {},
+        "highlight_rules": [],
+        "highlighting_enabled": True,
         "folder_format_inherit_from_parent": True,
     }
 
@@ -438,6 +440,26 @@ class Config:
     def clear_all_folder_formats(self):
         """Clear all persisted folder formats (views remain)."""
         self.data["folder_formats"] = {}
+        self.save()
+
+    # ── Appearance highlighting rules (P2: automatic highlighting) ──
+
+    @property
+    def highlighting_enabled(self) -> bool:
+        return bool(self.data.setdefault("highlighting_enabled", True))
+
+    def set_highlighting_enabled(self, enabled: bool):
+        self.data["highlighting_enabled"] = bool(enabled)
+        self.save()
+
+    def get_highlight_rules(self) -> list[dict]:
+        """Return the raw (unvalidated) stored rule list; callers sanitize."""
+        rules = self.data.setdefault("highlight_rules", [])
+        return list(rules) if isinstance(rules, list) else []
+
+    def set_highlight_rules(self, rules: list[dict]):
+        """Persist the full rule list (already serialized to dicts)."""
+        self.data["highlight_rules"] = [dict(r) for r in rules if isinstance(r, dict)]
         self.save()
 
     @property

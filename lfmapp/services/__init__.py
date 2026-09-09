@@ -100,3 +100,20 @@ __all__.append("TerminalService")
 from .flat_view_service import FlatEntry, FlatViewMode, FlatViewWorker, collect_entries
 
 __all__.extend(["FlatEntry", "FlatViewMode", "FlatViewWorker", "collect_entries"])
+from .highlight_service import (
+    HighlightEffect,
+    HighlightEvaluator,
+    HighlightRule,
+    evaluate_rules,
+    rules_from_config,
+    sanitize_rule,
+)
+
+__all__.extend([
+    "HighlightEffect",
+    "HighlightEvaluator",
+    "HighlightRule",
+    "evaluate_rules",
+    "rules_from_config",
+    "sanitize_rule",
+])

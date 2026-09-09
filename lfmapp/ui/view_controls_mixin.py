@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QMessageBox
+from PyQt6.QtWidgets import QDialog, QMessageBox
 
 from lfmapp.services import empty_trash
 from lfmapp.ui.workspace import IconGridSize, ViewMode
@@ -85,6 +85,14 @@ class ViewControlsMixin:
         """Collapse all expanded branches in the details view."""
         view = self.workspace.details_view
         view.collapseAll()
+
+    def show_highlighting_rules(self):
+        """Open the appearance-rules editor and re-apply on accept."""
+        from lfmapp.ui.highlight_rules_dialog import HighlightRulesDialog
+
+        dlg = HighlightRulesDialog(self.config, parent=self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self.reload_highlighting()
 
     def set_view_mode(self, mode: ViewMode):
         """Set the workspace view mode (Icon, List, or Details)."""

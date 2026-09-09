@@ -106,6 +106,7 @@ class MainWindow(PaletteActionsMixin, NotificationsMixin, ContextMenuMixin, File
         self.workspace.selectionChanged.connect(self.on_selection_changed)
         self.workspace.customContextMenuRequested.connect(self.open_context_menu)
         self.workspace.filesDropped.connect(self.on_files_dropped)
+        self._setup_highlighting()
         self._drop_workers = []
         self._trash_worker_operations = {}
         self._operation_batches = {}
@@ -309,6 +310,61 @@ class MainWindow(PaletteActionsMixin, NotificationsMixin, ContextMenuMixin, File
 
             self._tag_service = TagService(db_file=self._tag_db_file)
         return self._tag_service
+
+    # ─── Appearance highlighting rules (P2) ─────────────────────
+
+    def _setup_highlighting(self):
+        """Build the rule evaluator, its tag provider and install the delegate."""
+        from lfmapp.services.highlight_service import (
+            HighlightEvaluator,
+            rules_from_config,
+        )
+
+        rules = rules_from_config(self.config.get_highlight_rules())
+        self._highlight_tag_cache: dict[str, list[str]] = {}
+        self.highlight_evaluator = HighlightEvaluator(
+            rules,
+            enabled=self.config.highlighting_enabled,
+            tags_for_path=self._highlight_tags_for_path,
+        )
+        self.workspace.install_highlight_delegate(self.highlight_evaluator)
+
+    def _highlight_tags_for_path(self, path) -> list[str]:
+        """Tag names for *path* (memoised per folder refresh)."""
+        key = str(path)
+        cached = self._highlight_tag_cache.get(key)
+        if cached is not None:
+            return cached
+        try:
+            tags = [t["name"] for t in self.tag_service.get_tags_for_file(path)]
+        except Exception:
+            tags = []
+        self._highlight_tag_cache[key] = tags
+        return tags
+
+    def reload_highlighting(self):
+        """Reload rules + enabled flag from config and repaint the views."""
+        from lfmapp.services.highlight_service import rules_from_config
+
+        if getattr(self, "highlight_evaluator", None) is None:
+            return
+        self.highlight_evaluator.set_rules(
+            rules_from_config(self.config.get_highlight_rules())
+        )
+        self.highlight_evaluator.set_enabled(self.config.highlighting_enabled)
+        self._highlight_tag_cache = {}
+        self.workspace.refresh_highlighting()
+
+    def toggle_highlighting(self, checked: bool):
+        """Turn the whole highlighting layer on/off (View menu)."""
+        self.config.set_highlighting_enabled(bool(checked))
+        if getattr(self, "highlight_evaluator", None) is not None:
+            self.highlight_evaluator.set_enabled(bool(checked))
+            self.workspace.refresh_highlighting()
+        state = self.tr("on") if checked else self.tr("off")
+        self.statusBar().showMessage(
+            self.tr("Appearance highlighting {state}").format(state=state), 3000
+        )
 
     @property
     def vault_service(self):

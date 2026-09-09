@@ -268,6 +268,7 @@ class MenuBarMixin:
         self.inline_expansion_action.triggered.connect(self.toggle_inline_expansion)
         view_menu.addAction(self.inline_expansion_action)
         self._register_command_action(self.inline_expansion_action, category=self.tr("View"))
+        self._add_action(view_menu, "Highlighting Rules...", self.show_highlighting_rules)
         self._add_action(view_menu, "Toggle Preview Panel", self.toggle_preview)
         self._add_action(view_menu, "Toggle Sidebar", self.toggle_sidebar)
         view_menu.addSeparator()

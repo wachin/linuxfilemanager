@@ -192,6 +192,11 @@ class Workspace(QWidget):
         self.list_view.setModel(self.model)
         self.icon_view.setModel(self.model)
 
+        # Appearance-rule delegate (installed by MainWindow once the
+        # HighlightEvaluator exists). Effects are painted only here; the
+        # model is never modified.
+        self._highlight_delegate = None
+
         # Configure details view columns
         self.details_view.setColumnWidth(0, 420)
         self.details_view.setColumnWidth(1, self.SIZE_COLUMN_WIDTH)
@@ -843,6 +848,24 @@ class Workspace(QWidget):
     def setItemsExpandable(self, expandable: bool):
         """Set items expandable for details view."""
         self.details_view.setItemsExpandable(expandable)
+
+    def install_highlight_delegate(self, evaluator) -> None:
+        """Attach the appearance-rule delegate to the file views.
+
+        Idempotent: re-attaching just swaps the delegate. Only the
+        file-listing views use the shared ``FileSystemModel`` (and thus
+        ``filePath``); the flat view has its own model and is left alone.
+        """
+        from lfmapp.ui.highlight_delegate import HighlightDelegate
+
+        delegate = HighlightDelegate(self.model, evaluator, parent=self)
+        self._highlight_delegate = delegate
+        for view in (self.details_view, self.list_view, self.icon_view):
+            view.setItemDelegate(delegate)
+
+    def refresh_highlighting(self) -> None:
+        """Force a repaint so a rule change shows up immediately."""
+        self.model.layoutChanged.emit()
 
     def setContextMenuPolicy(self, policy: Qt.ContextMenuPolicy):
         """Set context menu policy for all views."""
