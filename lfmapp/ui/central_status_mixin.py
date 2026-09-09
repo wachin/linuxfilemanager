@@ -70,6 +70,8 @@ class CentralWidgetStatusBarMixin:
         central_layout.setSpacing(4)
         central_layout.addWidget(self.path_widget, 0)
         central_layout.addWidget(self.tabbar)
+        self.selection_bar = None
+        self.build_selection_bar(central_layout)
         central_layout.addWidget(self.splitter, 1)
         self.build_notification_area(central_layout)
         self.build_operation_center_panel(central_layout)

@@ -199,6 +199,29 @@ class FileSystemModel(QFileSystemModel):
         """Return paths checked through optional selection checkboxes."""
         return [Path(path) for path in sorted(self._checked_paths)]
 
+    def checked_count(self) -> int:
+        """Number of currently checked rows (batch action bar counter)."""
+        return len(self._checked_paths)
+
+    def set_checked_paths(self, paths: list[Path]):
+        """Replace the whole checked set (used by select-by / invert)."""
+        self._checked_paths = {str(Path(p)) for p in paths}
+        self.layoutChanged.emit()
+
+    def check_paths(self, paths: list[Path]):
+        """Add paths to the checked set (union)."""
+        self._checked_paths.update(str(Path(p)) for p in paths)
+        self.layoutChanged.emit()
+
+    def toggle_checked(self, path: Path):
+        """Flip the checked state of a single path."""
+        key = str(Path(path))
+        if key in self._checked_paths:
+            self._checked_paths.discard(key)
+        else:
+            self._checked_paths.add(key)
+        self.layoutChanged.emit()
+
     def clear_checked_paths(self):
         """Clear all checkbox selections."""
         self._checked_paths.clear()

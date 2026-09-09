@@ -106,6 +106,7 @@ class MainWindow(PaletteActionsMixin, NotificationsMixin, ContextMenuMixin, File
         self.workspace.selectionChanged.connect(self.on_selection_changed)
         self.workspace.customContextMenuRequested.connect(self.open_context_menu)
         self.workspace.filesDropped.connect(self.on_files_dropped)
+        self.workspace.spacePressed.connect(self.toggle_checked_for_current)
         self._setup_highlighting()
         self._drop_workers = []
         self._trash_worker_operations = {}

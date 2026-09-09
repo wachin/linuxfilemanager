@@ -8,7 +8,7 @@ migrates MainWindow methods here progressively; surfaces keep thin delegates.
 from .app_state import AppState, classify_location
 from .navigation_controller import NavigationController
 from .search_controller import SearchController, SearchOutcome
-from .selection_controller import SelectionController, SelectionSummary
+from .selection_controller import SelectionController, SelectionCriteria, SelectionSummary
 from .shortcut_map import CommandRecord, ShortcutMap, normalize_shortcut
 from .view_controller import ViewController
 
@@ -18,6 +18,7 @@ __all__ = [
     "SearchController",
     "SearchOutcome",
     "SelectionController",
+    "SelectionCriteria",
     "SelectionSummary",
     "CommandRecord",
     "ShortcutMap",

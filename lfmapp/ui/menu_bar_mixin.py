@@ -234,6 +234,7 @@ class MenuBarMixin:
         self._add_action(edit_menu, "Select All", self.select_all, QKeySequence.StandardKey.SelectAll)
         self._add_action(edit_menu, "Deselect All", self.deselect_all, "Ctrl+Shift+A")
         self._add_action(edit_menu, "Invert Selection", self.invert_selection, "Ctrl+Shift+I")
+        self._add_action(edit_menu, "Select By...", self.select_by_dialog)
         self.update_undo_redo_actions()
 
         # View menu

@@ -339,10 +339,12 @@ class TabsNavigationMixin:
         self.update_quick_access_action()
         self.update_contextual_toolbar()
         self.update_statusbar()
+        self.update_selection_bar()
         self.refresh_registry_enablement()
 
     def on_model_data_changed(self, *_):
         self.update_statusbar()
+        self.update_selection_bar()
 
     def on_file_renamed(self, directory, old_name, new_name):
         """Record inline renames performed through QFileSystemModel."""

@@ -14,9 +14,10 @@ Supports:
 from pathlib import Path
 from enum import Enum
 
-from PyQt6.QtCore import QDir, Qt, QSize, pyqtSignal
+from PyQt6.QtCore import QDir, Qt, QSize, QEvent, QObject, pyqtSignal
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
+    QApplication,
     QTreeView,
     QHeaderView,
     QListView,
@@ -25,6 +26,7 @@ from PyQt6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QLabel,
+    QLineEdit,
     QWidget,
     QVBoxLayout,
     QStackedWidget,
@@ -69,6 +71,34 @@ class IconGridSize(Enum):
             return default
 
 
+class _SpaceKeyFilter(QObject):
+    """Consume Space presses on a file view only in checkbox mode.
+
+    Emits the owning workspace's ``spacePressed`` so MainWindow can flip the
+    checkbox of the current item(s). Outside checkbox mode it lets Space
+    through untouched (activation / editing behave normally).
+    """
+
+    def __init__(self, workspace):
+        super().__init__(workspace)
+        self._workspace = workspace
+
+    def eventFilter(self, obj, event):
+        if (
+            event.type() == QEvent.Type.KeyPress
+            and event.key() == Qt.Key.Key_Space
+            and not event.modifiers()
+            and self._workspace.model.show_selection_checkboxes
+        ):
+            # Ignore while an editor widget has focus (rename in progress).
+            focused = QApplication.focusWidget()
+            if isinstance(focused, QLineEdit):
+                return False
+            self._workspace.spacePressed.emit()
+            return True
+        return super().eventFilter(obj, event)
+
+
 class Workspace(QWidget):
     MIN_NAME_COLUMN_WIDTH = 180
     SIZE_COLUMN_WIDTH = 90
@@ -81,6 +111,7 @@ class Workspace(QWidget):
     selectionChanged = pyqtSignal(object, object)
     flatEntryActivated = pyqtSignal(object)   # Path activated in flat view
     flatScanFinished = pyqtSignal(int)        # flat scan total count
+    spacePressed = pyqtSignal()               # Space in a file view (check toggle)
 
     def __init__(self, parent=None, initial_path: Path | str | None = None, config=None):
         super().__init__(parent)
@@ -235,6 +266,13 @@ class Workspace(QWidget):
         self.list_view.selectionModel().selectionChanged.connect(self._forward_selection_changed)
         self.icon_view.selectionModel().selectionChanged.connect(self._forward_selection_changed)
         self.flat_view.selectionModel().selectionChanged.connect(self._forward_selection_changed)
+
+        # Space toggles the checkbox of the current item (only meaningful in
+        # checkbox mode; the filter stays otherwise inert so it never steals
+        # Space used for inline editing or activation).
+        self._space_filter = _SpaceKeyFilter(self)
+        for _v in (self.details_view, self.list_view, self.icon_view):
+            _v.installEventFilter(self._space_filter)
 
         self.details_view.customContextMenuRequested.connect(self._forward_context_menu_requested)
         self.list_view.customContextMenuRequested.connect(self._forward_context_menu_requested)

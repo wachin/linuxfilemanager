@@ -276,35 +276,132 @@ class ViewControlsMixin:
             self.update_statusbar()
 
     def select_all(self):
+        """Select every visible row; keep checks in sync in checkbox mode."""
         self.workspace.selectAll()
+        model = self.workspace.model
+        if model.show_selection_checkboxes:
+            model.set_checked_paths(self.workspace.selected_paths())
 
     def deselect_all(self):
         self.workspace.clearSelection()
         self.workspace.model.clear_checked_paths()
 
     def invert_selection(self):
-        """Invert the current selection: selected items become unselected and vice versa."""
-        model = self.workspace.model
-        root = self.workspace.details_view.rootIndex()
-        selected_indexes = set(self.workspace.selectedIndexes())
-        # Only consider column 0 indexes for selection
-        column0_selected = {idx for idx in selected_indexes if idx.column() == 0}
+        """Invert the effective selection (view selection ∪ checkboxes).
 
-        # Get all visible items
-        all_items = []
+        Fixes audit T16: the previous version always used the details-view
+        root and ignored `_checked_paths`, so checked items kept counting
+        after an invert.  Now it operates on the active view and, in checkbox
+        mode, rewrites the checks as the source of truth.
+        """
+        model = self.workspace.model
+        view = self.workspace._get_current_view()
+        root = view.rootIndex()
+        currently = {str(self.workspace.model.filePath(i))
+                     for i in self.workspace.selectedIndexes() if i.column() == 0}
+        currently |= {str(p) for p in model.checked_paths()}
+
+        sm = view.selectionModel()
+        self.workspace.clearSelection()
+        inverse_paths: list = []
+        for row in range(model.rowCount(root)):
+            index = model.index(row, 0, root)
+            if not index.isValid():
+                continue
+            path = Path(model.filePath(index))
+            if str(path) in currently:
+                continue
+            sm.select(index, sm.SelectionFlag.Select | sm.SelectionFlag.Rows)
+            inverse_paths.append(path)
+
+        if model.show_selection_checkboxes:
+            model.set_checked_paths(inverse_paths)
+            self.workspace.clearSelection()
+
+    def toggle_checked_for_current(self):
+        """Space: flip the checkbox of the currently selected item(s)."""
+        model = self.workspace.model
+        if not model.show_selection_checkboxes:
+            return False
+        selected = self.workspace.selected_paths()
+        if not selected:
+            return False
+        current_checks = {str(p) for p in model.checked_paths()}
+        for path in selected:
+            if str(path) in current_checks:
+                current_checks.discard(str(path))
+            else:
+                current_checks.add(str(path))
+        model.set_checked_paths([Path(p) for p in current_checks])
+        return True
+
+    def select_by_dialog(self):
+        """Open the "Select By…" dialog and apply the resulting subset."""
+        from lfmapp.controllers import SelectionController, SelectionCriteria
+        from lfmapp.ui.select_by_dialog import SelectByDialog
+
+        view = self.workspace._get_current_view()
+        model = self.workspace.model
+        root = view.rootIndex()
+        all_paths = []
         for row in range(model.rowCount(root)):
             index = model.index(row, 0, root)
             if index.isValid():
-                all_items.append(index)
+                all_paths.append(Path(model.filePath(index)))
 
-        # Build new selection: invert column 0 items
-        self.workspace.clearSelection()
-        for index in all_items:
-            if index not in column0_selected:
-                self.workspace.selectionModel().select(
-                    index,
-                    self.workspace.selectionModel().SelectionFlag.Select
-                )
+        dlg = SelectByDialog(parent=self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        criteria: SelectionCriteria = dlg.criteria()
+        if not criteria.is_active():
+            self.show_info_banner(self.tr("No criteria set — nothing selected."))
+            return
+        matches = SelectionController.select_by(all_paths, criteria)
+        if model.show_selection_checkboxes:
+            model.set_checked_paths(matches)
+        else:
+            self.workspace.clearSelection()
+            sm = view.selectionModel()
+            for path in matches:
+                for row in range(model.rowCount(root)):
+                    index = model.index(row, 0, root)
+                    if index.isValid() and Path(model.filePath(index)) == path:
+                        sm.select(index, sm.SelectionFlag.Select | sm.SelectionFlag.Rows)
+                        break
+        self.statusBar().showMessage(
+            self.tr("Selected {n} item(s) by criteria").format(n=len(matches)), 3000
+        )
+        self.update_statusbar()
+
+    # ─── Batch action bar (Phase 6.1) ──────────────────────────
+
+    def build_selection_bar(self, central_layout):
+        """Create the batch action bar (hidden until a selection exists)."""
+        from lfmapp.ui.selection_bar import SelectionBar
+
+        self.selection_bar = SelectionBar(self)
+        central_layout.insertWidget(2, self.selection_bar)
+        self.selection_bar.copy_requested.connect(self.copy_selected)
+        self.selection_bar.cut_requested.connect(self.cut_selected)
+        self.selection_bar.trash_requested.connect(self.trash_selected)
+        self.selection_bar.delete_requested.connect(self.delete_selected)
+        self.selection_bar.rename_requested.connect(self.rename_selected_dialog)
+        self.selection_bar.invert_requested.connect(self.invert_selection)
+        self.selection_bar.select_by_requested.connect(self.select_by_dialog)
+        self.selection_bar.clear_requested.connect(self.deselect_all)
+
+    def update_selection_bar(self):
+        """Refresh the batch bar's summary and visibility from the selection."""
+        bar = getattr(self, "selection_bar", None)
+        if bar is None:
+            return
+        from lfmapp.controllers import SelectionController
+
+        summary = SelectionController.summarize(self.workspace.selected_paths())
+        size_text = ""
+        if summary.file_count:
+            size_text = self._human_size(summary.total_file_size())
+        bar.update_for(summary.file_count, summary.folder_count, size_text)
 
     # ─── Trash Operations ──────────────────────────────────────
 

@@ -36,6 +36,7 @@ class AppState:
     _search_result_count: int | None = None
     _busy_operations: int = 0
     _hidden_files_shown: bool = False
+    _selection_ids: frozenset[str] = frozenset()
     _listeners: dict[str, list[ChangeListener]] = field(default_factory=dict)
 
     # ── path ──────────────────────────────────────────────────
@@ -62,13 +63,16 @@ class AppState:
 
     def set_selection_paths(self, paths: list[Path]) -> None:
         summary = SelectionController.summarize(paths)
-        if (
+        ids = frozenset(str(p) for p in paths)
+        same_counts = (
             summary.count == self._selection.count
             and summary.file_count == self._selection.file_count
             and summary.folder_count == self._selection.folder_count
-        ):
+        )
+        if same_counts and ids == self._selection_ids:
             return
         self._selection = summary
+        self._selection_ids = ids
         self._notify("selection")
 
     # ── view mode ─────────────────────────────────────────────
