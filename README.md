@@ -13,11 +13,9 @@ This project aims to provide a familiar, efficient file management workflow whil
 
 ## AI Agents Welcome — Help Continue This Project
 
-Are you a developer who writes code with an AI assistant? This repository is prepared for exactly that: it ships guide files that AI coding agents read (and many follow automatically), so you and your agent can start contributing right away.
+Are you a developer who writes code with an AI assistant? This repository is prepared for exactly that: it ships a single canonical guide file that AI coding agents read (and many — opencode, GitHub Copilot, Claude Code, Cursor, … — follow automatically), so you and your agent can start contributing right away.
 
-- [`AGENTS.md`](AGENTS.md) — canonical conventions for AI agents and contributors (golden rule, current architecture, how to test).
-- [`CLAUDE.md`](CLAUDE.md) — quick-start guide for Claude Code and other agents (points to `AGENTS.md`).
-- [`.github/copilot-instructions.md`](.github/copilot-instructions.md) — instructions for GitHub Copilot.
+- [`AGENTS.md`](AGENTS.md) — the one canonical conventions file for AI agents and contributors (golden rule, locked decisions, current architecture, how to test).
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — how to contribute: rules, tests, and pull requests.
 
 **You are invited to continue this development.** The full plan lives in [`ROADMAP.md`](ROADMAP.md): phases 0–13 plus a prioritized backlog. Pick any open task aligned with your skills, open an issue or a pull request, and help build the best file manager for Linux together. Every contribution — code, tests, documentation, translations, or ideas — is welcome.
@@ -294,7 +292,6 @@ This forces Linux File Manager to recreate its saved state from current defaults
 ├── docs/            UX audit and performance baseline
 ├── third-party/     Pinned reference sources (Thunar git submodule — study only, never built)
 ├── AGENTS.md        Conventions for AI agents and contributors (canonical)
-├── CLAUDE.md        Quick guide for AI agents (points to AGENTS.md)
 ├── CONTRIBUTING.md  How to contribute (rules, tests, pull requests)
 ├── ROADMAP.md       Full roadmap, phases and backlog
 └── README.md

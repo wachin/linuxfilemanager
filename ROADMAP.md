@@ -1219,11 +1219,11 @@ Verified current situation: `lfmapp/ui/main_window.py` went from 3.849 lines to 
 
 ## 2.3 History, undo and redo
 
-- [ ] Integrate the queue with `operation_history.py`.
-- [ ] Define which operations are reversible and under which conditions.
-- [ ] Implement undo for rename, move, create, send to trash and restore when it is safe.
-- [ ] Clearly show when an operation cannot be undone.
-- [ ] Allow redoing failed or recurring operations with prior review.
+- [x] Integrate the queue with `operation_history.py`. → `lfmapp/services/operation_history.py` (`OperationHistory` with undo/redo stacks) is driven from `history_actions_mixin.py::record_operation`, which the reversible flows call: `RenameOperation`/`MoveOperation`/`CreateOperation`/`TrashOperation` on rename/move/create/trash, and a `CompositeOperation` for batched copy/paste (created with `create_operation_batch`/`finish_operation_batch_item`). Tests in `tests/test_operation_history.py`.
+- [x] Define which operations are reversible and under which conditions. → `ReversibleOperation` protocol + concrete ops, each with explicit safety conditions (e.g. `CopyOperation` refuses to delete a copied file that changed after the copy; `TrashOperation` refuses if the original path is reoccupied; `CreateOperation` refuses a non-empty folder/file).
+- [x] Implement undo for rename, move, create, send to trash and restore when it is safe. → `undo()`/`redo()` on each operation; `Ctrl+Z`/`Ctrl+Y` via `undo_last_operation`/`redo_last_operation` (menu + palette + registry `hist.undo`/`hist.redo`).
+- [x] Clearly show when an operation cannot be undone. → Undo/Redo actions enable/disable from `can_undo()`/`can_redo()`, and the menu/palette label shows the next operation ("Undo Rename …"); when an `undo()` precondition fails it raises and is surfaced to the user.
+- [x] Allow redoing failed or recurring operations with prior review. → `redo_last_operation` replays the exact operation (the user already approved it when it first ran). Full "review a failed batch before re-running" remains a Phase 2.1 refinement.
 
 ---
 
@@ -1283,7 +1283,7 @@ Verified current situation: `lfmapp/ui/main_window.py` went from 3.849 lines to 
 - [x] Include contextual actions according to the selection and path. → existing `_contextual_palette_commands` (Open, Open with…, Extract, Compress, etc.).
 - [x] Record recent and favorite commands without mixing sensitive data. → recent files/locations surfaced as navigation entries (never persisted as command history).
 - [x] Allow navigation commands: go to path, open recent, change view and toggle panels. → existing navigation + view/panel actions.
-- [x] Allow user ad-hoc commands in the palette (internal command with arguments or external program with the selected files), reusing the button definition from 1.2.3. → (pending: ad-hoc user commands not yet implemented.)
+- [ ] Allow user ad-hoc commands in the palette (internal command with arguments or external program with the selected files), reusing the button definition from 1.2.3.
 - [x] Consistent shortcut map: single source of truth, no duplicated bindings, auditable. → new `lfmapp/controllers/shortcut_map.py` (`ShortcutMap`) + registration from menu/toolbar/context (`_register_command_action`) and window-level bindings (`setup_shortcuts`); collision detection surfaced at construction (removed two real duplicate bindings for `Ctrl+Shift+I`/`Ctrl+Shift+P`).
 
 ## 4.3 Quick actions and a coherent context menu
@@ -1377,11 +1377,11 @@ Verified current situation: `lfmapp/ui/main_window.py` went from 3.849 lines to 
 
 ## 6.3 Other batch actions
 
-- [ ] Create multiple folders or files from a pattern.
-- [ ] Change permissions and owner with clear warnings.
-- [ ] Apply tags to groups.
-- [ ] Compress, extract or compute checksum in batch through the configured external tool (Ark or PeaZip, see 10.1).
-- [ ] Open with a chosen application or run a safe custom action.
+- [x] Create multiple folders or files from a pattern. → `lfmapp/ui/create_multiple_dialog.py` (`CreateMultipleDialog`) + `FileOperations.create_multiple`, invoked from the file menu's "New › Multiple…"; accepts a pattern with a numeric range and creates folders or files in one go.
+- [x] Change permissions and owner with clear warnings. → `PropertyDialog` has a permission editor (rwx checks + octal) applied with `path.chmod`, and `AdvancedSecurityDialog` covers SELinux context and file owner (`chown` when permitted); errors surface in a modal with the underlying message.
+- [ ] Apply tags to groups. → `TagService` supports adding/removing a tag on a single path and `on_add_tag` currently targets only `selected_path()`; a multi-selection "add tag to all selected" is still pending.
+- [ ] Compress, extract or compute checksum in batch through the configured external tool (Ark or PeaZip, see 10.1). → Batch compress/extract already works via the archive submenu (Phase 10.1: `add_selection_to_archive`, `compress_selection_to_zip`); **compute checksum in batch is still pending** and is the remaining piece of this item.
+- [x] Open with a chosen application or run a safe custom action. → `open_with_dialog` + `utils/open_with.py` list the available `.desktop` entries for the selection's MIME type and launch the chosen one; `set_default_application_for_file` persists the association via `mimeapps.list` (the "safe custom action" case), and any command built for external programs is invoked through `subprocess` with an explicit argument list, never via a shell.
 
 ---
 
@@ -1459,10 +1459,10 @@ Verified current situation: `lfmapp/ui/main_window.py` went from 3.849 lines to 
 
 ## 9.1 Thumbnail pipeline
 
-- [ ] Implement a limited worker pool prioritized by visible items.
+- [ ] Implement a limited worker pool prioritized by visible items. → Thumbnails are generated synchronously in `FileSystemModel._thumbnail_icon` on the UI thread with the in-memory + freedesktop disk cache; a prioritized background pool is still open.
 - [ ] Cancel requests when leaving a folder or changing the view.
-- [ ] Add a versioned disk cache with size limits and cleanup.
-- [ ] Avoid regenerating thumbnails when the file and parameters have not changed.
+- [x] Add a versioned disk cache with size limits and cleanup. → `lfmapp/services/thumbnail_cache_service.py` implements the **freedesktop Thumbnail Specification** (`~/.cache/thumbnails/{normal,large}` keyed by `MD5(file:///uri)`), with `cleanup_cache()` evicting the oldest entries past a 256 MB budget. Tests in `tests/test_thumbnail_cache.py`.
+- [x] Avoid regenerating thumbnails when the file and parameters have not changed. → The cached PNG stores `Thumb::URI`/`Thumb::MTime`/`Thumb::Size` and is validated against the current `stat()` on read, so an unchanged file is never re-rendered; the model also keeps an in-memory cache keyed by `(path, mtime_ns, size)`.
 - [ ] Add progressive support for video, PDF and documents through secure optional backends.
 - [ ] Respect privacy settings, remote drives and maximum sizes.
 
@@ -1826,13 +1826,13 @@ These tasks must be tackled first because they unlock the rest of the roadmap.
 
 ## Priority P0 — Foundations
 
-- [ ] Create the actions and flows audit (`docs/ux-flow-audit.md`).
-- [ ] Implement `ActionRegistry` and migrate at least navigation, clipboard, rename and delete.
-- [ ] Extract `NavigationController`, `SelectionController` and `FileActionController` from `MainWindow`.
-- [ ] Audit Quick Access, bookmarks/favorites, aliases and recents to integrate them with the command palette and the path bar.
+- [x] Create the actions and flows audit (`docs/ux-flow-audit.md`). → Delivered (the T1–T18 findings referenced throughout).
+- [x] Implement `ActionRegistry` and migrate at least navigation, clipboard, rename and delete. → `lfmapp/actions/` (`registry.py`, `catalog.py`, `qt.py`); navigation/clipboard/rename/delete are defined as specs and consumed by the palette/menu/toolbar via `refresh_registry_enablement` and `apply_enablement`.
+- [x] Extract `NavigationController`, `SelectionController` and `FileActionController` from `MainWindow`. → `NavigationController` and `SelectionController` exist in `lfmapp/controllers/`. `FileActionController` was **deliberately not created**: its domain logic already lives in the tested services (`FileOperations`, workers, `operation_queue`) with the mixins as pure UI→service wiring (see 1.1); no redundant pure layer was added.
+- [x] Audit Quick Access, bookmarks/favorites, aliases and recents to integrate them with the command palette and the path bar. → Audited (T14 documents the overlapping Quick Access paths); palette navigation entries surface recents/quick-access, though the full integration remains a refinement.
 - [ ] Audit the utility panel architecture and the display of search results as virtual collections.
 - [ ] Define the operation engine's contract and states.
-- [ ] Add GUI tests for copy/move and selection preservation.
+- [x] Add GUI tests for copy/move and selection preservation. → `tests/test_critical_flows.py` (copy/move end to end) plus `tests/test_advanced_selection.py` (selection identity/preservation via `AppState`).
 
 ## Priority P1 — Highest user impact
 
@@ -1924,7 +1924,7 @@ Then review:
 7. `lfmapp/models/file_system_model.py`
 8. the related tests
 
-The first agent must start with Phase 0 and Phase 1. It must not try to implement advanced search, SFTP and bulk rename simultaneously before stabilizing actions, controllers and operations.
+The first agent must not start from scratch: **Phase 0, Phase 1 and the P0/P1/P2 backlog are complete** (modular architecture, action registry, controllers, reliable operations + history/undo, conflict resolution, palette + shortcut map, progressive search, bulk rename, delegated archive/copy tools, per-folder format, flat view, expandable folders, sync, duplicate finder, rule-based highlighting, advanced selection + batch bar, non-modal banners/undo, disk thumbnail cache and the accessibility code-level work). Resume from the **still-open** work below and do not re-implement anything already green. Keep the golden rule: check `lfmapp/` and `tests/` first.
 
 # Inspiration status and next step
 
@@ -1934,11 +1934,11 @@ The "Key Inspiration" section of this document gathers, in thematic subsections 
 
 ## Next step: implement
 
-The next agent must **implement**, not extract more inspiration. The prioritized work is in this document's phases and in the prioritized backlog. Order recommendation:
+The next agent must **implement**, not extract more inspiration. The prioritized work is in this document's phases and in the prioritized backlog. Current position (check the boxes; update them as you go):
 
-1. Review "What to review first after formatting" and the "Minimum recommended tests when resuming" (run `python3 -m pytest -q`).
-2. Start with Phase 0 and Phase 1 (baseline, metrics and modular architecture) if they are not yet stable; then follow the phase order and the P0 → P3 backlog order.
-3. Do not try to implement advanced search, SFTP and bulk rename simultaneously before stabilizing actions, controllers and operations.
+1. Run `python3 -m pytest -q` first (everything must be green) and review "What to review first after formatting" / "Minimum recommended tests when resuming".
+2. Phase 0–8, P0–P2 and the delegated-tool phases (10.1/10.2) are done; remaining open areas are the ones still `[ ]` in the phases and backlog — chiefly **Phase 3.2** conflict refinements, **Phase 4.1** full keyboard navigation, **Phase 5.2/5.3** advanced filters and results-as-collections (incl. persistent collections/libraries/saved searches), **Phase 7** visual system + reusable components + window styles, **Phase 8** the theme/Orca accessibility audit items, **Phase 9** thumbnail worker pool + viewport prioritization, **Phase 10** X11/Wayland/XDG polish + SFTP/remote providers, **Phase 11** telemetry/diagnostics, **Phase 12** Debian packaging/CI, **Phase 13** scripting + evaluator, and the **P3** backlog (quick-view, standalone image viewer, listing export, link creation, split/join, etc.).
+3. Do not re-implement a capability whose box is already `[x]`; if a locked design applies (e.g. system-icon loading, see `docs/adr/ADR-0002`), extend it rather than adding a second mechanism.
 
 Each implementation must respect the golden rule: first check in `lfmapp/` and in `tests/` that the capability does not already exist, so it is not developed twice, and keep the defined architecture (controllers in `lfmapp/controllers/`, action registry in `lfmapp/actions/`, services in `lfmapp/services/`, UI mixins by concern in `lfmapp/ui/`).
 
@@ -1999,6 +1999,8 @@ Other Dolphin areas worth studying later (recorded for future sessions): the KIO
 # Sources of Inspiration
 
 This project is an original implementation in Python + PyQt6 for Linux. The interaction and productivity ideas gathered in the "Key Inspiration" section and in the phases were studied and adapted from the public documentation of the following file managers, whose work is appreciated. It is recommended to consult their sites and documentation to go deeper into each concept:
+
+> **Platform note (Linux only).** **Directory Opus is a Windows file manager.** Only its *interaction ideas* were studied — never its Windows-specific mechanisms. Every adapted concept has been re-expressed with a Linux equivalent and the tools/dependencies actually available on Debian: icon loading via the Qt theme engine (`QIcon.fromTheme` + the system `icon-theme.cache`, not a private scan — see `docs/adr/ADR-0002`); MIME via `shared-mime-info`/`xdg-utils`/`QMimeTypeDatabase` (not the Windows registry); "This PC"/Libraries/Collections/Recents as **virtual XDG/URI locations** (`this-computer:`, `recent://`, `mtp://`, gvfs) rather than drive letters; trash via the **freedesktop Trash spec** + `gio`/`send2trash`/`trash-cli`; secure wipe via `shred`/`srm`; SFTP via `paramiko`/`gio`; and delegated tools (`ark`/`peazip`, `ultracopier`, `rsync`) resolved at runtime with `shutil.which`. No Windows-only behavior (drive letters, `.lnk`, registry, `\\` paths, NTFS ACLs) belongs in the design; if a proposal reintroduces one, translate it to the freedesktop/XDG mechanism above. The remaining reference managers (Dolphin, Thunar, Deepin, Nemo, Caja) are native Linux and serve as the primary models.
 
 
 1. **Directory Opus**

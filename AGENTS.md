@@ -52,10 +52,13 @@ Architecture rules:
 - The surfaces (menu, toolbar, context menu, palette, shortcuts) must consume the **same action registry** (`lfmapp/actions/`) and the same observable state (`AppState`), avoiding duplicated actions with contradictory states.
 - Every new capability must be testable **without showing the whole window** (controller/service tests) in addition to the GUI tests.
 - No ideas enter the roadmap without being aligned with the phases and architecture already defined.
+- **Linux-only APIs and packages.** Every capability must be expressible with freedesktop/XDG mechanisms and the Python/system packages already inventoried in `ROADMAP.md` (Debian 13). Never introduce a Windows-only concept: drive letters, `\\` paths, `.lnk`, registry, NTFS ACLs, `\\`-prefixed UNC paths. If a reference (especially Directory Opus) suggests such a thing, translate it to its Linux analogue (`gio`/`gvfs` URIs, `xdg-mime`/`shared-mime-info`, freedesktop Trash, `icon-theme.cache`, `keyring`/`libsecret`, SFTP via `paramiko`, `rsync`, etc.). Runtime availability must be detected (`shutil.which`, import guard) and degrade with a clear message when missing.
 
 ## Design inspiration
 
 The interaction ideas in the roadmap come from reference desktop file managers, originally adapted to Python + PyQt6 (see "Sources of Inspiration" in the README and at the end of the ROADMAP). **No code or text is copied from those sources**: only the interaction logic is studied and rewritten for this project.
+
+**Directory Opus is a Windows file manager.** Only its *interaction* ideas were studied; the "Sources of Inspiration" platform note in the ROADMAP maps each to a Linux equivalent. When reading that inspiration, prefer the concrete Linux tooling listed there over the Windows mechanism it was derived from.
 
 ## How to test
 
@@ -73,10 +76,11 @@ GUI tests use `QT_QPA_PLATFORM=offscreen` (headless). When you add a function, a
 
 - User configuration lives in `~/.local/share/linux-file-manager/config.json`. If something "does not reflect" recent changes, that directory can be deleted so it regenerates with the default values.
 - `docs/ux-flow-audit.md` documents 18 known inconsistencies (T1–T18) found in the audit: they are task candidates when you touch their area.
-- `docs/performance-baseline.md` records the measured timings and budgets; cold startup is dominated by icon resolution in `lfmapp/ui/icons.py` (optimization target #1).
+- `docs/performance-baseline.md` records the measured timings and budgets. **System-icon loading is a locked decision (`docs/adr/ADR-0002`): resolve via `QIcon.fromTheme` + the theme-engine cache; never scan the icon trees at startup.** The historical cold-startup icon cost is already fixed; do not reintroduce scanning.
 
 ## How to deliver work
 
 - Leave a clear summary of what was done, verified (green tests), including the paths of the files touched.
-- If applicable, update `ROADMAP.md`, ticking the completed checkboxes and noting the real state.
+- **Keep `ROADMAP.md` checkboxes truthful.** A box must be `[x]` only if the capability is actually implemented and tested, and `[ ]` for anything still to develop — never mark something `[x]` whose own note says "pending". When you finish or partially finish an item, update its box and add a `→ …` note describing what is done and what remains, so the next agent knows the real state.
+- If a change settles (or re-opens) an architectural decision, add or update an ADR in `docs/adr/` and, if it is now locked, list it under **Locked decisions** above.
 - Respect the language of visible texts (translations via `self.tr(...)`). Repository documentation is written in English; the audit notes under `docs/` (`ux-flow-audit.md`, `performance-baseline.md`) are the only Spanish documents left.

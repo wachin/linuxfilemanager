@@ -5,9 +5,9 @@ Python + PyQt6 and is under active development. Every contribution — code,
 tests, documentation, translations or ideas — is welcome.
 
 > If you are an AI agent (or use one) working in this repo, read first
-> **[`AGENTS.md`](AGENTS.md)** and **[`CLAUDE.md`](CLAUDE.md)**; they contain
-> the conventions every agent must follow. The planning lives in
-> **[`ROADMAP.md`](ROADMAP.md)**.
+> **[`AGENTS.md`](AGENTS.md)**; it is the canonical file of conventions every
+> agent must follow (and is read automatically by most AI coding tools). The
+> planning lives in **[`ROADMAP.md`](ROADMAP.md)**.
 
 ## Getting started
 
