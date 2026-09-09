@@ -141,6 +141,13 @@ class Sidebar(QWidget):
         page = self._create_tab_page(title_label, section_list)
         index = self.tab_widget.addTab(page, icon, title)
         self.tab_widget.tabBar().setTabToolTip(index, title)
+        # Accessibility: the tab bar paints icons only but keeps the tab text,
+        # which assistive tech reads as the tab name; also name the list, the
+        # section heading and the tab bar container.
+        self.tab_widget.tabBar().setAccessibleName(self.tr("Sidebar sections"))
+        section_list.setAccessibleName(title)
+        title_label.setAccessibleName(title)
+        page.setAccessibleName(title)
 
     def _on_tab_changed(self, index: int):
         self.tab_widget.tabBar().update()

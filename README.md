@@ -38,6 +38,7 @@ Are you a developer who writes code with an AI assistant? This repository is pre
 - Non-modal notification banners with an inline **Undo** action for reversible operations (e.g. moving to Trash), replacing confirmations that block the workflow
 - Advanced highlighting by rules (`View > Highlighting Rules...`): color / font / overlay-icon effects driven by name pattern, type, size, path or tag conditions, stacked with stop-at-first-match and painted via a delegate (the model is never modified)
 - Advanced selection & batch action bar: a non-modal bar (files/folders/size + Copy/Cut/Trash/Rename/Invert/Clear), **Select By…** (glob / extension / type / size / date), Space-to-check in checkbox mode, and an invert that correctly syncs checkbox state
+- Accessibility: searchable **Keyboard Shortcuts** reference (`Help > Keyboard Shortcuts…`), accessible names on icon-only and custom controls, and highlighting that never relies on colour alone
 - Desktop integration through `xdg-open`, MIME detection, and default app handling
 - Debian packaging skeleton and AppStream metadata
 

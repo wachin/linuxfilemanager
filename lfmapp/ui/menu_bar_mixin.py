@@ -334,4 +334,5 @@ class MenuBarMixin:
 
         # Help menu
         help_menu = menubar.addMenu(self.tr("&Help"))
+        self._add_action(help_menu, "Keyboard Shortcuts...", self.show_keyboard_shortcuts, "Ctrl+Shift+question")
         self._add_action(help_menu, "About", self.on_about)

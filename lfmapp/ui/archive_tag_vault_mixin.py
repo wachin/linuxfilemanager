@@ -349,6 +349,21 @@ class ArchiveTagVaultMixin:
         dialog = AboutDialog(self)
         dialog.exec()
 
+    def show_keyboard_shortcuts(self):
+        """Open the searchable keyboard-shortcut reference (Phase 8)."""
+        from lfmapp.ui.keyboard_shortcuts_dialog import KeyboardShortcutsDialog
+
+        commands = [
+            {
+                "title": rec.title,
+                "shortcut": rec.shortcut,
+                "category": rec.category,
+            }
+            for rec in self.shortcut_map.commands()
+        ]
+        dialog = KeyboardShortcutsDialog(commands, parent=self)
+        dialog.exec()
+
     # ─── Key Events ────────────────────────────────────────────
 
     def keyPressEvent(self, event):

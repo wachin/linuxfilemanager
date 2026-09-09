@@ -47,6 +47,7 @@ class SelectionBar(QFrame):
         layout.setSpacing(6)
 
         self.summary_label = QLabel("")
+        self.summary_label.setAccessibleName(self.tr("Selection summary"))
         layout.addWidget(self.summary_label)
         layout.addStretch(1)
 
@@ -86,6 +87,8 @@ class SelectionBar(QFrame):
         if size_text:
             text = f"{text}  ·  {size_text}"
         self.summary_label.setText(text)
+        self.summary_label.setAccessibleName(text)
+        self.setAccessibleName(self.tr("Batch actions: {text}").format(text=text))
         # Permanent destructive actions are gated by the caller (registry);
         # the bar always shows them and lets MainWindow decide enablement.
         self.show()

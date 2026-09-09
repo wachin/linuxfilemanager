@@ -31,6 +31,12 @@ def spec_to_action(
     """
     title = spec.title
     action = QAction(title, parent)
+    # QAction has no setAccessibleName (it is not a QWidget): assistive tech
+    # reads the action text as its name, so the plain, mnemonic-free title is
+    # what we set. The shortcut is exposed as a tooltip so a screen reader or
+    # a hovering user sees the binding.
+    plain_title = title.replace("&", "")
+    action.setObjectName(spec.action_id)
     if spec.icon is not None:
         from PyQt6.QtGui import QIcon
 
@@ -48,7 +54,9 @@ def spec_to_action(
             action.setShortcut(QKeySequence(spec.shortcut))
         else:  # QKeySequence.StandardKey
             action.setShortcut(spec.shortcut)
-    action.setObjectName(spec.action_id)
+    shortcut_text = action.shortcut().toString(QKeySequence.SequenceFormat.NativeText)
+    if shortcut_text:
+        action.setToolTip(f"{plain_title}  ({shortcut_text})")
     if spec.callback is not None:
         action.triggered.connect(spec.callback)
     return action

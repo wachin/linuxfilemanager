@@ -91,6 +91,11 @@ class NotificationBanner(QFrame):
         layout.setSpacing(8)
 
         self.icon_label = QLabel(self)
+        # Decorative icon: hidden from assistive tech (the message label
+        # already carries the text).
+        self.icon_label.setAccessibleName("")
+        self.setAccessibleName(message)
+        self.setAccessibleDescription(severity)
         self.icon_label.setPixmap(
             app_icon(*icons).pixmap(16, 16)
         )
@@ -98,17 +103,20 @@ class NotificationBanner(QFrame):
 
         self.message_label = QLabel(message, self)
         self.message_label.setWordWrap(True)
+        self.message_label.setAccessibleName(message)
         layout.addWidget(self.message_label, 1)
 
         self.action_button = None
         if action_label:
             self.action_button = QPushButton(action_label, self)
+            self.action_button.setAccessibleName(action_label)
             self.action_button.clicked.connect(self._on_action_clicked)
             layout.addWidget(self.action_button)
 
         self.close_button = QPushButton("\u2715", self)
         self.close_button.setFixedWidth(22)
         self.close_button.setToolTip(self.tr("Dismiss"))
+        self.close_button.setAccessibleName(self.tr("Dismiss notification"))
         self.close_button.clicked.connect(self.close)
         layout.addWidget(self.close_button)
 
