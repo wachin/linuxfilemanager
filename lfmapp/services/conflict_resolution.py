@@ -25,6 +25,32 @@ class Resolution(Enum):
     RENAME = "rename"        # copy/move under a user-provided name
     MERGE = "merge"          # folder + folder: descend and resolve per item
     CANCEL = "cancel"        # abort the rest of the operation
+    KEEP_NEWER = "keep_newer"          # replace only if the source is newer
+    SKIP_IDENTICAL = "skip_identical"  # skip files that are identical (size+mtime)
+    RENAME_OLD = "rename_old"          # rename the existing item, then write the source
+
+
+def files_identical(source: Path, existing: Path) -> bool:
+    """True if two *files* have the same size and same modification time.
+
+    Deliberately cheap (no content read), matching the "Skip Identical"
+    semantics of the reference managers. Non-files → False.
+    """
+    try:
+        if not source.is_file() or not existing.is_file():
+            return False
+        s, e = source.stat(), existing.stat()
+    except OSError:
+        return False
+    return s.st_size == e.st_size and int(s.st_mtime) == int(e.st_mtime)
+
+
+def source_is_newer(source: Path, existing: Path) -> bool:
+    """True if ``source``'s modification time is strictly newer than ``existing``."""
+    try:
+        return source.stat().st_mtime > existing.stat().st_mtime
+    except OSError:
+        return False
 
 
 @dataclass
@@ -116,6 +142,8 @@ __all__ = [
     "Conflict",
     "ConflictAnswer",
     "ConflictResolver",
+    "files_identical",
+    "source_is_newer",
     "suggest_free_name",
     "_validate_new_name",
 ]

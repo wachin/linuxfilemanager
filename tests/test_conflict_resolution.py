@@ -14,6 +14,8 @@ from lfmapp.services.conflict_resolution import (
     ConflictAnswer,
     ConflictResolver,
     Resolution,
+    files_identical,
+    source_is_newer,
     suggest_free_name,
     _validate_new_name,
 )
@@ -295,6 +297,7 @@ class ConflictDialogTests(unittest.TestCase):
             dialog = self._dialog(tmpdir, folder=True)
             texts = self._button_texts(dialog)
             self.assertIn("Merge", texts)
+
             self.assertNotIn("Replace", texts)
 
     def test_apply_to_all_scope_names_kind(self):
@@ -376,6 +379,142 @@ class MainWindowConflictIntegrationTests(unittest.TestCase):
             finally:
                 config_module.CONFIG_DIR = old_dir
                 config_module.CONFIG_FILE = old_file
+
+
+class ExtraResolutionRuleTests(unittest.TestCase):
+    """Pure helpers behind Keep Newer / Skip Identical."""
+
+    def test_files_identical_true(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            a = Path(tmpdir) / "a"; b = Path(tmpdir) / "b"
+            a.write_bytes(b"same"); b.write_bytes(b"same")
+            os.utime(b, (1000, 1000)); os.utime(a, (1000, 1000))
+            self.assertTrue(files_identical(a, b))
+
+    def test_files_identical_false_when_content_differs(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            a = Path(tmpdir) / "a"; b = Path(tmpdir) / "b"
+            a.write_bytes(b"aa"); b.write_bytes(b"aa")
+            os.utime(b, (1000, 1000)); os.utime(a, (2000, 2000))  # same size, diff date
+            self.assertFalse(files_identical(a, b))
+
+    def test_source_is_newer(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            a = Path(tmpdir) / "a"; b = Path(tmpdir) / "b"
+            a.write_bytes(b"x"); b.write_bytes(b"x")
+            os.utime(b, (1000, 1000)); os.utime(a, (2000, 2000))
+            self.assertTrue(source_is_newer(a, b))
+            self.assertFalse(source_is_newer(b, a))
+
+
+class ExtraWorkerResolutionTests(unittest.TestCase):
+    """The worker's _resolve_conflict handles the new resolutions."""
+
+    def setUp(self):
+        _ensure_app()
+
+    def _worker(self):
+        return CopyWorker(Path("/"), Path("/"), conflict_resolver=lambda c: None)
+
+    def _files(self, tmpdir, src_newer=True, identical=False):
+        root = Path(tmpdir); (root / "src").mkdir(); (root / "dst").mkdir()
+        s = root / "src" / "a.txt"; d = root / "dst" / "a.txt"
+        s.write_bytes(b"NEW"); d.write_bytes(b"OLD")
+        if identical:
+            d.write_bytes(b"NEW")
+            st = os.stat(s); os.utime(d, (st.st_atime, st.st_mtime))
+            return s, d
+        if src_newer:
+            os.utime(d, (1000, 1000)); os.utime(s, (5000, 5000))
+        else:
+            os.utime(s, (1000, 1000)); os.utime(d, (5000, 5000))
+        return s, d
+
+    def test_keep_newer_replaces_when_source_newer(self):
+        w = self._worker()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            s, d = self._files(tmpdir, src_newer=True)
+            # The resolver returns KEEP_NEWER; _resolve_conflict decides.
+            w.conflict_resolver = lambda c: ConflictAnswer(Resolution.KEEP_NEWER)
+            self.assertEqual(w._resolve_conflict(s, d), d)
+
+    def test_keep_newer_skips_when_existing_newer(self):
+        w = self._worker()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            s, d = self._files(tmpdir, src_newer=False)
+            w.conflict_resolver = lambda c: ConflictAnswer(Resolution.KEEP_NEWER)
+            self.assertIsNone(w._resolve_conflict(s, d))
+
+    def test_skip_identical_skips_same(self):
+        w = self._worker()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            s, d = self._files(tmpdir, identical=True)
+            w.conflict_resolver = lambda c: ConflictAnswer(Resolution.SKIP_IDENTICAL)
+            self.assertIsNone(w._resolve_conflict(s, d))
+
+    def test_skip_identical_replaces_different(self):
+        w = self._worker()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            s, d = self._files(tmpdir, src_newer=True)
+            w.conflict_resolver = lambda c: ConflictAnswer(Resolution.SKIP_IDENTICAL)
+            self.assertEqual(w._resolve_conflict(s, d), d)
+
+    def test_rename_old_frees_name_and_writes_source(self):
+        w = self._worker()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            s, d = self._files(tmpdir, src_newer=True)
+            w.conflict_resolver = lambda c: ConflictAnswer(Resolution.RENAME_OLD)
+            target = w._resolve_conflict(s, d)
+            self.assertEqual(target, d)  # incoming written under original name
+            self.assertFalse(d.exists() and d.read_bytes() == b"OLD")  # old renamed away
+            # The previous content survived under a "(copy)" name.
+            self.assertTrue((Path(tmpdir) / "dst" / "a (copy).txt").read_bytes() == b"OLD")
+
+
+class ExtraDialogResolutionTests(unittest.TestCase):
+    def setUp(self):
+        _ensure_app()
+
+    def _dialog(self, tmpdir, identical=False):
+        from lfmapp.ui.conflict_dialog import ConflictDialog
+        root = Path(tmpdir)
+        source = root / "src" / "a.txt"; existing = root / "dst" / "a.txt"
+        source.parent.mkdir(parents=True); existing.parent.mkdir(parents=True)
+        source.write_bytes(b"NEW"); existing.write_bytes(b"OLD content longer")
+        if identical:
+            existing.write_bytes(b"NEW")
+            st = os.stat(source); os.utime(existing, (st.st_atime, st.st_mtime))
+        return ConflictDialog(Conflict(source, existing))
+
+    def _click(self, dialog, text):
+        for b in dialog.findChildren(QPushButton):
+            if b.text() == text and b.isEnabled():
+                b.click(); return True
+        return False
+
+    def test_keep_newer_button_sets_answer(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dialog = self._dialog(tmpdir)
+            self.assertTrue(self._click(dialog, "Keep Newer"))
+            self.assertEqual(dialog.answer.resolution, Resolution.KEEP_NEWER)
+
+    def test_skip_identical_disabled_when_files_differ(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dialog = self._dialog(tmpdir, identical=False)
+            btn = next(b for b in dialog.findChildren(QPushButton) if b.text() == "Skip Identical")
+            self.assertFalse(btn.isEnabled())
+
+    def test_skip_identical_enabled_and_sets_answer_when_same(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dialog = self._dialog(tmpdir, identical=True)
+            self.assertTrue(self._click(dialog, "Skip Identical"))
+            self.assertEqual(dialog.answer.resolution, Resolution.SKIP_IDENTICAL)
+
+    def test_rename_old_button_sets_answer(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dialog = self._dialog(tmpdir)
+            self.assertTrue(self._click(dialog, "Rename Old"))
+            self.assertEqual(dialog.answer.resolution, Resolution.RENAME_OLD)
 
 
 if __name__ == "__main__":

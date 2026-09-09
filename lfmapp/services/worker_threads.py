@@ -14,6 +14,8 @@ from lfmapp.services.conflict_resolution import (
     Conflict,
     ConflictAnswer,
     Resolution,
+    files_identical,
+    source_is_newer,
     suggest_free_name,
 )
 
@@ -69,6 +71,29 @@ class ConflictCapableWorker(QThread):
         if resolution is Resolution.CANCEL:
             self._running = False
             return None
+        if resolution is Resolution.KEEP_NEWER:
+            # Replace only when the incoming file is newer; otherwise keep the
+            # existing one (skip). file-vs-folder cannot be compared safely.
+            if source.is_dir() != dest.is_dir():
+                return None
+            return dest if source_is_newer(source, dest) else None
+        if resolution is Resolution.SKIP_IDENTICAL:
+            # Skip a file that is byte-for-byte comparable (same size + date);
+            # for a different file fall back to replacing it.
+            if source.is_dir() or dest.is_dir():
+                return dest if source.is_dir() == dest.is_dir() else None
+            return None if files_identical(source, dest) else dest
+        if resolution is Resolution.RENAME_OLD:
+            # Free the destination name by renaming the existing item, then
+            # write the incoming item under its own name.
+            if source.is_dir() != dest.is_dir():
+                return None
+            old_as = dest.parent / suggest_free_name(dest, dest.parent)
+            try:
+                shutil.move(str(dest), str(old_as))
+            except OSError:
+                return None
+            return dest
         if resolution in (Resolution.REPLACE, Resolution.MERGE):
             if source.is_dir() != dest.is_dir():
                 # file-vs-folder conflicts cannot be replaced in place safely

@@ -28,6 +28,8 @@ from lfmapp.services.conflict_resolution import (
     ConflictAnswer,
     ConflictResolver,
     Resolution,
+    files_identical,
+    source_is_newer,
     suggest_free_name,
     _validate_new_name,
 )
@@ -104,18 +106,44 @@ class ConflictDialog(QDialog):
 
         # Buttons: only the ones that apply to this conflict kind.
         buttons = QGridLayout()
+        identical = (not is_folder) and files_identical(
+            Path(conflict.source), Path(conflict.existing)
+        )
+        newer_source = source_is_newer(Path(conflict.source), Path(conflict.existing))
         if is_folder:
-            self._add_button(buttons, 0, self.tr("Merge"), self._on_merge, "document-merge", "Ctrl+M")
-            self._add_button(buttons, 1, self.tr("Skip"), self._on_skip, "process-stop", "Ctrl+S")
-            self._add_button(buttons, 2, self.tr("Keep Both"), self._on_keep_both, "edit-copy", "Ctrl+K")
-            self._add_button(buttons, 3, self.tr("Rename"), self._on_rename, "edit-rename", "Ctrl+R")
-            self._add_button(buttons, 4, self.tr("Cancel"), self.reject, "dialog-cancel", "Esc")
+            self._add_button(buttons, 0, self.tr("Merge"), self._on_merge, "document-merge", "Ctrl+M", row=1)
+            self._add_button(buttons, 1, self.tr("Skip"), self._on_skip, "process-stop", "Ctrl+S", row=1)
+            self._add_button(buttons, 2, self.tr("Keep Both"), self._on_keep_both, "edit-copy", "Ctrl+K", row=1)
+            self._add_button(buttons, 3, self.tr("Rename"), self._on_rename, "edit-rename", "Ctrl+R", row=1)
+            self._add_button(buttons, 4, self.tr("Cancel"), self.reject, "dialog-cancel", "Esc", row=1)
+            self._add_button(buttons, 0, self.tr("Keep Newer"), self._on_keep_newer, "chronometer", "Ctrl+N", row=2)
+            self._add_button(buttons, 1, self.tr("Rename Old"), self._on_rename_old, "document-save-as", "Ctrl+O", row=2)
         else:
-            self._add_button(buttons, 0, self.tr("Replace"), self._on_replace, "edit-redo", "Ctrl+P")
-            self._add_button(buttons, 1, self.tr("Skip"), self._on_skip, "process-stop", "Ctrl+S")
-            self._add_button(buttons, 2, self.tr("Keep Both"), self._on_keep_both, "edit-copy", "Ctrl+K")
-            self._add_button(buttons, 3, self.tr("Rename"), self._on_rename, "edit-rename", "Ctrl+R")
-            self._add_button(buttons, 4, self.tr("Cancel"), self.reject, "dialog-cancel", "Esc")
+            self._add_button(buttons, 0, self.tr("Replace"), self._on_replace, "edit-redo", "Ctrl+P", row=1)
+            self._add_button(buttons, 1, self.tr("Skip"), self._on_skip, "process-stop", "Ctrl+S", row=1)
+            self._add_button(buttons, 2, self.tr("Keep Both"), self._on_keep_both, "edit-copy", "Ctrl+K", row=1)
+            self._add_button(buttons, 3, self.tr("Rename"), self._on_rename, "edit-rename", "Ctrl+R", row=1)
+            self._add_button(buttons, 4, self.tr("Cancel"), self.reject, "dialog-cancel", "Esc", row=1)
+            # Keep Newer only makes sense when the two sides differ in date.
+            self._keep_newer_button = self._add_button(
+                buttons, 0, self.tr("Keep Newer"), self._on_keep_newer,
+                "chronometer", "Ctrl+N", row=2,
+            )
+            self._keep_newer_button.setToolTip(
+                self.tr("The source is newer — overwrite") if newer_source
+                else self.tr("The existing file is newer — keep it (skip)")
+            )
+            # Skip Identical only applies when the two files are the same.
+            self._skip_identical_button = self._add_button(
+                buttons, 1, self.tr("Skip Identical"), self._on_skip_identical,
+                "dialog-check-outline", "Ctrl+I", row=2,
+            )
+            self._skip_identical_button.setEnabled(identical)
+            self._skip_identical_button.setToolTip(
+                self.tr("These files are identical (same size and date)") if identical
+                else self.tr("Disabled: the files are not identical")
+            )
+            self._add_button(buttons, 2, self.tr("Rename Old"), self._on_rename_old, "document-save-as", "Ctrl+O", row=2)
         layout.addLayout(buttons)
 
     # ─── UI construction ───────────────────────────────────────
@@ -142,11 +170,12 @@ class ConflictDialog(QDialog):
         grid.addWidget(existing_group, 0, 1)
         return grid
 
-    def _add_button(self, layout: QGridLayout, column: int, text, slot, icon, shortcut):
+    def _add_button(self, layout: QGridLayout, column: int, text, slot, icon, shortcut, row: int = 1):
         button = QPushButton(app_icon(icon), text, self)
         button.setShortcut(shortcut)
         button.clicked.connect(slot)
-        layout.addWidget(button, 1, column)
+        layout.addWidget(button, row, column)
+        return button
 
     # ─── Decisions ─────────────────────────────────────────────
 
@@ -172,6 +201,15 @@ class ConflictDialog(QDialog):
             self.rename_edit.setStyleSheet("border: 1px solid red;")
             return
         self._accept_with(Resolution.RENAME, name)
+
+    def _on_keep_newer(self):
+        self._accept_with(Resolution.KEEP_NEWER)
+
+    def _on_skip_identical(self):
+        self._accept_with(Resolution.SKIP_IDENTICAL)
+
+    def _on_rename_old(self):
+        self._accept_with(Resolution.RENAME_OLD)
 
     def _on_name_changed(self, text: str):
         _ = text
