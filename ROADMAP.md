@@ -1471,7 +1471,7 @@ Verified current situation: `lfmapp/ui/main_window.py` went from 3.849 lines to 
 - [ ] Load entries in batches and keep the UI interactive.
 - [ ] Avoid sorting or computing expensive metadata on the main thread.
 - [ ] Defer expensive columns until they are visible or requested.
-- [ ] Compute folder sizes in the background (manual or automatic) with progressive updates, an approximate marker and an invalidatable cache.
+- [x] Compute folder sizes in the background (manual or automatic) with progressive updates, an approximate marker and an invalidatable cache. → `lfmapp/services/folder_size_service.py`: pure `compute_folder_size` (recursive sum of regular files, **symlinks never followed**, per-entry errors skipped, optional `limit` that flips the approximate marker), `FolderSizeCache` (invalidated by the folder's own `st_mtime_ns`), and `FolderSizeWorker` (QThread) emitting `size_ready` per folder. The `FileSystemModel.Size` cell shows `…` while pending, the real formatted size once computed, and a `~` suffix when approximate — shown only when `View > Show Folder Sizes` (config `show_folder_sizes`, default off) is on. The workspace drives the worker over the folders currently listed (triggered on navigation and on `directoryLoaded` for the async fetch, cancelled on navigation and on close in `shutdown_flat_scan`). Tests: `tests/test_folder_sizes.py` (14: compute, cache invalidation, worker, model placeholder→value→approximate). **Progressive partial updates during a single large walk remain a refinement.**
 - [ ] Test with 10,000, 100,000 and more entries through simulation.
 
 ## 9.3 Search and indexing

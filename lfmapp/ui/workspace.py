@@ -14,7 +14,7 @@ Supports:
 from pathlib import Path
 from enum import Enum
 
-from PyQt6.QtCore import QDir, Qt, QSize, QEvent, QObject, pyqtSignal
+from PyQt6.QtCore import QDir, Qt, QSize, QEvent, QObject, QTimer, pyqtSignal
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QApplication,
@@ -33,6 +33,7 @@ from PyQt6.QtWidgets import (
 )
 
 from lfmapp.models import FileSystemModel
+from lfmapp.services.folder_size_service import FolderSizeWorker
 
 
 class ViewMode(Enum):
@@ -217,6 +218,9 @@ class Workspace(QWidget):
         # While restoring saved columns programmatically, ignore the header's
         # resize/move signals so a folder restore never overwrites the store.
         self._applying_columns = False
+        # Background folder-size worker (Phase 9.2), created on demand.
+        self._folder_size_worker = None
+        self.model.directoryLoaded.connect(self._on_directory_loaded_refresh_sizes)
 
         # Set model for all views
         self.details_view.setModel(self.model)
@@ -710,6 +714,7 @@ class Workspace(QWidget):
 
     def shutdown_flat_scan(self):
         """Stop the flat scan worker and wait for it (safe window close)."""
+        self._stop_folder_size_worker()
         worker = self._flat_worker
         if worker is None:
             return
@@ -732,6 +737,7 @@ class Workspace(QWidget):
     def set_root_path(self, path: Path):
         """Set the root path for all views."""
         self._current_path = path
+        self._stop_folder_size_worker()
         index = self.model.index(str(path))
         self.details_view.setRootIndex(index)
         self.list_view.setRootIndex(index)
@@ -742,6 +748,68 @@ class Workspace(QWidget):
         # Re-scan the tree for the flat view when it is the active mode.
         if self._view_mode == ViewMode.FLAT:
             self._start_flat_scan()
+        # Size the listed folders in the background when the feature is on.
+        self.refresh_folder_sizes()
+
+    def refresh_folder_sizes(self):
+        """(Re)start the background folder-size worker for the current listing.
+
+        Only runs in Details view with the feature enabled; the folders that
+        appear are those children of the root row. If the directory has not
+        finished loading yet, ``directoryLoaded`` re-triggers this.
+        """
+        if not self.model.show_folder_sizes or self._view_mode != ViewMode.DETAILS:
+            self._stop_folder_size_worker()
+            return
+        paths = self._listed_folder_paths()
+        if not paths:
+            return
+        self._stop_folder_size_worker()
+        worker = FolderSizeWorker(paths, parent=self)
+        worker.size_ready.connect(self.model.set_folder_size)
+        worker.finished.connect(lambda *_, w=worker: self._on_folder_size_done(w))
+        self._folder_size_worker = worker
+        worker.start()
+
+    def _on_folder_size_done(self, worker) -> None:
+        if self._folder_size_worker is worker:
+            self._folder_size_worker = None
+
+    def _listed_folder_paths(self) -> list[Path]:
+        view = self.details_view
+        root = view.rootIndex()
+        paths: list[Path] = []
+        for row in range(self.model.rowCount(root)):
+            index = self.model.index(row, 0, root)
+            if not index.isValid():
+                continue
+            candidate = Path(self.model.filePath(index))
+            try:
+                if candidate.is_dir():
+                    paths.append(candidate)
+            except OSError:
+                continue
+        return paths
+
+    def _stop_folder_size_worker(self) -> None:
+        worker = getattr(self, "_folder_size_worker", None)
+        if worker is None:
+            return
+        self._folder_size_worker = None
+        if worker.isRunning():
+            worker.stop()
+            worker.wait(3000)
+
+    def _on_directory_loaded_refresh_sizes(self, index) -> None:
+        # Only care about the current listing's own root finishing loading.
+        try:
+            loaded = Path(self.model.filePath(index)) if index.isValid() else None
+            current = self._current_path
+        except Exception:
+            return
+        if current is not None and loaded is not None and loaded == current:
+            QTimer.singleShot(0, self.refresh_folder_sizes)
+
 
     def current_path(self) -> Path:
         """Get the current root path."""

@@ -143,6 +143,7 @@ def _default_config_data():
         "folder_formats": {},
         "highlight_rules": [],
         "highlighting_enabled": True,
+        "show_folder_sizes": False,
         "folder_format_inherit_from_parent": True,
     }
 
@@ -463,6 +464,14 @@ class Config:
 
     def set_highlighting_enabled(self, enabled: bool):
         self.data["highlighting_enabled"] = bool(enabled)
+        self.save()
+
+    @property
+    def show_folder_sizes(self) -> bool:
+        return bool(self.data.setdefault("show_folder_sizes", False))
+
+    def set_show_folder_sizes(self, enabled: bool):
+        self.data["show_folder_sizes"] = bool(enabled)
         self.save()
 
     def get_highlight_rules(self) -> list[dict]:

@@ -117,3 +117,6 @@ __all__.extend([
     "rules_from_config",
     "sanitize_rule",
 ])
+from .folder_size_service import FolderSizeCache, FolderSizeWorker, compute_folder_size
+
+__all__.extend(["FolderSizeCache", "FolderSizeWorker", "compute_folder_size"])

@@ -64,6 +64,16 @@ class ViewControlsMixin:
             self.tr("Expandable folders {state}").format(state=state), 3000
         )
 
+    def toggle_folder_sizes(self, checked: bool):
+        """Toggle background folder sizes in the Details view (Phase 9.2)."""
+        self.config.set_show_folder_sizes(checked)
+        self.workspace.model.show_folder_sizes = checked
+        self.workspace.refresh_folder_sizes()
+        state = self.tr("shown") if checked else self.tr("hidden")
+        self.statusBar().showMessage(
+            self.tr("Folder sizes {state}").format(state=state), 3000
+        )
+
     def expand_current_folder(self):
         """Expand the currently selected folder row in the details view."""
         view = self.workspace.details_view

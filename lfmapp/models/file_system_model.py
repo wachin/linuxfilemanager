@@ -170,6 +170,9 @@ class FileSystemModel(QFileSystemModel):
         self._tooltip_fields: list[str] = []
         self._workspace_thumbnails_enabled = True
         self._thumbnail_cache: dict[tuple[str, int, int], QIcon] = {}
+        self._show_folder_sizes = False
+        from lfmapp.services.folder_size_service import FolderSizeCache
+        self._folder_size_cache = FolderSizeCache()
         self.apply_display_preferences()
 
     @staticmethod
@@ -227,6 +230,32 @@ class FileSystemModel(QFileSystemModel):
         self._checked_paths.clear()
         self.layoutChanged.emit()
 
+    @property
+    def show_folder_sizes(self) -> bool:
+        return self._show_folder_sizes
+
+    @show_folder_sizes.setter
+    def show_folder_sizes(self, value: bool):
+        self._show_folder_sizes = bool(value)
+        self.layoutChanged.emit()
+
+    def _folder_size_display(self, path_str: str) -> str:
+        """Size text for a directory cell: cached value, or a pending marker."""
+        if not self._show_folder_sizes:
+            return ""
+        cached = self._folder_size_cache.get(Path(path_str))
+        if cached is None:
+            return "…"  # not measured yet (the background worker will fill it)
+        size, approximate = cached
+        return self._human_readable_size(size) + (" ~" if approximate else "")
+
+    def set_folder_size(self, path: Path, size: int, approximate: bool) -> None:
+        """Record a computed folder size and refresh its Size cell."""
+        self._folder_size_cache.put(path, size, approximate)
+        index = self.index(str(path), 1)  # column 1 is "size"
+        if index.isValid():
+            self.dataChanged.emit(index, index, [Qt.ItemDataRole.DisplayRole])
+
     def apply_display_preferences(self):
         if self.config is None:
             return
@@ -248,6 +277,7 @@ class FileSystemModel(QFileSystemModel):
             for value in self.config.data.get("preview_tooltip_fields", [])
             if value
         ]
+        self._show_folder_sizes = bool(self.config.data.get("show_folder_sizes", False))
         self._thumbnail_cache.clear()
         self.layoutChanged.emit()
 
@@ -305,7 +335,7 @@ class FileSystemModel(QFileSystemModel):
 
             if key == "size":
                 if file_info.isDir():
-                    return ""
+                    return self._folder_size_display(file_info.absoluteFilePath())
                 size = file_info.size()
                 return self._human_readable_size(size)
 

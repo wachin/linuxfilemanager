@@ -37,6 +37,7 @@ Are you a developer who writes code with an AI assistant? This repository is pre
 - Advanced highlighting by rules (`View > Highlighting Rules...`): color / font / overlay-icon effects driven by name pattern, type, size, path or tag conditions, stacked with stop-at-first-match and painted via a delegate (the model is never modified)
 - Advanced selection & batch action bar: a non-modal bar (files/folders/size + Copy/Cut/Trash/Rename/Invert/Clear), **Select By…** (glob / extension / type / size / date), Space-to-check in checkbox mode, and an invert that correctly syncs checkbox state
 - Accessibility: searchable **Keyboard Shortcuts** reference (`Help > Keyboard Shortcuts…`), accessible names on icon-only and custom controls, and highlighting that never relies on colour alone
+- Background folder sizes: `View > Show Folder Sizes` sums each directory's contents off the UI thread (symlinks never followed), showing `…` while pending and a `~` marker on huge trees, cached and revalidated by the folder's own mtime
 - Desktop integration through `xdg-open`, MIME detection, and default app handling
 - Debian packaging skeleton and AppStream metadata
 
