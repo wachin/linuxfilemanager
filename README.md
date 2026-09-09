@@ -49,6 +49,8 @@ Already implemented:
 - Per-folder visual persistence: complete folder format (view, sort, group, icon grid, columns) saved per folder and restored on navigation, with parent inheritance and clear commands
 - Flat view: the current folder and its whole tree as one list (mixed, files-only, structure-grouped), with a nested-files paste rule (recreate structure vs. same folder)
 - Duplicate finder (`Tools > Find Duplicates...`): two-pass detection (size pre-group → xxh64 hash), results grouped with wasted-space indicator, auto-select strategies (keep newest / oldest / shortest path), trash integration
+- Thumbnail disk cache: persistent `~/.cache/thumbnails/` following the freedesktop.org spec, so thumbnails survive restarts and are shared with Nautilus/Thunar
+- Folder synchronization (`Tools > Folder Synchronization...`): two-phase compare → review → apply with unidirectional/bidirectional modes, selectable update criteria, orphan handling, and a filterable results table
 - XDG-compliant Quick Access that resolves Desktop, Downloads, Documents, Music, Pictures, and Videos from the system instead of hardcoded English folder names
 - Bookmarks kept separate from built-in Quick Access places by default
 - Search, bookmarks, trash, properties, and basic archive support

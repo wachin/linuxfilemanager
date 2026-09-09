@@ -365,12 +365,70 @@ class FileSystemModel(QFileSystemModel):
         if cached is not None:
             return cached
 
+        # Try the disk cache (freedesktop-spec thumbnails).
+        disk_icon = self._thumbnail_from_disk(path, stat_result)
+        if disk_icon is not None:
+            self._thumbnail_cache[cache_key] = disk_icon
+            if len(self._thumbnail_cache) > 512:
+                self._thumbnail_cache.pop(next(iter(self._thumbnail_cache)))
+            return disk_icon
+
         reader = QImageReader(path)
         reader.setAutoTransform(True)
         image = reader.read()
         if image.isNull():
             return None
 
+        icon = self._icon_from_qimage(image)
+        if icon.isNull():
+            return None
+
+        # Write to disk cache for future restarts.
+        from lfmapp.services.thumbnail_cache_service import (
+            canonical_uri,
+            is_supported_image,
+            write_thumbnail,
+        )
+        try:
+            from pathlib import Path as _P
+            p = _P(path)
+            if is_supported_image(p):
+                write_thumbnail(p, canonical_uri(p))
+        except Exception:
+            pass  # disk cache is best-effort
+
+        self._thumbnail_cache[cache_key] = icon
+        if len(self._thumbnail_cache) > 512:
+            # Keep the cache bounded so long sessions do not retain every thumbnail forever.
+            self._thumbnail_cache.pop(next(iter(self._thumbnail_cache)))
+        return icon
+
+    def _thumbnail_from_disk(self, path: str, stat_result) -> QIcon | None:
+        """Try to load a thumbnail from the freedesktop disk cache."""
+        try:
+            from pathlib import Path as _P
+            from lfmapp.services.thumbnail_cache_service import (
+                canonical_uri,
+                read_thumbnail,
+            )
+            p = _P(path)
+            uri = canonical_uri(p)
+            data = read_thumbnail(p, uri)
+            if data is None:
+                return None
+            from PyQt6.QtGui import QImage, QPixmap
+            qimg = QImage()
+            qimg.loadFromData(data, "PNG")
+            if qimg.isNull():
+                return None
+            return self._icon_from_qimage(qimg)
+        except Exception:
+            return None
+
+    @staticmethod
+    def _icon_from_qimage(image) -> QIcon:
+        """Create a multi-pixmap QIcon from a QImage."""
+        from PyQt6.QtGui import QPixmap
         icon = QIcon()
         for size in (22, 32, 48, 64, 96):
             pixmap = QPixmap.fromImage(
@@ -383,14 +441,6 @@ class FileSystemModel(QFileSystemModel):
             )
             if not pixmap.isNull():
                 icon.addPixmap(pixmap)
-
-        if icon.isNull():
-            return None
-
-        self._thumbnail_cache[cache_key] = icon
-        if len(self._thumbnail_cache) > 512:
-            # Keep the cache bounded so long sessions do not retain every thumbnail forever.
-            self._thumbnail_cache.pop(next(iter(self._thumbnail_cache)))
         return icon
 
     @staticmethod

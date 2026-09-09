@@ -400,3 +400,14 @@ class ArchiveTagVaultMixin:
         dlg = DuplicateFinderDialog(parent=self)
         dlg.start_from_folders([current], recursive=True)
         dlg.exec()
+
+    # ─── Folder Synchronization (ROADMAP P2) ─────────────────────
+
+    def show_folder_sync(self) -> None:
+        """Open the folder synchronization dialog."""
+        from lfmapp.ui.sync_dialog import SyncDialog
+
+        current = Path(self.workspace.model.rootPath())
+        dlg = SyncDialog(parent=self)
+        dlg._src_edit.setText(str(current))
+        dlg.exec()
