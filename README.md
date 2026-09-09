@@ -26,6 +26,7 @@ Are you a developer who writes code with an AI assistant? This repository is pre
 
 - Modular PyQt6 application structure
 - Multiple view modes: icons, list, details, compact, and flat (whole tree in one list)
+- Expandable folders (inline tree): toggle `View > Expandable Folders` to show expansion arrows on subfolder rows in Details view; click or `Alt+Down` to peek inside without changing the active folder
 - Per-folder view memory: view mode, sorting, grouping, icon grid and Details columns saved per folder, with optional inheritance from parent folders
 - Quick Access, bookmarks, recent locations, and tabbed navigation
 - XDG User Directories support for localized and user-customized standard folders

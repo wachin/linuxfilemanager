@@ -115,6 +115,7 @@ def _default_config_data():
         ],
         "remember_folder_view": True,
         "selection_checkboxes": False,
+        "inline_tree_expansion": False,
         "show_hidden_files": True,
         "show_file_extensions": True,
         "icon_grid_size": "medium",
@@ -445,6 +446,14 @@ class Config:
 
     def set_selection_checkboxes(self, enabled: bool):
         self.data["selection_checkboxes"] = bool(enabled)
+        self.save()
+
+    @property
+    def inline_tree_expansion(self) -> bool:
+        return bool(self.data.setdefault("inline_tree_expansion", False))
+
+    def set_inline_tree_expansion(self, enabled: bool):
+        self.data["inline_tree_expansion"] = bool(enabled)
         self.save()
 
     @property

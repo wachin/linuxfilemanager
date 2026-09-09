@@ -33,6 +33,7 @@ class TabsNavigationMixin:
             ("F2", Qt.Key.Key_F2, self.rename_selected, "rename"),
             ("Ctrl+L", "Ctrl+L", self.focus_path_bar, "focus_path"),
             ("Ctrl+E", "Ctrl+E", self.focus_search, "focus_search"),
+            ("Alt+Down", "Alt+Down", self._expand_or_navigate_down, "expand_down"),
         ]
         for _label, seq, slot, command_id in shortcuts:
             sc = QShortcut(QKeySequence(seq), self, slot)
@@ -45,6 +46,65 @@ class TabsNavigationMixin:
                     category=self.tr("Keyboard"),
                     callback=slot,
                 )
+
+    # ─── Inline expansion helpers (Alt+Down/Up) ────────────────
+
+    def _expand_or_navigate_down(self) -> None:
+        """Alt+Down: expand the current folder if possible; else move selection down."""
+        if not self.config.inline_tree_expansion:
+            self._move_selection_down()
+            return
+        view = self.workspace.details_view
+        idx = view.currentIndex()
+        if idx.isValid() and view.canExpand(idx):
+            view.expand(idx)
+        else:
+            self._move_selection_down()
+
+    def _collapse_or_navigate_up(self) -> None:
+        """Alt+Up: collapse the current folder if expanded; else move selection up."""
+        if not self.config.inline_tree_expansion:
+            self._move_selection_up()
+            return
+        view = self.workspace.details_view
+        idx = view.currentIndex()
+        if idx.isValid() and view.isExpanded(idx):
+            view.collapse(idx)
+        else:
+            self._move_selection_up()
+
+    def _expand_recursive(self) -> None:
+        """Ctrl+Alt+Down: expand the selected folder and all descendants."""
+        view = self.workspace.details_view
+        idx = view.currentIndex()
+        if idx.isValid():
+            view.expandRecursively(idx, 10)
+
+    def _collapse_all(self) -> None:
+        """Ctrl+Alt+Left: collapse all expanded branches."""
+        self.workspace.details_view.collapseAll()
+
+    def _move_selection_down(self) -> None:
+        """Move selection to the next row in the current view."""
+        view = self.workspace._get_current_view()
+        idx = view.currentIndex()
+        if not idx.isValid():
+            return
+        model = view.model()
+        next_row = idx.row() + 1
+        if next_row < model.rowCount(idx.parent()):
+            view.setCurrentIndex(model.index(next_row, idx.column(), idx.parent()))
+
+    def _move_selection_up(self) -> None:
+        """Move selection to the previous row in the current view."""
+        view = self.workspace._get_current_view()
+        idx = view.currentIndex()
+        if not idx.isValid():
+            return
+        model = view.model()
+        prev_row = idx.row() - 1
+        if prev_row >= 0:
+            view.setCurrentIndex(model.index(prev_row, idx.column(), idx.parent()))
 
     # ─── Tabs ─────────────────────────────────────────────────
 

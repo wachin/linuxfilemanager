@@ -54,6 +54,38 @@ class ViewControlsMixin:
         state = self.tr("shown") if checked else self.tr("hidden")
         self.statusBar().showMessage(self.tr("Selection checkboxes {state}").format(state=state), 3000)
 
+    def toggle_inline_expansion(self, checked: bool):
+        """Toggle expandable folders in the Details view (inline tree arrows)."""
+        self.workspace.setRootIsDecorated(checked)
+        self.workspace.setItemsExpandable(checked)
+        self.config.set_inline_tree_expansion(checked)
+        state = self.tr("enabled") if checked else self.tr("disabled")
+        self.statusBar().showMessage(
+            self.tr("Expandable folders {state}").format(state=state), 3000
+        )
+
+    def expand_current_folder(self):
+        """Expand the currently selected folder row in the details view."""
+        view = self.workspace.details_view
+        if not view.isExpanded(view.currentIndex()):
+            view.expand(view.currentIndex())
+
+    def collapse_current_folder(self):
+        """Collapse the currently selected folder row in the details view."""
+        view = self.workspace.details_view
+        if view.isExpanded(view.currentIndex()):
+            view.collapse(view.currentIndex())
+
+    def expand_recursive_selected(self):
+        """Expand the selected folder and all its sub-folders recursively."""
+        view = self.workspace.details_view
+        view.expandRecursively(view.currentIndex(), 10)
+
+    def collapse_all_expanded(self):
+        """Collapse all expanded branches in the details view."""
+        view = self.workspace.details_view
+        view.collapseAll()
+
     def set_view_mode(self, mode: ViewMode):
         """Set the workspace view mode (Icon, List, or Details)."""
         self.workspace.set_view_mode(mode)

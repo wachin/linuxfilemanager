@@ -100,8 +100,9 @@ class Workspace(QWidget):
         self.details_view.setAlternatingRowColors(True)
         self.details_view.setUniformRowHeights(True)
         self.details_view.setSortingEnabled(True)
-        self.details_view.setRootIsDecorated(False)
-        self.details_view.setItemsExpandable(False)
+        _inline_expansion = bool(self.config.data.get("inline_tree_expansion", False)) if self.config else False
+        self.details_view.setRootIsDecorated(_inline_expansion)
+        self.details_view.setItemsExpandable(_inline_expansion)
         self.details_view.setIconSize(QSize(22, 22))
         self.details_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.details_view.setSelectionMode(QTreeView.SelectionMode.ExtendedSelection)
