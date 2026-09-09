@@ -387,3 +387,16 @@ class ArchiveTagVaultMixin:
         current_path = Path(self.workspace.model.rootPath())
         if current_path.exists():
             self.terminal_service.open_terminal(current_path)
+
+    # ─── Duplicate Finder (ROADMAP P2) ──────────────────────────
+
+    def show_duplicate_finder(self) -> None:
+        """Open the duplicate finder dialog for the current folder."""
+        from lfmapp.ui.duplicate_finder_dialog import DuplicateFinderDialog
+
+        current = Path(self.workspace.model.rootPath())
+        if not current.exists():
+            return
+        dlg = DuplicateFinderDialog(parent=self)
+        dlg.start_from_folders([current], recursive=True)
+        dlg.exec()

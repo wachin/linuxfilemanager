@@ -321,6 +321,8 @@ class MenuBarMixin:
         tools_menu.addSeparator()
         self._add_action(tools_menu, "Index Current Folder", self.on_index_current_folder)
         self._add_action(tools_menu, "Toggle Text Index Search", self.on_toggle_text_index)
+        tools_menu.addSeparator()
+        self._add_action(tools_menu, "Find Duplicates...", self.show_duplicate_finder)
 
         # Help menu
         help_menu = menubar.addMenu(self.tr("&Help"))

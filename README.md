@@ -48,6 +48,7 @@ Already implemented:
 - Context menus and toolbar actions
 - Per-folder visual persistence: complete folder format (view, sort, group, icon grid, columns) saved per folder and restored on navigation, with parent inheritance and clear commands
 - Flat view: the current folder and its whole tree as one list (mixed, files-only, structure-grouped), with a nested-files paste rule (recreate structure vs. same folder)
+- Duplicate finder (`Tools > Find Duplicates...`): two-pass detection (size pre-group → xxh64 hash), results grouped with wasted-space indicator, auto-select strategies (keep newest / oldest / shortest path), trash integration
 - XDG-compliant Quick Access that resolves Desktop, Downloads, Documents, Music, Pictures, and Videos from the system instead of hardcoded English folder names
 - Bookmarks kept separate from built-in Quick Access places by default
 - Search, bookmarks, trash, properties, and basic archive support
@@ -156,7 +157,7 @@ What they enable (future work):
 - media metadata without subprocess calls (`python3-pymediainfo`)
 - EXIF read/write helpers (`python3-piexif`, `python3-exifread`)
 - lightweight file-type detection (`python3-filetype`)
-- fast hashing for the duplicate finder (`python3-xxhash`)
+- fast hashing for the duplicate finder (`python3-xxhash` — now used)
 - FFmpeg bindings for video sampling (`python3-av`)
 - Zstandard compression support (`python3-zstandard`)
 - QR/SVG helpers if "share as QR" or extra SVG previews are added
@@ -164,8 +165,8 @@ What they enable (future work):
 - XDG trash helper (`python3-send2trash`, `trash-cli`)
 - remote/cloud backends (`rclone`, `python3-paramiko`)
 - video thumbnailing (`ffmpegthumbnailer`)
-- duplicate-hash engines for the duplicate finder (`rmlint`, `fdupes`,
-  `rdfind`)
+- duplicate-hash engines for reference (`rmlint`, `fdupes`, `rdfind`; our
+  duplicate finder uses `python3-xxhash` natively)
 
 ### Optional external tools
 
