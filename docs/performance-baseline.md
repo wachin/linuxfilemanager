@@ -181,6 +181,45 @@ cada proceso (ver hallazgo nº 1).
 > dominado por la resolución de iconos del sistema; una vez cargados los
 > módulos y caches, abrir otra ventana cuesta **~0,9 s**.
 
+> **[2026-09-09 — hallazgo nº 1 CORREGIDO de raíz]** La causa real: la app había
+> añadido (commit `a32d2db`) un **escaneo del árbol de iconos en el arranque**
+> (`discover_system_icons` → `_find_system_icon_file` haciendo `Path.rglob` por
+> cada uno de los ~66 nombres candidatos sobre `/usr/share/icons` ≈ 462 000
+> ficheros + `~/.icons` ≈ 95 000 → **27 s en frío, ≈ 8 s con caché parcial**, y
+> como persistía el resultado el 2º lanzamiento era rápido: justo el síntoma
+> «lento una vez, rápido después»). Eso contradice el diseño original y lo que
+> hace **Thunar**: Thunar NUNCA camina el árbol; resuelve por **nombre** contra
+> el motor de temas del sistema (`gtk_icon_theme_lookup_*` + el `icon-theme.cache`
+> que genera `gtk-update-icon-cache`) y deriva el nombre del tipo con
+> `g_content_type_get_icon`. Nuestro equivalente Thunar-fiel ya estaba en el
+> código (`FallbackIconProvider` + `app_icon` → `QIcon.fromTheme`), sólo que el
+> escaneo de `a32d2db` se ponía delante en el arranque.
+>
+> **Arreglo definitivo:** se eliminó la llamada de arranque a
+> `discover_system_icons()` (`app.main`). Ahora el arranque no escanea nada:
+> los iconos se resuelven por `QIcon.fromTheme` (instantáneo con un tema real
+> como Zorin). El único barrido posible es `_icon_file_index()`, que es **lazy y
+> memoizado** y sólo se construye si un nombre no está en el tema activo (caso
+> `hicolor` pelado bajo qt6ct); y como `_search_for_icon_path` ahora **persiste
+> también los fallos**, ese índice se construye una sola vez en la vida del
+> perfil (auto-curado, igual que el cache de GTK). Medido con tema activo y
+> perfil tibio: **arranque 0,63 s, 0 caminatas de árbol, índice no construido**.
+> La optimización del índice (`_find_system_icon_file` usa `_icon_file_index()`
+> en vez de `rglob` por nombre: 27 s → 1,3 s) se mantiene por si se vuelve a
+> invocar el descubrimiento. Regresiones cubiertas en `tests/test_ui_icons.py`
+> (`test_discovery_lookup_uses_index_not_rglob`,
+> `test_search_for_icon_path_persists_misses_for_self_healing`).
+>
+> **Segundo defecto relacionado (corregido):** `test_flat_view.py` y
+> `test_folder_format.py` restauraban `CONFIG_FILE` al valor real en `tearDown`
+> *antes* de que `addCleanup` cerrara la ventana; el `closeEvent` hacía
+> `Config.save()` escribiendo un perfil de defaults sobre el `config.json` **del
+> usuario**, borrando `icon_search_complete`/`cached_icon_paths`. Así **cada
+> corrida de la suite re-disparaba un arranque lento**. Arreglado fijando la
+> ruta en la construcción de `Config` (`self._config_file`), haciendo `save()`
+> resiliente, y —al quitar el escaneo de arranque— ya ni siquiera importa que el
+> flag se resetee: el siguiente arranque no escanea de todos modos.
+
 ### 4.2 Apertura de carpetas (`bench_folder_open.py`)
 
 Tiempo hasta las primeras 25 filas y hasta la carga completa del modelo
@@ -255,7 +294,7 @@ scripts.
 
 | Métrica | Medido (p50) | Presupuesto propuesto | Nota |
 |---|---|---|---|
-| Arranque frío (perfil limpio, 1ª ventana) | 25,64 s | **≤ 8 s** | Requiere corregir la resolución de iconos (hallazgo nº 1). Meta intermedia ≤ 15 s. |
+| Arranque frío (perfil limpio, 1ª ventana) | 25,64 s | **≤ 8 s** | **[Hecho 2026-09-09]** Hallazgo nº 1 corregido: descubrimiento de iconos vía índice memoizado (27 s → 1,3 s). Pendiente re-medir `bench_startup.py` para registrar el p50 frío real. |
 | 2º lanzamiento con caché de perfil | 20,62 s | **≤ 3 s** | Ídem; la caché debe persistir aciertos y fallos. |
 | Arranque caliente (2ª ventana, mismo proceso) | 0,87 s | **≤ 1,0 s** | Ya se cumple en p50; p95 observado 1,00 s. |
 | Apertura carpeta 100 entradas | 0,190 s | **≤ 0,5 s** | — |

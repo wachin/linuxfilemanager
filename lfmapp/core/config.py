@@ -149,17 +149,26 @@ def _default_config_data():
 
 class Config:
     def __init__(self):
-        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        # Bind the config location at construction. Tests (and the app) may
+        # redirect the module-level CONFIG_DIR/CONFIG_FILE between creating an
+        # instance and it later persisting (e.g. a window closed during
+        # teardown after the global was restored). Capturing the path here
+        # guarantees an instance only ever reads/writes the file it was built
+        # against, so a temp-scoped Config can never clobber the user's real
+        # config once the global points home again.
+        self._config_dir = CONFIG_DIR
+        self._config_file = CONFIG_FILE
+        self._config_dir.mkdir(parents=True, exist_ok=True)
         self.data = self._load()
 
     @property
     def file_path(self) -> Path:
-        return CONFIG_FILE
+        return self._config_file
 
     def _load(self):
-        if CONFIG_FILE.exists():
+        if self._config_file.exists():
             try:
-                data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+                data = json.loads(self._config_file.read_text(encoding="utf-8"))
                 # Ensure we always return a dict. Older or corrupted files
                 # might contain `null` or a list of bookmarks.
                 if isinstance(data, dict):
@@ -176,7 +185,11 @@ class Config:
         return _default_config_data()
 
     def save(self):
-        CONFIG_FILE.write_text(
+        # Be resilient if the config directory vanished mid-session (e.g. the
+        # app-data folder was deleted, or a test tore it down before a late
+        # close flushes state): recreate it rather than raising.
+        self._config_file.parent.mkdir(parents=True, exist_ok=True)
+        self._config_file.write_text(
             json.dumps(self.data, indent=2, ensure_ascii=False), encoding="utf-8"
         )
 

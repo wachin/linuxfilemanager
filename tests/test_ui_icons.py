@@ -168,6 +168,28 @@ class IconResolutionTests(unittest.TestCase):
             self.icons._ICON_FILE_INDEX = None
             Path(tmp_path).unlink(missing_ok=True)
 
+    def test_discovery_lookup_uses_index_not_rglob(self):
+        # Cold-startup performance guard: `_find_system_icon_file` (used only by
+        # the one-time discovery) must resolve from the memoized index, never by
+        # rglob-scanning the whole theme tree per name — that scan is what made
+        # the first launch take 8-27s on large icon themes. If any rglob happens
+        # here, the patch below raises.
+        svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>'
+        with tempfile.NamedTemporaryFile(suffix=".svg", delete=False) as tmp:
+            tmp.write(svg.encode("utf-8"))
+            tmp_path = tmp.name
+        try:
+            self.icons._ICON_FILE_INDEX = {"go-previous": tmp_path}
+            self.icons._ICON_PATH_CACHE.clear()
+            with patch("pathlib.Path.rglob", side_effect=AssertionError("rglob used in discovery")):
+                found = self.icons._find_system_icon_file("go-previous")
+                miss = self.icons._find_system_icon_file("totally-absent-name-xyz")
+            self.assertEqual(found, Path(tmp_path))
+            self.assertIsNone(miss)
+        finally:
+            self.icons._ICON_FILE_INDEX = None
+            Path(tmp_path).unlink(missing_ok=True)
+
     def test_initialize_icon_cache_loads_found_paths_and_known_misses(self):
         svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>'
         with tempfile.NamedTemporaryFile(suffix=".svg", delete=False) as tmp:
@@ -216,6 +238,22 @@ class IconResolutionTests(unittest.TestCase):
             "package-x-generic",
         ):
             self.assertIn(name, candidates)
+
+    def test_search_for_icon_path_persists_misses_for_self_healing(self):
+        # A name the active theme lacks must be persisted as a miss so the next
+        # launch seeds it via initialize_icon_cache and never rebuilds the
+        # (expensive) whole-tree index for it again.
+        config = self._make_config()
+        self.icons._ICON_FILE_INDEX = {}  # index built but name absent
+        self.icons._ICON_PATH_CACHE.clear()
+        result = self.icons._search_for_icon_path("definitely-not-here", config)
+        self.assertIsNone(result)
+        self.assertIn("definitely-not-here", config._misses)
+        # A later launch (seeded cache) resolves from memory without a rebuild.
+        self.icons._ICON_PATH_CACHE.clear()
+        self.icons.initialize_icon_cache(config)
+        self.assertIsNone(self.icons._search_for_icon_path("definitely-not-here", config))
+        self.icons._ICON_FILE_INDEX = None
 
     def test_pending_icon_searches_reflects_unresolved_names_only(self):
         config = self._make_config()
