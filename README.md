@@ -315,6 +315,14 @@ for our flat view and exposed two real bugs — a self-copy deadlock and a
 spurious "nested files?" dialog. No Dolphin code was copied; the diagnosis
 and the credit to its developers are recorded there for future contributors.
 
+A second example is [`docs/adr/ADR-0002-system-icon-loading.md`](docs/adr/ADR-0002-system-icon-loading.md):
+it records a **locked** decision — icons are resolved through the toolkit theme
+engine (`QIcon.fromTheme`, the Qt analogue of Thunar's `gtk_icon_theme_lookup_*`
+backed by the system's `gtk-update-icon-cache`), and the application must **never
+scan the icon trees at startup**. This prevents reintroducing an 8-27 s cold-start
+regression; it is enforced by `tests/test_ui_icons.py::IconLoadingIsLockedTests`.
+See also **Locked decisions** in [`AGENTS.md`](AGENTS.md).
+
 To get the submodules when cloning the repository:
 
 ```bash

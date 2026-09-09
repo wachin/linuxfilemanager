@@ -301,5 +301,56 @@ class IconResolutionTests(unittest.TestCase):
             Path(tmp_path).unlink(missing_ok=True)
 
 
+class IconLoadingIsLockedTests(unittest.TestCase):
+    """Guardrails for ADR-0002: system icons resolve through the theme engine.
+
+    These are the "rule" that prevents reintroducing the 8-27s cold-startup
+    regression (a startup scan of the icon trees). If they fail, restore the
+    theme-engine approach — do NOT weaken the tests. See
+    docs/adr/ADR-0002-system-icon-loading.md.
+    """
+
+    def test_startup_entry_point_does_not_scan_icon_trees(self):
+        import inspect
+
+        import lfmapp.app as app_module
+
+        src = inspect.getsource(app_module.main)
+        # The entry point must only restore persisted paths (non-scanning), and
+        # must never call the one-time tree scan at startup.
+        self.assertIn("initialize_icon_cache", src)
+        self.assertNotIn("discover_system_icons", src)
+        self.assertNotIn("pending_icon_searches", src)
+
+    def test_themed_lookup_never_walks_icon_dirs(self):
+        # The real-desktop case: the active theme provides the icon, so a
+        # lookup must be satisfied by the theme engine alone — no file index,
+        # no rglob, no os.walk. Any of those paths raises if touched.
+        svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>'
+        with tempfile.NamedTemporaryFile(suffix=".svg", delete=False) as tmp:
+            tmp.write(svg.encode("utf-8"))
+            tmp_path = tmp.name
+        try:
+            import lfmapp.ui.icons as icons_module
+
+            icons_module._ICON_CACHE.clear()
+            icons_module._ICON_PATH_CACHE.clear()
+            with patch(
+                "lfmapp.ui.icons.QIcon.fromTheme", return_value=QIcon(tmp_path)
+            ), patch(
+                "lfmapp.ui.icons._icon_file_index",
+                side_effect=AssertionError("theme lookup must not build the file index"),
+            ), patch(
+                "pathlib.Path.rglob",
+                side_effect=AssertionError("theme lookup must not rglob"),
+            ):
+                icon = icons_module.app_icon("folder")
+            self.assertFalse(icon.isNull())
+        finally:
+            icons_module._ICON_CACHE.clear()
+            icons_module._ICON_PATH_CACHE.clear()
+            Path(tmp_path).unlink(missing_ok=True)
+
+
 if __name__ == "__main__":
     unittest.main()

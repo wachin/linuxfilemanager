@@ -15,6 +15,23 @@ Build the best file manager for Linux focused on productivity: fast with keyboar
 - `lfmapp/` (whether the capability already exists in code).
 - `tests/` (what behaviour is already covered by tests).
 - `docs/ux-flow-audit.md` and `docs/performance-baseline.md` (workflow audit and performance baseline).
+- **`docs/adr/`** (settled architectural decisions — see the rule below).
+
+## Locked decisions (do not re-open or re-solve)
+
+Some designs are already solved and **must not be extended or reimplemented**.
+Read the matching ADR before touching that area, and treat "improving" it by
+adding a second mechanism as a regression:
+
+- **System icon loading — ADR-0002 (`docs/adr/ADR-0002-system-icon-loading.md`).**
+  Icons are resolved **by name through the toolkit theme engine** (`QIcon.fromTheme`,
+  the Qt analogue of Thunar's `gtk_icon_theme_lookup_*` + `gtk-update-icon-cache`),
+  with a lazy, memoized, self-healing file-index fallback for the bare-`hicolor`
+  case. **Never add a startup scan of the icon trees** (`discover_system_icons`,
+  `Path.rglob`, `os.walk` over `~/.icons` / `/usr/share/icons`): that was the
+  8-27 s cold-startup regression. This rule is enforced by
+  `tests/test_ui_icons.py::IconLoadingIsLockedTests` — if those tests fail, restore
+  the theme-engine path, do not delete the tests.
 
 ## Current architecture (important)
 
